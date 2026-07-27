@@ -173,6 +173,7 @@ function questionsForLaw(law){
   if(law === 'hard') return allQuestions().filter(q => q.difficulty === 'hard');
   if(law === 'failed') return allQuestions().filter(q => isFailedQuestion(q));
   if(law === 'glossary') return allQuestions().filter(q => q.domain === 'glossary');
+  if(law === 'saved') return allQuestions().filter(q => !!STATE.storage.saved[q.id]);
   return allQuestions().filter(q => q.domain!=='glossary' && q.rule === law);
 }
 
@@ -604,7 +605,6 @@ function viewFor(v){
   if(v==='stats') return statsView();
   if(v==='trainConfig') return trainConfigView();
   if(v==='flagged') return flaggedView();
-  if(v==='saved') return savedView();
   if(v==='database') return databaseView();
   if(v==='dailyChallenge') return dailyChallengeView();
   if(v==='achievements') return achievementsView();
@@ -920,7 +920,7 @@ function homeView(){
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
-    ${Object.keys(STATE.storage.saved).length>0 ? `<button class="btn btn-ghost" data-action="saved-list">💾 Guardadas <span class="badge">${Object.keys(STATE.storage.saved).length}</span></button>` : ''}
+    ${Object.keys(STATE.storage.saved).length>0 ? `<button class="btn btn-ghost" data-action="open-law" data-law="saved">📚 Mi Lista <span class="badge">${Object.keys(STATE.storage.saved).length}</span></button>` : ''}
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
     ${progressHtml}
@@ -945,6 +945,7 @@ function lawMenuView(){
   const isHard = law === 'hard';
   const isFailed = law === 'failed';
   const isGlossary = law === 'glossary';
+  const isSaved = law === 'saved';
   const headHtml = isHard
     ? `<div class="num" style="color:var(--red);"><span class="ref-card red" style="width:22px; height:30px; display:inline-block; vertical-align:middle;"></span></div>
        <div><div class="name">Sala VAR <span class="hard-tag">Modo difícil</span></div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`
@@ -954,6 +955,9 @@ function lawMenuView(){
     : isGlossary
     ? `<div class="num">G</div>
        <div><div class="name">Preguntas Glosario <span class="mono" style="font-size:11px; color:var(--muted); font-weight:500;">IFAB</span></div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`
+    : isSaved
+    ? `<div class="num">📚</div>
+       <div><div class="name">Mi Lista <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Guardadas por ti</span></div><div class="stat">${s.total>0 ? s.total+' pregunta(s) guardadas' : 'Nada guardado todavía'}</div></div>`
     : `<div class="num">${law}</div>
        <div><div class="name">${esc(LAW_NAMES[law])}</div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`;
   if(isFailed && s.total===0){
@@ -963,6 +967,13 @@ function lawMenuView(){
     <div class="empty-state">¡Nada pendiente! No tienes ninguna pregunta fallada ahora mismo. Sigue haciendo tests y, si fallas alguna, aparecerá aquí para que la repases.</div>
     `;
   }
+  if(isSaved && s.total===0){
+    return `
+    <button class="backbtn" data-action="home">&larr; Todas las reglas</button>
+    <div class="big-law-head">${headHtml}</div>
+    <div class="empty-state">Todavía no has guardado ninguna pregunta. Pulsa "📚 Guardar en Mi Lista" durante un test para añadirla aquí.</div>
+    `;
+  }
   return `
   <button class="backbtn" data-action="home">&larr; Todas las reglas</button>
   <div class="big-law-head">
@@ -970,11 +981,11 @@ function lawMenuView(){
   </div>
   <div class="menu-list">
     <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="short">
-      <div><div class="title">Test rápido</div><div class="desc">10 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':' de esta regla'}</div></div>
+      <div><div class="title">Test rápido</div><div class="desc">10 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isSaved?' de tu lista':' de esta regla'}</div></div>
       <div class="arrow">›</div>
     </button>
     <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="study25">
-      <div><div class="title">Modo estudio</div><div class="desc">25 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':' de esta regla'}, con la solución al momento de responder</div></div>
+      <div><div class="title">Modo estudio</div><div class="desc">25 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isSaved?' de tu lista':' de esta regla'}, con la solución al momento de responder</div></div>
       <div class="arrow">›</div>
     </button>
     <button class="menu-item" data-action="train-config-scoped" data-law="${law}">
@@ -999,8 +1010,6 @@ function pickQuestions(law, mode){
 
 function startQuiz(law, mode){
   const qids = mode==='review' ? Object.keys(STATE.storage.flags).filter(id=>{
-      const q=allQuestions().find(x=>x.id===id); return q && (!law || q.rule===law);
-    }) : mode==='reviewSaved' ? Object.keys(STATE.storage.saved).filter(id=>{
       const q=allQuestions().find(x=>x.id===id); return q && (!law || q.rule===law);
     }) : pickQuestions(law, mode);
   if(qids.length===0){ STATE.toast="No hay preguntas disponibles para este modo."; render(); return; }
@@ -1123,7 +1132,7 @@ function quizView(){
     ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
   }
   const reportBtn = `<button class="flag-btn" data-action="report-question" data-qid="${q.id}">${STATE.reportedIds[q.id] ? '✓ Error reportado, ¡gracias!' : '🚩 Reportar un error en esta pregunta'}</button>`;
-  const savedBtn = `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">${STATE.storage.saved[q.id] ? '💾 Guardada para estudiar después' : '💾 Guardar para estudiar después'}</button>`;
+  const savedBtn = `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">${STATE.storage.saved[q.id] ? '✓ Guardada en tu Lista' : '📚 Guardar en Mi Lista'}</button>`;
   const actionLinksRow = `<div style="display:flex; gap:16px; flex-wrap:wrap;">${savedBtn}${reportBtn}</div>`;
 
   let topbar;
@@ -1325,7 +1334,7 @@ function trainConfigView(){
     const active = cfg.laws.includes(i);
     chips += `<button class="tab ${active?'active':''}" data-action="toggle-train-law" data-law="${i}">R${i}</button>`;
   }
-  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
+  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='saved' ? 'Mi Lista' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
   const backAction = scopeOverride ? 'open-law' : 'home';
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${scopeOverride||''}">&larr; ${scopeOverride ? scopeLabel : 'Inicio'}</button>
@@ -1399,38 +1408,6 @@ function flaggedView(){
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Preguntas marcadas para revisar</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${ids.length} pregunta(s) señaladas como posiblemente desactualizadas o con error.</div>
-  ${items}
-  `;
-}
-
-function savedView(){
-  const ids = Object.keys(STATE.storage.saved);
-  const letters=['a','b','c','d'];
-  if(ids.length===0){
-    return `<button class="backbtn" data-action="home">&larr; Inicio</button>
-    <h2 style="margin-bottom:10px;">Guardadas para estudiar</h2>
-    <div class="empty-state">Todavía no has guardado ninguna pregunta. Cuando veas una que quieras repasar más adelante, pulsa "💾 Guardar para estudiar después" en el test, y aparecerá aquí.</div>`;
-  }
-  let items = ids.map(id=>{
-    const q = allQuestions().find(x=>x.id===id);
-    if(!q) return '';
-    return `<div class="qcard" style="margin-bottom:10px;">
-      <div class="qtag">${scopeLabel(q)}</div>
-      <div class="qtext">${esc(q.question)}</div>
-      ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
-      ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-      <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-        <button class="btn btn-ghost" data-action="unsave" data-qid="${q.id}">Quitar de guardadas</button>
-      </div>
-    </div>`;
-  }).join('');
-  return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Guardadas para estudiar</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${ids.length} pregunta(s) guardadas.</div>
-  <div style="margin-bottom:14px;">
-    <button class="btn btn-primary" data-action="review-saved">Practicar estas preguntas como test</button>
-  </div>
   ${items}
   `;
 }
@@ -1897,7 +1874,7 @@ function onAction(e){
   const el = e.currentTarget;
   const action = el.dataset.action;
   const rawLaw = el.dataset.law;
-  const law = rawLaw ? ((rawLaw==='hard' || rawLaw==='failed' || rawLaw==='glossary' || /^fed-\d+$/.test(rawLaw)) ? rawLaw : parseInt(rawLaw,10)) : null;
+  const law = rawLaw ? ((rawLaw==='hard' || rawLaw==='failed' || rawLaw==='glossary' || rawLaw==='saved' || /^fed-\d+$/.test(rawLaw)) ? rawLaw : parseInt(rawLaw,10)) : null;
 
   if(action==='logout'){ stopTimer(); if(typeof handleLogout==='function') handleLogout(); }
   else if(action==='home'){ stopTimer(); STATE.view='home'; render(); }
@@ -2001,17 +1978,10 @@ function onAction(e){
   }
   else if(action==='review-flagged'){ startQuiz(law, 'review'); }
   else if(action==='flagged-list'){ STATE.editingId=null; STATE.view='flagged'; render(); }
-  else if(action==='review-saved'){ startQuiz(law, 'reviewSaved'); }
-  else if(action==='saved-list'){ STATE.view='saved'; render(); }
   else if(action==='toggle-saved'){
     const qid = el.dataset.qid;
     if(STATE.storage.saved[qid]) delete STATE.storage.saved[qid];
     else STATE.storage.saved[qid] = true;
-    saveSaved();
-    render();
-  }
-  else if(action==='unsave'){
-    delete STATE.storage.saved[el.dataset.qid];
     saveSaved();
     render();
   }
