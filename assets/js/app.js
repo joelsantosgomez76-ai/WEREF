@@ -80,7 +80,7 @@ let STATE = {
   editingId: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, userQuestions:[], flags:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0 },
+  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0 },
   toast: null,
   reviewDetailIdx: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
@@ -187,6 +187,7 @@ async function loadStorage(){
   try{ const v = await storageGet('progress'); STATE.storage.progress = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.progress = {}; }
   try{ const v = await storageGet('userQuestions'); STATE.storage.userQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.userQuestions = []; }
   try{ const v = await storageGet('flags'); STATE.storage.flags = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.flags = {}; }
+  try{ const v = await storageGet('saved'); STATE.storage.saved = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.saved = {}; }
   try{ const v = await storageGet('edits'); STATE.storage.edits = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.edits = {}; }
   try{ const v = await storageGet('reviewed'); STATE.storage.reviewed = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.reviewed = {}; }
   try{ const v = await storageGet('deleted'); STATE.storage.deleted = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.deleted = {}; }
@@ -208,6 +209,7 @@ async function loadStorage(){
 async function saveProgress(){ await storageSet('progress', JSON.stringify(STATE.storage.progress)); }
 async function saveUserQuestions(){ await storageSet('userQuestions', JSON.stringify(STATE.storage.userQuestions)); }
 async function saveFlags(){ await storageSet('flags', JSON.stringify(STATE.storage.flags)); }
+async function saveSaved(){ await storageSet('saved', JSON.stringify(STATE.storage.saved)); }
 async function saveEdits(){ await storageSet('edits', JSON.stringify(STATE.storage.edits)); }
 async function saveReviewed(){ await storageSet('reviewed', JSON.stringify(STATE.storage.reviewed)); }
 async function saveGlossaryQuestions(){ await storageSet('glossaryQuestions', JSON.stringify(STATE.storage.glossaryQuestions)); }
@@ -602,6 +604,7 @@ function viewFor(v){
   if(v==='stats') return statsView();
   if(v==='trainConfig') return trainConfigView();
   if(v==='flagged') return flaggedView();
+  if(v==='saved') return savedView();
   if(v==='database') return databaseView();
   if(v==='dailyChallenge') return dailyChallengeView();
   if(v==='achievements') return achievementsView();
@@ -917,6 +920,7 @@ function homeView(){
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
+    ${Object.keys(STATE.storage.saved).length>0 ? `<button class="btn btn-ghost" data-action="saved-list">💾 Guardadas <span class="badge">${Object.keys(STATE.storage.saved).length}</span></button>` : ''}
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
     ${progressHtml}
@@ -969,10 +973,6 @@ function lawMenuView(){
       <div><div class="title">Test rápido</div><div class="desc">10 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':' de esta regla'}</div></div>
       <div class="arrow">›</div>
     </button>
-    ${(isHard || isFailed) ? `<button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="full">
-      <div><div class="title">Test completo</div><div class="desc">Todas las preguntas${isHard?' difíciles':' falladas'}</div></div>
-      <div class="arrow">›</div>
-    </button>` : ''}
     <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="study25">
       <div><div class="title">Modo estudio</div><div class="desc">25 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':' de esta regla'}, con la solución al momento de responder</div></div>
       <div class="arrow">›</div>
@@ -999,6 +999,8 @@ function pickQuestions(law, mode){
 
 function startQuiz(law, mode){
   const qids = mode==='review' ? Object.keys(STATE.storage.flags).filter(id=>{
+      const q=allQuestions().find(x=>x.id===id); return q && (!law || q.rule===law);
+    }) : mode==='reviewSaved' ? Object.keys(STATE.storage.saved).filter(id=>{
       const q=allQuestions().find(x=>x.id===id); return q && (!law || q.rule===law);
     }) : pickQuestions(law, mode);
   if(qids.length===0){ STATE.toast="No hay preguntas disponibles para este modo."; render(); return; }
@@ -1120,9 +1122,9 @@ function quizView(){
     ${(isLifeMode(quiz.mode) && quiz.hearts<=0) ? `<div style="margin-top:10px; padding:10px 12px; background:#FDECEC; border-radius:8px; font-size:13.5px; font-weight:700; color:var(--red);">${quiz.mode==='suddendeath' ? '💀 ¡Eliminado! Un fallo y se acabó.' : '💔 ¡Te has quedado sin corazones! Aquí termina el reto.'}</div>` : ''}
     ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
   }
-  const flagBtn = `<button class="flag-btn" data-action="flag" data-qid="${q.id}">${STATE.storage.flags[q.id] ? '✓ Marcada para revisar' : 'Marcar esta pregunta como posiblemente desactualizada'}</button>`;
   const reportBtn = `<button class="flag-btn" data-action="report-question" data-qid="${q.id}">${STATE.reportedIds[q.id] ? '✓ Error reportado, ¡gracias!' : '🚩 Reportar un error en esta pregunta'}</button>`;
-  const flagRow = `<div style="display:flex; gap:16px; flex-wrap:wrap;">${flagBtn}${reportBtn}</div>`;
+  const savedBtn = `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">${STATE.storage.saved[q.id] ? '💾 Guardada para estudiar después' : '💾 Guardar para estudiar después'}</button>`;
+  const actionLinksRow = `<div style="display:flex; gap:16px; flex-wrap:wrap;">${savedBtn}${reportBtn}</div>`;
 
   let topbar;
   if(quiz.mode==='training'){
@@ -1175,7 +1177,7 @@ function quizView(){
     <div class="qtext">${esc(q.question)}</div>
     ${optsHtml}
     ${feedback}
-    ${quiz.mode!=='training' ? (reveal ? flagRow : '') : flagRow}
+    ${quiz.mode!=='training' ? (reveal ? actionLinksRow : '') : actionLinksRow}
   </div>
   <div class="quiz-actions">${actions}</div>
   ${questionDots(quiz)}
@@ -1395,6 +1397,38 @@ function flaggedView(){
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Preguntas marcadas para revisar</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${ids.length} pregunta(s) señaladas como posiblemente desactualizadas o con error.</div>
+  ${items}
+  `;
+}
+
+function savedView(){
+  const ids = Object.keys(STATE.storage.saved);
+  const letters=['a','b','c','d'];
+  if(ids.length===0){
+    return `<button class="backbtn" data-action="home">&larr; Inicio</button>
+    <h2 style="margin-bottom:10px;">Guardadas para estudiar</h2>
+    <div class="empty-state">Todavía no has guardado ninguna pregunta. Cuando veas una que quieras repasar más adelante, pulsa "💾 Guardar para estudiar después" en el test, y aparecerá aquí.</div>`;
+  }
+  let items = ids.map(id=>{
+    const q = allQuestions().find(x=>x.id===id);
+    if(!q) return '';
+    return `<div class="qcard" style="margin-bottom:10px;">
+      <div class="qtag">${scopeLabel(q)}</div>
+      <div class="qtext">${esc(q.question)}</div>
+      ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
+      ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+      <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" data-action="unsave" data-qid="${q.id}">Quitar de guardadas</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">Guardadas para estudiar</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${ids.length} pregunta(s) guardadas.</div>
+  <div style="margin-bottom:14px;">
+    <button class="btn btn-primary" data-action="review-saved">Practicar estas preguntas como test</button>
+  </div>
   ${items}
   `;
 }
@@ -1803,6 +1837,7 @@ function exportData(){
     progress: STATE.storage.progress,
     userQuestions: STATE.storage.userQuestions,
     flags: STATE.storage.flags,
+    saved: STATE.storage.saved,
     exportedAt: new Date().toISOString()
   };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
@@ -1821,7 +1856,8 @@ function importData(file){
       STATE.storage.progress = data.progress || {};
       STATE.storage.userQuestions = data.userQuestions || [];
       STATE.storage.flags = data.flags || {};
-      await saveProgress(); await saveUserQuestions(); await saveFlags();
+      STATE.storage.saved = data.saved || {};
+      await saveProgress(); await saveUserQuestions(); await saveFlags(); await saveSaved();
       STATE.toast = 'Copia de seguridad importada correctamente.';
       render();
     }catch(err){ STATE.toast = 'No se pudo leer ese archivo.'; render(); }
@@ -1963,6 +1999,20 @@ function onAction(e){
   }
   else if(action==='review-flagged'){ startQuiz(law, 'review'); }
   else if(action==='flagged-list'){ STATE.editingId=null; STATE.view='flagged'; render(); }
+  else if(action==='review-saved'){ startQuiz(law, 'reviewSaved'); }
+  else if(action==='saved-list'){ STATE.view='saved'; render(); }
+  else if(action==='toggle-saved'){
+    const qid = el.dataset.qid;
+    if(STATE.storage.saved[qid]) delete STATE.storage.saved[qid];
+    else STATE.storage.saved[qid] = true;
+    saveSaved();
+    render();
+  }
+  else if(action==='unsave'){
+    delete STATE.storage.saved[el.dataset.qid];
+    saveSaved();
+    render();
+  }
   else if(action==='edit-question'){ STATE.editingId = el.dataset.qid; render(); }
   else if(action==='cancel-edit'){ STATE.editingId = null; render(); }
   else if(action==='save-edit'){ saveQuestionEdit(el.dataset.qid, false); }
@@ -1982,12 +2032,5 @@ function onAction(e){
     render();
   }
   else if(action==='cancel-reset-stats'){ STATE.confirmResetStats = false; render(); }
-  else if(action==='flag'){
-    const qid = el.dataset.qid;
-    if(STATE.storage.flags[qid]){ delete STATE.storage.flags[qid]; }
-    else { STATE.storage.flags[qid] = true; }
-    saveFlags();
-    render();
-  }
 }
 
