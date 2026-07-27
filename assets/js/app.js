@@ -1298,9 +1298,11 @@ function resultView(){
       ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
     </div>`;
   })() : ''}
+  ${Object.keys(byLaw).length>1 ? `
   <div class="section-title">Repasa por regla</div>
   <div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:12.5px;">Toca una regla para practicarla de nuevo.</div>
   <div class="qcard">${rows}</div>
+  ` : ''}
   <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="home">Volver al inicio</button>
     ${quiz.law ? `<button class="btn btn-secondary" data-action="open-law" data-law="${quiz.law}">Repetir esta regla</button>` : ''}
