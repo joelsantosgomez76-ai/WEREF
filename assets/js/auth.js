@@ -17,6 +17,13 @@ async function doGoogleLogin(){
   return { error };
 }
 
+async function doPasswordReset(email){
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/reset-password.html'
+  });
+  return { error };
+}
+
 async function doLogin(email, password){
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   return { data, error };

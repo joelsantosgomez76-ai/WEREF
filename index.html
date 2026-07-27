@@ -109,17 +109,19 @@
     <h1 class="auth-title" id="auth-title">Iniciar sesión</h1>
     <div class="auth-sub" id="auth-sub">Entra para seguir con tu formación arbitral</div>
 
-    <button type="button" class="btn btn-secondary" id="google-auth-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px;">
-      <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.8-.4-4.1z"/>
-        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/>
-        <path fill="#4CAF50" d="M24 45c5.4 0 10.3-1.9 14.1-5.1l-6.5-5.5C29.5 36.4 26.9 37 24 37c-5.3 0-9.7-3.3-11.3-7.9l-6.5 5C9.6 40.6 16.2 45 24 45z"/>
-        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.1-3.7 5.5-7 6.4l6.5 5.5C38.5 37.4 40 33.5 40 29c0-.7-.1-1.4-.4-2.5z"/>
-      </svg>
-      Continuar con Google
-    </button>
-    <div style="text-align:center; color:var(--muted); font-size:11.5px; margin-top:8px;">Al continuar con Google aceptas nuestra <a href="politica-privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a> y <a href="terminos-de-uso.html" target="_blank" rel="noopener">Términos de Uso</a>.</div>
-    <div style="text-align:center; color:var(--muted); font-size:12px; margin:14px 0;">o con tu correo</div>
+    <div id="auth-social-row">
+      <button type="button" class="btn btn-secondary" id="google-auth-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px;">
+        <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.8-.4-4.1z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 45c5.4 0 10.3-1.9 14.1-5.1l-6.5-5.5C29.5 36.4 26.9 37 24 37c-5.3 0-9.7-3.3-11.3-7.9l-6.5 5C9.6 40.6 16.2 45 24 45z"/>
+          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.1-3.7 5.5-7 6.4l6.5 5.5C38.5 37.4 40 33.5 40 29c0-.7-.1-1.4-.4-2.5z"/>
+        </svg>
+        Continuar con Google
+      </button>
+      <div style="text-align:center; color:var(--muted); font-size:11.5px; margin-top:8px;">Al continuar con Google aceptas nuestra <a href="politica-privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a> y <a href="terminos-de-uso.html" target="_blank" rel="noopener">Términos de Uso</a>.</div>
+      <div style="text-align:center; color:var(--muted); font-size:12px; margin:14px 0;">o con tu correo</div>
+    </div>
 
     <form id="auth-form">
       <div id="auth-name-row" style="display:none;">
@@ -128,8 +130,11 @@
       </div>
       <label for="auth-email">Correo electrónico</label>
       <input type="email" id="auth-email" autocomplete="email" required>
-      <label for="auth-password">Contraseña</label>
-      <input type="password" id="auth-password" autocomplete="current-password" required minlength="6">
+      <div id="auth-password-row">
+        <label for="auth-password">Contraseña</label>
+        <input type="password" id="auth-password" autocomplete="current-password" required minlength="6">
+        <button type="button" id="auth-forgot-link" style="background:none; border:none; padding:0; margin-top:6px; color:var(--muted); font-size:12.5px; text-decoration:underline; cursor:pointer;">¿Has olvidado tu contraseña?</button>
+      </div>
 
       <div id="auth-consent-rows" style="display:none;">
         <label class="radio-row" style="margin:14px 0 0; text-transform:none; font-weight:400; color:var(--ink); font-size:13px;">
@@ -156,7 +161,7 @@
 <script src="assets/js/supabase-init.js"></script>
 <script src="assets/js/auth.js"></script>
 <script>
-let mode = 'login'; // 'login' | 'register'
+let mode = 'login'; // 'login' | 'register' | 'recover'
 
 const modalEls = {
   backdrop: document.getElementById('auth-modal'),
@@ -165,11 +170,14 @@ const modalEls = {
 const els = {
   title: document.getElementById('auth-title'),
   sub: document.getElementById('auth-sub'),
+  socialRow: document.getElementById('auth-social-row'),
   form: document.getElementById('auth-form'),
   nameRow: document.getElementById('auth-name-row'),
   name: document.getElementById('auth-name'),
   email: document.getElementById('auth-email'),
+  passwordRow: document.getElementById('auth-password-row'),
   password: document.getElementById('auth-password'),
+  forgotLink: document.getElementById('auth-forgot-link'),
   consentRows: document.getElementById('auth-consent-rows'),
   consent: document.getElementById('auth-consent'),
   marketing: document.getElementById('auth-marketing'),
@@ -187,23 +195,52 @@ function renderMode(){
     els.password.setAttribute('autocomplete','current-password');
     els.switchText.textContent = '¿Todavía no tienes cuenta?';
     els.switchBtn.textContent = 'Regístrate';
+    els.switchBtn.style.display = 'inline';
+    els.switchText.style.display = 'inline';
     els.nameRow.style.display = 'none';
     els.name.required = false;
     els.consentRows.style.display = 'none';
     els.consent.required = false;
-  } else {
+    els.socialRow.style.display = 'block';
+    els.passwordRow.style.display = 'block';
+    els.password.required = true;
+    els.forgotLink.style.display = 'block';
+  } else if(mode==='register'){
     els.title.textContent = 'Crear cuenta';
     els.sub.textContent = 'Regístrate para guardar tu progreso en la nube';
     els.submit.textContent = 'Crear cuenta';
     els.password.setAttribute('autocomplete','new-password');
     els.switchText.textContent = '¿Ya tienes cuenta?';
     els.switchBtn.textContent = 'Inicia sesión';
+    els.switchBtn.style.display = 'inline';
+    els.switchText.style.display = 'inline';
     els.nameRow.style.display = 'block';
     els.name.required = true;
     els.consentRows.style.display = 'block';
     els.consent.required = true;
+    els.socialRow.style.display = 'block';
+    els.passwordRow.style.display = 'block';
+    els.password.required = true;
+    els.forgotLink.style.display = 'none';
+  } else {
+    els.title.textContent = 'Recuperar contraseña';
+    els.sub.textContent = 'Te enviaremos un enlace a tu correo para crear una nueva contraseña';
+    els.submit.textContent = 'Enviar enlace';
+    els.switchText.textContent = '';
+    els.switchBtn.textContent = 'Volver a iniciar sesión';
+    els.switchBtn.style.display = 'inline';
+    els.switchText.style.display = 'none';
+    els.nameRow.style.display = 'none';
+    els.name.required = false;
+    els.consentRows.style.display = 'none';
+    els.consent.required = false;
+    els.socialRow.style.display = 'none';
+    els.passwordRow.style.display = 'none';
+    els.password.required = false;
   }
   els.error.style.display = 'none';
+  els.error.style.background = '';
+  els.error.style.color = '';
 }
 
 function openModal(initialMode){
@@ -234,19 +271,33 @@ document.getElementById('google-auth-btn').addEventListener('click', async ()=>{
 });
 
 els.switchBtn.addEventListener('click', ()=>{
-  mode = mode==='login' ? 'register' : 'login';
+  mode = mode==='recover' ? 'login' : (mode==='login' ? 'register' : 'login');
+  renderMode();
+});
+
+els.forgotLink.addEventListener('click', ()=>{
+  mode = 'recover';
   renderMode();
 });
 
 els.form.addEventListener('submit', async (e)=>{
   e.preventDefault();
   els.error.style.display = 'none';
+  els.error.style.background = '';
+  els.error.style.color = '';
   els.submit.disabled = true;
   const email = els.email.value.trim();
   const password = els.password.value;
 
   try{
-    if(mode==='register'){
+    if(mode==='recover'){
+      const { error } = await doPasswordReset(email);
+      if(error){ throw error; }
+      els.error.style.display = 'block';
+      els.error.style.background = '#EAF7EE';
+      els.error.style.color = '#1E7A34';
+      els.error.textContent = 'Si ese correo tiene una cuenta, te hemos enviado un enlace para restablecer la contraseña.';
+    } else if(mode==='register'){
       if(!els.consent.checked){
         els.error.textContent = 'Debes aceptar la Política de Privacidad y los Términos de Uso para crear una cuenta.';
         els.error.style.display = 'block';
