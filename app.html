@@ -23,6 +23,7 @@
 <script src="assets/js/app.js"></script>
 <script>
 let CURRENT_USER_EMAIL = null;
+let CURRENT_USER_ID = null;
 
 (async function init(){
   const session = await getCurrentSession();
@@ -31,7 +32,9 @@ let CURRENT_USER_EMAIL = null;
     return;
   }
   CURRENT_USER_EMAIL = session.user.email;
+  CURRENT_USER_ID = session.user.id;
   loadStorage();
+  if(isDevUser()) loadQuestionReports();
 })();
 
 supabaseClient.auth.onAuthStateChange((event, session) => {
