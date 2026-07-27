@@ -126,7 +126,36 @@
     <form id="auth-form">
       <div id="auth-name-row" style="display:none;">
         <label for="auth-name">Nombre</label>
-        <input type="text" id="auth-name" autocomplete="name">
+        <input type="text" id="auth-name" autocomplete="given-name">
+        <label for="auth-lastname">Apellidos</label>
+        <input type="text" id="auth-lastname" autocomplete="family-name">
+        <label for="auth-username">Nombre de usuario</label>
+        <input type="text" id="auth-username" autocomplete="username">
+        <label for="auth-country">País</label>
+        <select id="auth-country">
+          <option value="" selected disabled>Selecciona tu país</option>
+          <option>Alemania</option><option>Andorra</option><option>Argelia</option><option>Argentina</option>
+          <option>Australia</option><option>Austria</option><option>Bélgica</option><option>Bolivia</option>
+          <option>Brasil</option><option>Canadá</option><option>Chile</option><option>China</option>
+          <option>Colombia</option><option>Corea del Sur</option><option>Costa Rica</option><option>Cuba</option>
+          <option>Dinamarca</option><option>Ecuador</option><option>Egipto</option><option>El Salvador</option>
+          <option>España</option><option>Estados Unidos</option><option>Filipinas</option><option>Finlandia</option>
+          <option>Francia</option><option>Grecia</option><option>Guatemala</option><option>Guinea Ecuatorial</option>
+          <option>Holanda (Países Bajos)</option><option>Honduras</option><option>India</option><option>Indonesia</option>
+          <option>Irlanda</option><option>Israel</option><option>Italia</option><option>Japón</option>
+          <option>Marruecos</option><option>México</option><option>Nicaragua</option><option>Noruega</option>
+          <option>Nueva Zelanda</option><option>Panamá</option><option>Paraguay</option><option>Perú</option>
+          <option>Polonia</option><option>Portugal</option><option>Puerto Rico</option><option>Reino Unido</option>
+          <option>República Dominicana</option><option>Rumanía</option><option>Rusia</option><option>Suecia</option>
+          <option>Suiza</option><option>Turquía</option><option>Ucrania</option><option>Uruguay</option>
+          <option>Venezuela</option><option>Otro país</option>
+        </select>
+        <label for="auth-birthdate">Fecha de nacimiento</label>
+        <input type="date" id="auth-birthdate" autocomplete="bday">
+        <label for="auth-city">Ciudad</label>
+        <input type="text" id="auth-city" autocomplete="address-level2">
+        <label for="auth-postcode">Código postal</label>
+        <input type="text" id="auth-postcode" autocomplete="postal-code" inputmode="numeric">
       </div>
       <label for="auth-email">Correo electrónico</label>
       <input type="email" id="auth-email" autocomplete="email" required>
@@ -174,6 +203,12 @@ const els = {
   form: document.getElementById('auth-form'),
   nameRow: document.getElementById('auth-name-row'),
   name: document.getElementById('auth-name'),
+  lastname: document.getElementById('auth-lastname'),
+  username: document.getElementById('auth-username'),
+  country: document.getElementById('auth-country'),
+  birthdate: document.getElementById('auth-birthdate'),
+  city: document.getElementById('auth-city'),
+  postcode: document.getElementById('auth-postcode'),
   email: document.getElementById('auth-email'),
   passwordRow: document.getElementById('auth-password-row'),
   password: document.getElementById('auth-password'),
@@ -199,6 +234,10 @@ function renderMode(){
     els.switchText.style.display = 'inline';
     els.nameRow.style.display = 'none';
     els.name.required = false;
+    els.lastname.required = false;
+    els.username.required = false;
+    els.country.required = false;
+    els.birthdate.required = false;
     els.consentRows.style.display = 'none';
     els.consent.required = false;
     els.socialRow.style.display = 'block';
@@ -216,6 +255,10 @@ function renderMode(){
     els.switchText.style.display = 'inline';
     els.nameRow.style.display = 'block';
     els.name.required = true;
+    els.lastname.required = true;
+    els.username.required = true;
+    els.country.required = true;
+    els.birthdate.required = true;
     els.consentRows.style.display = 'block';
     els.consent.required = true;
     els.socialRow.style.display = 'block';
@@ -232,6 +275,10 @@ function renderMode(){
     els.switchText.style.display = 'none';
     els.nameRow.style.display = 'none';
     els.name.required = false;
+    els.lastname.required = false;
+    els.username.required = false;
+    els.country.required = false;
+    els.birthdate.required = false;
     els.consentRows.style.display = 'none';
     els.consent.required = false;
     els.socialRow.style.display = 'none';
@@ -304,12 +351,26 @@ els.form.addEventListener('submit', async (e)=>{
         els.submit.disabled = false;
         return;
       }
+      const usernameValue = els.username.value.trim();
+      if(await isUsernameTaken(usernameValue)){
+        els.error.textContent = 'Ese nombre de usuario ya está en uso. Elige otro.';
+        els.error.style.display = 'block';
+        els.submit.disabled = false;
+        return;
+      }
       const metadata = {
         full_name: els.name.value.trim(),
+        last_name: els.lastname.value.trim(),
+        country: els.country.value,
+        birthdate: els.birthdate.value,
+        city: els.city.value.trim(),
+        postcode: els.postcode.value.trim(),
         marketing_opt_in: els.marketing.checked
       };
       const { data, error } = await doRegister(email, password, metadata);
       if(error){ throw error; }
+      const newUserId = (data.user && data.user.id) || (data.session && data.session.user.id);
+      if(newUserId){ await claimUsername(newUserId, usernameValue); }
       if(data && data.session){
         window.location.href = 'app.html';
       } else {

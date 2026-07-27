@@ -9,6 +9,16 @@ async function doRegister(email, password, metadata){
   return { data, error };
 }
 
+async function isUsernameTaken(username){
+  const { data } = await supabaseClient.from('usernames').select('username').eq('username', username).maybeSingle();
+  return !!data;
+}
+
+async function claimUsername(userId, username){
+  const { error } = await supabaseClient.from('usernames').insert({ user_id: userId, username });
+  return { error };
+}
+
 async function doGoogleLogin(){
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
