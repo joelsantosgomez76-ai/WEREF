@@ -1,7 +1,11 @@
 // Funciones de autenticación compartidas por index.html (login/registro) y app.html (sesión activa).
 
-async function doRegister(email, password){
-  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+async function doRegister(email, password, metadata){
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: { data: metadata || {} }
+  });
   return { data, error };
 }
 

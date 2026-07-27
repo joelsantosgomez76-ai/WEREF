@@ -109,10 +109,26 @@
     <div class="auth-sub" id="auth-sub">Entra para seguir con tu formación arbitral</div>
 
     <form id="auth-form">
+      <div id="auth-name-row" style="display:none;">
+        <label for="auth-name">Nombre</label>
+        <input type="text" id="auth-name" autocomplete="name">
+      </div>
       <label for="auth-email">Correo electrónico</label>
       <input type="email" id="auth-email" autocomplete="email" required>
       <label for="auth-password">Contraseña</label>
       <input type="password" id="auth-password" autocomplete="current-password" required minlength="6">
+
+      <div id="auth-consent-rows" style="display:none;">
+        <label class="radio-row" style="margin:14px 0 0; text-transform:none; font-weight:400; color:var(--ink); font-size:13px;">
+          <input type="checkbox" id="auth-consent" style="width:auto;">
+          <span>He leído y acepto la <a href="politica-privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a> y los <a href="terminos-de-uso.html" target="_blank" rel="noopener">Términos de Uso</a>.</span>
+        </label>
+        <label class="radio-row" style="margin:4px 0 0; text-transform:none; font-weight:400; color:var(--muted); font-size:13px;">
+          <input type="checkbox" id="auth-marketing" style="width:auto;">
+          <span>Quiero recibir novedades y promociones por email (opcional).</span>
+        </label>
+      </div>
+
       <button type="submit" class="btn btn-primary auth-submit" id="auth-submit">Entrar</button>
       <div class="auth-error" id="auth-error" style="display:none;"></div>
     </form>
@@ -137,8 +153,13 @@ const els = {
   title: document.getElementById('auth-title'),
   sub: document.getElementById('auth-sub'),
   form: document.getElementById('auth-form'),
+  nameRow: document.getElementById('auth-name-row'),
+  name: document.getElementById('auth-name'),
   email: document.getElementById('auth-email'),
   password: document.getElementById('auth-password'),
+  consentRows: document.getElementById('auth-consent-rows'),
+  consent: document.getElementById('auth-consent'),
+  marketing: document.getElementById('auth-marketing'),
   submit: document.getElementById('auth-submit'),
   error: document.getElementById('auth-error'),
   switchText: document.getElementById('auth-switch-text'),
@@ -153,6 +174,10 @@ function renderMode(){
     els.password.setAttribute('autocomplete','current-password');
     els.switchText.textContent = '¿Todavía no tienes cuenta?';
     els.switchBtn.textContent = 'Regístrate';
+    els.nameRow.style.display = 'none';
+    els.name.required = false;
+    els.consentRows.style.display = 'none';
+    els.consent.required = false;
   } else {
     els.title.textContent = 'Crear cuenta';
     els.sub.textContent = 'Regístrate para guardar tu progreso en la nube';
@@ -160,6 +185,10 @@ function renderMode(){
     els.password.setAttribute('autocomplete','new-password');
     els.switchText.textContent = '¿Ya tienes cuenta?';
     els.switchBtn.textContent = 'Inicia sesión';
+    els.nameRow.style.display = 'block';
+    els.name.required = true;
+    els.consentRows.style.display = 'block';
+    els.consent.required = true;
   }
   els.error.style.display = 'none';
 }
@@ -196,7 +225,17 @@ els.form.addEventListener('submit', async (e)=>{
 
   try{
     if(mode==='register'){
-      const { data, error } = await doRegister(email, password);
+      if(!els.consent.checked){
+        els.error.textContent = 'Debes aceptar la Política de Privacidad y los Términos de Uso para crear una cuenta.';
+        els.error.style.display = 'block';
+        els.submit.disabled = false;
+        return;
+      }
+      const metadata = {
+        full_name: els.name.value.trim(),
+        marketing_opt_in: els.marketing.checked
+      };
+      const { data, error } = await doRegister(email, password, metadata);
       if(error){ throw error; }
       if(data && data.session){
         window.location.href = 'app.html';
