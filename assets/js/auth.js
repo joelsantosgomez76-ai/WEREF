@@ -9,6 +9,14 @@ async function doRegister(email, password, metadata){
   return { data, error };
 }
 
+async function doGoogleLogin(){
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/app.html' }
+  });
+  return { error };
+}
+
 async function doLogin(email, password){
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   return { data, error };
