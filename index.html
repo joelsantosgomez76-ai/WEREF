@@ -2,7 +2,18 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>WEREF · Formación Arbitral</title>
+<title>WEREF · Formación Arbitral Online — Aprende las Reglas de Juego IFAB</title>
+<meta name="description" content="Prepárate como árbitro de fútbol gratis: más de 1.000 preguntas de test sobre las 17 Reglas de Juego IFAB, modos de práctica y seguimiento de tu progreso. Regístrate y empieza a formarte hoy.">
+<meta name="keywords" content="formación arbitral, arbitraje fútbol, reglas de juego IFAB, test árbitro fútbol, examen arbitraje, curso arbitraje online, VAR, fuera de juego">
+<link rel="canonical" href="https://we-ref.com/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="WEREF · Formación Arbitral Online">
+<meta property="og:description" content="Más de 1.000 preguntas de test sobre las 17 Reglas de Juego IFAB. Practica gratis y sigue tu progreso.">
+<meta property="og:url" content="https://we-ref.com/">
+<meta property="og:locale" content="es_ES">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="WEREF · Formación Arbitral Online">
+<meta name="twitter:description" content="Más de 1.000 preguntas de test sobre las 17 Reglas de Juego IFAB. Practica gratis y sigue tu progreso.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='5' y='10' width='18' height='26' rx='4' fill='%2316181D' transform='rotate(-14 14 23)'/%3E%3Crect x='25' y='12' width='18' height='26' rx='4' fill='%23FF6A2B' transform='rotate(14 34 25)'/%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,8 +22,85 @@
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div class="auth-wrap">
-  <div class="auth-card">
+
+<nav class="landing-nav">
+  <div class="landing-brand">
+    <span class="mark"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="10" width="18" height="26" rx="4" fill="#16181D" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/>
+      <rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/>
+    </svg></span>
+    WEREF
+  </div>
+  <div class="landing-nav-actions">
+    <button type="button" class="btn btn-ghost" id="nav-login-btn">Iniciar sesión</button>
+    <button type="button" class="btn btn-primary" id="nav-register-btn">Regístrate</button>
+  </div>
+</nav>
+
+<header class="landing-hero">
+  <h1>Fórmate como árbitro de fútbol<br>y domina las <span class="accent">17 Reglas de Juego</span></h1>
+  <p class="lead">Más de 1.000 preguntas de test basadas en el reglamento IFAB, con modos de práctica, estadísticas y seguimiento de tu progreso. Gratis, y guardado en la nube en tu cuenta.</p>
+  <div class="landing-hero-actions">
+    <button type="button" class="btn btn-primary" id="hero-register-btn">Crear cuenta gratis</button>
+    <button type="button" class="btn btn-secondary" id="hero-login-btn">Ya tengo cuenta</button>
+  </div>
+  <div class="landing-stats">
+    <div class="landing-stat"><div class="num">1.042</div><div class="lbl">Preguntas</div></div>
+    <div class="landing-stat"><div class="num">17</div><div class="lbl">Reglas IFAB</div></div>
+    <div class="landing-stat"><div class="num">100%</div><div class="lbl">Gratis</div></div>
+  </div>
+</header>
+
+<section class="landing-section">
+  <h2>Todo lo que necesitas para preparar tu examen</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="icon">📘</div>
+      <h3>Las 17 Reglas de Juego</h3>
+      <p>Test organizados por regla, con preguntas de dificultad normal y avanzada, basadas en el reglamento oficial IFAB.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🎯</div>
+      <h3>Varios modos de juego</h3>
+      <p>Modo examen, modo estudio con corrección al instante, corazones, muerte súbita y contrarreloj para poner a prueba tu nivel.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📊</div>
+      <h3>Sigue tu progreso</h3>
+      <p>Estadísticas por regla, racha de estudio, rango e insignias que se desbloquean según tu constancia.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">☁️</div>
+      <h3>Guardado en tu cuenta</h3>
+      <p>Regístrate y tu progreso te sigue en cualquier dispositivo, sin depender del navegador que uses.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🧠</div>
+      <h3>Sala de repaso</h3>
+      <p>Las preguntas que más fallas se guardan automáticamente para que las repases hasta dominarlas.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📖</div>
+      <h3>Glosario IFAB</h3>
+      <p>Preguntas específicas sobre los términos y definiciones oficiales del reglamento.</p>
+    </div>
+  </div>
+</section>
+
+<section class="landing-cta">
+  <h2>Empieza a formarte hoy</h2>
+  <p>Crear una cuenta es gratis y solo lleva un minuto.</p>
+  <button type="button" class="btn btn-yellow" id="cta-register-btn">Crear cuenta gratis</button>
+</section>
+
+<footer class="landing-footer">
+  WEREF · Formación Arbitral — Contenido no oficial, basado en las Reglas de Juego IFAB.
+</footer>
+
+<!-- Modal de login / registro -->
+<div class="modal-backdrop" id="auth-modal" style="display:none;">
+  <div class="modal-card" style="max-width:400px; position:relative;">
+    <button type="button" class="modal-close" id="auth-modal-close" aria-label="Cerrar">&times;</button>
     <div class="auth-logo"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
       <rect x="5" y="10" width="18" height="26" rx="4" fill="#16181D" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/>
       <rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/>
@@ -41,6 +129,10 @@
 <script>
 let mode = 'login'; // 'login' | 'register'
 
+const modalEls = {
+  backdrop: document.getElementById('auth-modal'),
+  close: document.getElementById('auth-modal-close'),
+};
 const els = {
   title: document.getElementById('auth-title'),
   sub: document.getElementById('auth-sub'),
@@ -71,6 +163,24 @@ function renderMode(){
   }
   els.error.style.display = 'none';
 }
+
+function openModal(initialMode){
+  mode = initialMode;
+  renderMode();
+  els.form.reset();
+  modalEls.backdrop.style.display = 'flex';
+}
+function closeModal(){
+  modalEls.backdrop.style.display = 'none';
+}
+
+document.getElementById('nav-login-btn').addEventListener('click', ()=>openModal('login'));
+document.getElementById('nav-register-btn').addEventListener('click', ()=>openModal('register'));
+document.getElementById('hero-login-btn').addEventListener('click', ()=>openModal('login'));
+document.getElementById('hero-register-btn').addEventListener('click', ()=>openModal('register'));
+document.getElementById('cta-register-btn').addEventListener('click', ()=>openModal('register'));
+modalEls.close.addEventListener('click', closeModal);
+modalEls.backdrop.addEventListener('click', (e)=>{ if(e.target===modalEls.backdrop) closeModal(); });
 
 els.switchBtn.addEventListener('click', ()=>{
   mode = mode==='login' ? 'register' : 'login';
