@@ -3,6 +3,40 @@ function isDevUser(){
   return typeof CURRENT_USER_EMAIL !== 'undefined' && CURRENT_USER_EMAIL === DEV_USER_EMAIL;
 }
 
+async function reportQuestion(qid){
+  if(STATE.reportedIds[qid]) return;
+  STATE.reportedIds[qid] = true;
+  STATE.toast = 'Gracias, hemos recibido tu aviso.';
+  render();
+  try{
+    await supabaseClient.from('question_reports').insert({
+      question_id: qid,
+      user_id: (typeof CURRENT_USER_ID !== 'undefined') ? CURRENT_USER_ID : null,
+      user_email: (typeof CURRENT_USER_EMAIL !== 'undefined') ? CURRENT_USER_EMAIL : null
+    });
+  }catch(e){ /* aviso ya mostrado igualmente; el fallo de red no debe bloquear al usuario */ }
+}
+
+async function loadQuestionReports(){
+  if(!isDevUser()) return;
+  try{
+    const { data, error } = await supabaseClient.from('question_reports').select('question_id');
+    if(error || !data) return;
+    const counts = {};
+    data.forEach(r => { counts[r.question_id] = (counts[r.question_id]||0) + 1; });
+    STATE.reports = counts;
+    STATE.reportsLoaded = true;
+    render();
+  }catch(e){}
+}
+
+async function dismissReports(qid){
+  if(!isDevUser()) return;
+  try{ await supabaseClient.from('question_reports').delete().eq('question_id', qid); }catch(e){}
+  delete STATE.reports[qid];
+  render();
+}
+
 const LAW_NAMES = {
   1:"El Terreno de Juego", 2:"El Balón", 3:"Los Jugadores", 4:"El Equipamiento de los Jugadores",
   5:"El Árbitro", 6:"Los Otros Miembros del Equipo Arbitral", 7:"La Duración del Partido",
@@ -50,7 +84,10 @@ let STATE = {
   toast: null,
   reviewDetailIdx: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
-  dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', page: 1 },
+  dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
+  reportedIds: {},
+  reports: {},
+  reportsLoaded: false,
   confirmDeleteId: null,
   confirmResetStats: false,
 };
@@ -878,7 +915,7 @@ function homeView(){
   <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="train-config">Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
-    ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos</button>` : ''}
+    ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
@@ -1084,6 +1121,8 @@ function quizView(){
     ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
   }
   const flagBtn = `<button class="flag-btn" data-action="flag" data-qid="${q.id}">${STATE.storage.flags[q.id] ? '✓ Marcada para revisar' : 'Marcar esta pregunta como posiblemente desactualizada'}</button>`;
+  const reportBtn = `<button class="flag-btn" data-action="report-question" data-qid="${q.id}">${STATE.reportedIds[q.id] ? '✓ Error reportado, ¡gracias!' : '🚩 Reportar un error en esta pregunta'}</button>`;
+  const flagRow = `<div style="display:flex; gap:16px; flex-wrap:wrap;">${flagBtn}${reportBtn}</div>`;
 
   let topbar;
   if(quiz.mode==='training'){
@@ -1136,7 +1175,7 @@ function quizView(){
     <div class="qtext">${esc(q.question)}</div>
     ${optsHtml}
     ${feedback}
-    ${quiz.mode!=='training' ? (reveal ? flagBtn : '') : flagBtn}
+    ${quiz.mode!=='training' ? (reveal ? flagRow : '') : flagRow}
   </div>
   <div class="quiz-actions">${actions}</div>
   ${questionDots(quiz)}
@@ -1430,6 +1469,10 @@ function filteredDbList(){
     const s = f.search.trim().toLowerCase();
     list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o => o.toLowerCase().includes(s)));
   }
+  if(f.reportedOnly){
+    list = list.filter(q => (STATE.reports[q.id]||0) > 0);
+    list = list.slice().sort((a,b) => (STATE.reports[b.id]||0) - (STATE.reports[a.id]||0));
+  }
   return list;
 }
 
@@ -1456,7 +1499,8 @@ function databaseView(){
   let rows = pageItems.map(q => {
     if(STATE.editingId === q.id) return editFormHtml(q);
     const isReviewed = !!STATE.storage.reviewed[q.id];
-    return `<div class="qcard" style="margin-bottom:10px; ${isReviewed?'border-color:#BEE3CC;':''}">
+    const reportCount = STATE.reports[q.id] || 0;
+    return `<div class="qcard" style="margin-bottom:10px; ${reportCount>0?'border-color:#F0C4C4;':(isReviewed?'border-color:#BEE3CC;':'')}">
       <div class="qtag">
         <span class="mono" style="color:var(--muted); font-weight:700;">#${numberMap[q.id]}</span> ·
         ${scopeLabel(q)}
@@ -1464,6 +1508,7 @@ function databaseView(){
         ${STATE.storage.flags[q.id] ? ' <span class="badge">Marcada</span>' : ''}
         ${q.source==='user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Tu pregunta</span>' : ''}
         ${isReviewed ? ' <span class="badge" style="background:var(--green-ok); color:#fff;">Revisada</span>' : ''}
+        ${reportCount>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">🚩 Reportada x${reportCount}</span>` : ''}
       </div>
       <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
       ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
@@ -1472,16 +1517,18 @@ function databaseView(){
         <button class="btn ${isReviewed?'btn-secondary':'btn-primary'}" style="padding:7px 14px; font-size:13px;" data-action="toggle-reviewed" data-qid="${q.id}">${isReviewed ? '✓ Revisada' : 'Marcar como revisada'}</button>
         <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="edit-question" data-qid="${q.id}">Editar</button>
         <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="delete-question" data-qid="${q.id}">Eliminar</button>
+        ${reportCount>0 ? `<button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="dismiss-reports" data-qid="${q.id}">Descartar reportes</button>` : ''}
       </div>
     </div>`;
   }).join('');
 
   const reviewedCount = allQuestions().filter(q => STATE.storage.reviewed[q.id]).length;
+  const reportedCount = Object.keys(STATE.reports).length;
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Base de datos</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${allQuestions().length} preguntas en total · ${reviewedCount} revisadas · ${list.length} coinciden con el filtro</div>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${allQuestions().length} preguntas en total · ${reviewedCount} revisadas · ${reportedCount} con reportes de usuarios · ${list.length} coinciden con el filtro</div>
 
   <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="add-from-db">+ Añadir pregunta nueva</button>
@@ -1519,6 +1566,9 @@ function databaseView(){
     </div>
     <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:12px;">
       <input type="checkbox" id="db-flagged-only" style="width:auto;" ${f.flaggedOnly?'checked':''}> Mostrar solo las marcadas para revisar
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:8px;">
+      <input type="checkbox" id="db-reported-only" style="width:auto;" ${f.reportedOnly?'checked':''}> Mostrar solo las reportadas por usuarios (${reportedCount})
     </label>
   </div>
 
@@ -1797,6 +1847,8 @@ function bindEvents(){
   if(dbDifficulty){ dbDifficulty.addEventListener('change', (e)=>{ STATE.dbFilter.difficulty = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dbFlaggedOnly = document.getElementById('db-flagged-only');
   if(dbFlaggedOnly){ dbFlaggedOnly.addEventListener('change', (e)=>{ STATE.dbFilter.flaggedOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
+  const dbReportedOnly = document.getElementById('db-reported-only');
+  if(dbReportedOnly){ dbReportedOnly.addEventListener('change', (e)=>{ STATE.dbFilter.reportedOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
   const dbReviewStatus = document.getElementById('db-review-status');
   if(dbReviewStatus){ dbReviewStatus.addEventListener('change', (e)=>{ STATE.dbFilter.reviewStatus = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dailyGoalSelect = document.getElementById('daily-goal-select');
@@ -1863,7 +1915,9 @@ function onAction(e){
   else if(action==='add-from-db'){ STATE.cameFromDb = true; STATE.lawId = null; STATE.view='add'; render(); }
   else if(action==='save-question'){ saveNewQuestion(); }
   else if(action==='stats'){ STATE.view='stats'; render(); }
-  else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.view='database'; render(); }
+  else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.view='database'; loadQuestionReports(); render(); }
+  else if(action==='report-question'){ reportQuestion(el.dataset.qid); }
+  else if(action==='dismiss-reports'){ if(!isDevUser()) return; dismissReports(el.dataset.qid); }
   else if(action==='achievements'){ STATE.view='achievements'; render(); }
   else if(action==='streak-calendar'){ STATE.calendarYear = null; STATE.view='streakCalendar'; render(); }
   else if(action==='recent-performance'){ STATE.view='recentPerformance'; render(); }
