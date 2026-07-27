@@ -83,6 +83,7 @@ let STATE = {
   storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0 },
   toast: null,
   reviewDetailIdx: null,
+  savedBrowseIdx: 0,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
   dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
   reportedIds: {},
@@ -605,6 +606,7 @@ function viewFor(v){
   if(v==='stats') return statsView();
   if(v==='trainConfig') return trainConfigView();
   if(v==='flagged') return flaggedView();
+  if(v==='savedBrowse') return savedBrowseView();
   if(v==='database') return databaseView();
   if(v==='dailyChallenge') return dailyChallengeView();
   if(v==='achievements') return achievementsView();
@@ -988,6 +990,10 @@ function lawMenuView(){
       <div><div class="title">Modo estudio</div><div class="desc">25 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isSaved?' de tu lista':' de esta regla'}, con la solución al momento de responder</div></div>
       <div class="arrow">›</div>
     </button>
+    ${isSaved ? `<button class="menu-item" data-action="saved-browse">
+      <div><div class="title">Ver tus guardadas</div><div class="desc">Repásalas de una en una, con la respuesta y explicación</div></div>
+      <div class="arrow">›</div>
+    </button>` : ''}
     <button class="menu-item" data-action="train-config-scoped" data-law="${law}">
       <div><div class="title">Crear test personalizado</div><div class="desc">Elige cuántas preguntas, si quieres cronómetro, y modo estudio o examen</div></div>
       <div class="arrow">›</div>
@@ -1377,6 +1383,36 @@ function trainConfigView(){
     <div style="margin-top:20px;">
       <button class="btn btn-primary" data-action="generate-exam">Generar examen</button>
     </div>
+  </div>
+  `;
+}
+
+function savedBrowseView(){
+  const ids = Object.keys(STATE.storage.saved);
+  const letters=['a','b','c','d'];
+  if(ids.length===0){
+    return `<button class="backbtn" data-action="open-law" data-law="saved">&larr; Mi Lista</button>
+    <div class="empty-state">Ya no te quedan preguntas guardadas.</div>`;
+  }
+  if(STATE.savedBrowseIdx >= ids.length) STATE.savedBrowseIdx = ids.length - 1;
+  if(STATE.savedBrowseIdx < 0) STATE.savedBrowseIdx = 0;
+  const id = ids[STATE.savedBrowseIdx];
+  const q = allQuestions().find(x=>x.id===id);
+  return `
+  <button class="backbtn" data-action="open-law" data-law="saved">&larr; Mi Lista</button>
+  <div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:13px;">Pregunta ${STATE.savedBrowseIdx+1} de ${ids.length}</div>
+  <div class="qcard" style="margin-bottom:14px;">
+    <div class="qtag">${scopeLabel(q)}</div>
+    <div class="qtext">${esc(q.question)}</div>
+    ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
+    ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+    <div style="margin-top:12px;">
+      <button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">Quitar de Mi Lista</button>
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+    <button class="btn btn-secondary" data-action="saved-browse-prev" ${STATE.savedBrowseIdx<=0?'disabled':''}>&larr; Anterior</button>
+    <button class="btn btn-secondary" data-action="saved-browse-next" ${STATE.savedBrowseIdx>=ids.length-1?'disabled':''}>Siguiente &rarr;</button>
   </div>
   `;
 }
@@ -1978,6 +2014,9 @@ function onAction(e){
   }
   else if(action==='review-flagged'){ startQuiz(law, 'review'); }
   else if(action==='flagged-list'){ STATE.editingId=null; STATE.view='flagged'; render(); }
+  else if(action==='saved-browse'){ STATE.savedBrowseIdx = 0; STATE.view = 'savedBrowse'; render(); }
+  else if(action==='saved-browse-prev'){ STATE.savedBrowseIdx--; render(); }
+  else if(action==='saved-browse-next'){ STATE.savedBrowseIdx++; render(); }
   else if(action==='toggle-saved'){
     const qid = el.dataset.qid;
     if(STATE.storage.saved[qid]) delete STATE.storage.saved[qid];
