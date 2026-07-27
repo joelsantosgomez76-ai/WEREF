@@ -109,6 +109,18 @@
     <h1 class="auth-title" id="auth-title">Iniciar sesión</h1>
     <div class="auth-sub" id="auth-sub">Entra para seguir con tu formación arbitral</div>
 
+    <button type="button" class="btn btn-secondary" id="google-auth-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px;">
+      <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.8-.4-4.1z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/>
+        <path fill="#4CAF50" d="M24 45c5.4 0 10.3-1.9 14.1-5.1l-6.5-5.5C29.5 36.4 26.9 37 24 37c-5.3 0-9.7-3.3-11.3-7.9l-6.5 5C9.6 40.6 16.2 45 24 45z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.1-3.7 5.5-7 6.4l6.5 5.5C38.5 37.4 40 33.5 40 29c0-.7-.1-1.4-.4-2.5z"/>
+      </svg>
+      Continuar con Google
+    </button>
+    <div style="text-align:center; color:var(--muted); font-size:11.5px; margin-top:8px;">Al continuar con Google aceptas nuestra <a href="politica-privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a> y <a href="terminos-de-uso.html" target="_blank" rel="noopener">Términos de Uso</a>.</div>
+    <div style="text-align:center; color:var(--muted); font-size:12px; margin:14px 0;">o con tu correo</div>
+
     <form id="auth-form">
       <div id="auth-name-row" style="display:none;">
         <label for="auth-name">Nombre</label>
@@ -211,6 +223,15 @@ document.getElementById('hero-register-btn').addEventListener('click', ()=>openM
 document.getElementById('cta-register-btn').addEventListener('click', ()=>openModal('register'));
 modalEls.close.addEventListener('click', closeModal);
 modalEls.backdrop.addEventListener('click', (e)=>{ if(e.target===modalEls.backdrop) closeModal(); });
+
+document.getElementById('google-auth-btn').addEventListener('click', async ()=>{
+  els.error.style.display = 'none';
+  const { error } = await doGoogleLogin();
+  if(error){
+    els.error.textContent = authErrorMessage(error);
+    els.error.style.display = 'block';
+  }
+});
 
 els.switchBtn.addEventListener('click', ()=>{
   mode = mode==='login' ? 'register' : 'login';
