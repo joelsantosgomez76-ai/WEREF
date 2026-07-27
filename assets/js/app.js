@@ -1,3 +1,8 @@
+const DEV_USER_EMAIL = 'info@we-ref.com';
+function isDevUser(){
+  return typeof CURRENT_USER_EMAIL !== 'undefined' && CURRENT_USER_EMAIL === DEV_USER_EMAIL;
+}
+
 const LAW_NAMES = {
   1:"El Terreno de Juego", 2:"El Balón", 3:"Los Jugadores", 4:"El Equipamiento de los Jugadores",
   5:"El Árbitro", 6:"Los Otros Miembros del Equipo Arbitral", 7:"La Duración del Partido",
@@ -873,7 +878,7 @@ function homeView(){
   <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="train-config">Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
-    <button class="btn btn-ghost" data-action="database">Base de datos</button>
+    ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
@@ -1858,7 +1863,7 @@ function onAction(e){
   else if(action==='add-from-db'){ STATE.cameFromDb = true; STATE.lawId = null; STATE.view='add'; render(); }
   else if(action==='save-question'){ saveNewQuestion(); }
   else if(action==='stats'){ STATE.view='stats'; render(); }
-  else if(action==='database'){ STATE.editingId=null; STATE.view='database'; render(); }
+  else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.view='database'; render(); }
   else if(action==='achievements'){ STATE.view='achievements'; render(); }
   else if(action==='streak-calendar'){ STATE.calendarYear = null; STATE.view='streakCalendar'; render(); }
   else if(action==='recent-performance'){ STATE.view='recentPerformance'; render(); }
