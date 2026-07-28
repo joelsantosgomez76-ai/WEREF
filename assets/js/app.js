@@ -135,6 +135,7 @@ let STATE = {
   suggestions: [],
   leaderboard: [],
   leaderboardMode: 'hearts',
+  myStanding: null,
   confirmDeleteId: null,
   confirmResetStats: false,
 };
@@ -308,10 +309,27 @@ async function upsertLeaderboardScore(mode, score){
 
 async function loadLeaderboard(mode){
   STATE.leaderboardMode = mode;
+  STATE.myStanding = null;
   try{
     const { data, error } = await supabaseClient.from('leaderboard_scores').select('*').eq('mode', mode).order('score', { ascending: false }).limit(25);
-    if(error || !data) return;
-    STATE.leaderboard = data;
+    if(!error && data) STATE.leaderboard = data;
+    render();
+  }catch(e){}
+  loadMyLeaderboardStanding(mode);
+}
+
+async function loadMyLeaderboardStanding(mode){
+  try{
+    const { data: mine } = await supabaseClient.from('leaderboard_scores').select('*').eq('mode', mode).eq('user_id', CURRENT_USER_ID).maybeSingle();
+    if(!mine){ STATE.myStanding = null; render(); return; }
+    const inTop25 = (STATE.leaderboard||[]).some(r => r.user_id === CURRENT_USER_ID);
+    if(inTop25){ STATE.myStanding = null; render(); return; }
+    const { count } = await supabaseClient.from('leaderboard_scores').select('user_id', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
+    const myRank = (count||0) + 1;
+    let nextAbove = null;
+    const { data: aboveRows } = await supabaseClient.from('leaderboard_scores').select('score,username').eq('mode', mode).gt('score', mine.score).order('score', { ascending: true }).limit(1);
+    if(aboveRows && aboveRows[0]) nextAbove = aboveRows[0];
+    STATE.myStanding = Object.assign({}, mine, { rank: myRank, nextAbove });
     render();
   }catch(e){}
 }
@@ -765,16 +783,48 @@ function dailyChallengeView(){
 function leaderboardView(){
   const mode = STATE.leaderboardMode || 'hearts';
   const modeLabel = mode==='hearts' ? '❤️ Modo Corazones' : mode==='suddendeath' ? '💀 Muerte Súbita' : '⏱ Contrarreloj';
-  const rows = (STATE.leaderboard||[]).map((r,i) => `
-    <div class="breakdown-row">
-      <span>
-        <span class="mono" style="color:var(--muted); font-weight:700; margin-right:6px;">${i+1}.</span>
-        ${COUNTRY_FLAGS[r.country] || '🏳️'} ${esc(r.username || 'Anónimo')}
-        <span class="mono" style="color:var(--muted); font-size:11px;"> · ${esc(r.rank_name || '')}</span>
-      </span>
-      <span class="mono" style="color:var(--pitch); font-weight:700;">${formatScore(Number(r.score))}</span>
-    </div>
-  `).join('');
+  const medals = ['🥇','🥈','🥉'];
+  const rows = (STATE.leaderboard||[]).map((r,i) => {
+    const isMe = r.user_id === CURRENT_USER_ID;
+    const topCls = i===0 ? ' lb-top1' : i===1 ? ' lb-top2' : i===2 ? ' lb-top3' : '';
+    return `
+    <div class="lb-row${topCls}${isMe?' lb-me':''}" style="animation-delay:${Math.min(i*0.03,0.4)}s;">
+      ${i<3 ? `<div class="lb-medal">${medals[i]}</div>` : `<div class="lb-rank">${i+1}</div>`}
+      <div class="lb-flag">${COUNTRY_FLAGS[r.country] || '🏳️'}</div>
+      <div class="lb-info">
+        <div class="lb-name">${esc(r.username || 'Anónimo')}${isMe?' <span style="color:var(--accent);">(tú)</span>':''}</div>
+        <div class="lb-meta">${esc(r.rank_name || '')} · ${r.points||0} XP</div>
+      </div>
+      <div class="lb-score">${formatScore(Number(r.score))}</div>
+    </div>`;
+  }).join('');
+
+  let standingHtml = '';
+  const s = STATE.myStanding;
+  if(s){
+    const rankInfo = nextRankInfo(s.points || 0);
+    const gapText = s.nextAbove
+      ? `Te faltan <strong>${formatScore(Number(s.nextAbove.score) - Number(s.score))}</strong> puntos para superar a ${esc(s.nextAbove.username || 'el jugador de arriba')}.`
+      : 'Eres el primero de la lista en esta clasificación.';
+    standingHtml = `
+    <div class="lb-standing">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="lb-rank" style="color:rgba(255,255,255,0.7);">#${s.rank}</div>
+        <div class="lb-flag">${COUNTRY_FLAGS[s.country] || '🏳️'}</div>
+        <div class="lb-info">
+          <div class="lb-name">${esc(s.username || 'Tú')} <span style="color:var(--accent);">(tú)</span></div>
+          <div class="lb-meta">${esc(s.rank_name || '')} · ${s.points||0} XP</div>
+        </div>
+        <div class="lb-score">${formatScore(Number(s.score))}</div>
+      </div>
+      <div class="lb-gap">${gapText}</div>
+      ${rankInfo ? `
+      <div class="lb-gap">Progreso hacia ${esc(rankInfo.name)}: ${rankInfo.progressPct}%</div>
+      <div class="lb-progress-track"><div class="lb-progress-fill" style="width:${rankInfo.progressPct}%;"></div></div>
+      ` : ''}
+    </div>`;
+  }
+
   return `
   <button class="backbtn" data-action="dailyChallenge">&larr; Modo Competitivo</button>
   <h2 style="margin-bottom:4px;">🏆 Clasificación</h2>
@@ -784,7 +834,8 @@ function leaderboardView(){
     <button class="tab ${mode==='suddendeath'?'active':''}" data-action="leaderboard-tab" data-mode="suddendeath">Muerte Súbita</button>
     <button class="tab ${mode==='timeattack'?'active':''}" data-action="leaderboard-tab" data-mode="timeattack">Contrarreloj</button>
   </div>
-  <div class="qcard">${rows || '<div class="empty-state">Todavía no hay puntuaciones en este modo. ¡Sé el primero!</div>'}</div>
+  <div class="qcard" style="padding:6px 10px;">${rows || '<div class="empty-state">Todavía no hay puntuaciones en este modo. ¡Sé el primero!</div>'}</div>
+  ${standingHtml}
   `;
 }
 

@@ -207,6 +207,29 @@ button.q-dot:hover{border-color:var(--pitch);}
 .breakdown-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px;}
 .breakdown-row:last-child{border-bottom:none;}
 
+/* ---------- leaderboard ---------- */
+@keyframes rowIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+.lb-row{display:flex; align-items:center; gap:10px; padding:11px 12px; border-bottom:1px solid var(--line); border-radius:8px; animation:rowIn .25s ease both;}
+.lb-row:last-child{border-bottom:none;}
+.lb-row.lb-me{background:rgba(255,106,43,0.09);}
+.lb-rank{font-family:'JetBrains Mono'; font-weight:700; font-size:13.5px; color:var(--muted); width:26px; text-align:center; flex-shrink:0;}
+.lb-medal{font-size:19px; width:26px; text-align:center; flex-shrink:0;}
+.lb-row.lb-top1{background:linear-gradient(135deg,#FFF6DE,#FFE9AE);}
+.lb-row.lb-top2{background:linear-gradient(135deg,#F4F4F3,#E2E2E0);}
+.lb-row.lb-top3{background:linear-gradient(135deg,#FBE9DB,#F1CDAC);}
+.lb-flag{font-size:17px; flex-shrink:0;}
+.lb-info{flex:1; min-width:0;}
+.lb-name{font-weight:700; font-size:13.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.lb-meta{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.03em;}
+.lb-score{font-family:'JetBrains Mono'; font-weight:700; font-size:15px; color:var(--pitch); flex-shrink:0;}
+.lb-standing{margin-top:16px; padding:16px; border-radius:12px; background:var(--pitch); color:#fff;}
+.lb-standing .lb-name{color:#fff;}
+.lb-standing .lb-meta{color:rgba(255,255,255,0.65);}
+.lb-standing .lb-score{color:#fff;}
+.lb-gap{font-size:12px; color:rgba(255,255,255,0.8); margin-top:10px;}
+.lb-progress-track{background:rgba(255,255,255,0.18); border-radius:6px; height:7px; margin-top:6px; overflow:hidden;}
+.lb-progress-fill{background:var(--accent); height:100%; border-radius:6px;}
+
 /* ---------- forms ---------- */
 label{display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin:14px 0 6px; text-transform:uppercase; letter-spacing:0.04em;}
 input[type=text], input[type=email], input[type=password], textarea, select{
