@@ -340,7 +340,6 @@ document.getElementById('hero-login-btn').addEventListener('click', ()=>openModa
 document.getElementById('hero-register-btn').addEventListener('click', ()=>openModal('register'));
 document.getElementById('cta-register-btn').addEventListener('click', ()=>openModal('register'));
 modalEls.close.addEventListener('click', closeModal);
-modalEls.backdrop.addEventListener('click', (e)=>{ if(e.target===modalEls.backdrop) closeModal(); });
 
 document.getElementById('google-auth-btn').addEventListener('click', async ()=>{
   els.error.style.display = 'none';
