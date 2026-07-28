@@ -970,7 +970,6 @@ function homeView(){
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
     ${Object.keys(STATE.storage.saved).length>0 ? `<button class="btn btn-ghost" data-action="open-law" data-law="saved">📚 Mi Lista <span class="badge">${Object.keys(STATE.storage.saved).length}</span></button>` : ''}
-    <button class="btn btn-ghost" data-action="open-suggest">💡 Sugerencias</button>
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
     ${progressHtml}
@@ -983,6 +982,12 @@ function homeView(){
     <button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="train-config">+ Crear test personalizado</button>
   </div>
   <div class="law-grid">${cards}${glossaryCard}${hardCard}${failedCard}</div>
+  <div class="qcard" style="margin-top:24px; text-align:center; padding:26px 20px;">
+    <div style="font-size:28px; margin-bottom:8px;">📮</div>
+    <div style="font-weight:700; font-size:15px; color:var(--pitch); margin-bottom:4px;">Buzón de sugerencias</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:14px;">¿Qué le falta a WEREF? Cuéntamelo, leo todas las sugerencias e intento hacer lo que más pedís.</div>
+    <button class="btn btn-secondary" data-action="open-suggest">Enviar una sugerencia</button>
+  </div>
   `;
 }
 
