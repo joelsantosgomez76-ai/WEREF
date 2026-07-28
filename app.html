@@ -34,7 +34,7 @@ let CURRENT_USER_ID = null;
   CURRENT_USER_EMAIL = session.user.email;
   CURRENT_USER_ID = session.user.id;
   loadStorage();
-  if(isDevUser()) loadQuestionReports();
+  if(isDevUser()){ loadQuestionReports(); loadSuggestions(); }
 })();
 
 supabaseClient.auth.onAuthStateChange((event, session) => {

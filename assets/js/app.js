@@ -37,6 +37,49 @@ async function dismissReports(qid){
   render();
 }
 
+async function sendSuggestion(){
+  const el = document.getElementById('suggest-message');
+  const message = el ? el.value.trim() : '';
+  if(!message){ STATE.toast = 'Escribe algo antes de enviar.'; render(); return; }
+  try{
+    await supabaseClient.from('suggestions').insert({
+      user_id: (typeof CURRENT_USER_ID !== 'undefined') ? CURRENT_USER_ID : null,
+      user_email: (typeof CURRENT_USER_EMAIL !== 'undefined') ? CURRENT_USER_EMAIL : null,
+      message
+    });
+    STATE.toast = '¡Gracias! Hemos recibido tu sugerencia.';
+  }catch(e){
+    STATE.toast = 'No se pudo enviar. Inténtalo de nuevo.';
+  }
+  STATE.view = 'home';
+  render();
+}
+
+async function loadSuggestions(){
+  if(!isDevUser()) return;
+  try{
+    const { data, error } = await supabaseClient.from('suggestions').select('*').order('created_at', { ascending: false });
+    if(error || !data) return;
+    STATE.suggestions = data;
+    render();
+  }catch(e){}
+}
+
+async function setSuggestionStatus(id, status){
+  if(!isDevUser()) return;
+  try{ await supabaseClient.from('suggestions').update({ status }).eq('id', id); }catch(e){}
+  const s = STATE.suggestions.find(x=>x.id===id);
+  if(s) s.status = status;
+  render();
+}
+
+async function deleteSuggestion(id){
+  if(!isDevUser()) return;
+  try{ await supabaseClient.from('suggestions').delete().eq('id', id); }catch(e){}
+  STATE.suggestions = STATE.suggestions.filter(x=>x.id!==id);
+  render();
+}
+
 const LAW_NAMES = {
   1:"El Terreno de Juego", 2:"El Balón", 3:"Los Jugadores", 4:"El Equipamiento de los Jugadores",
   5:"El Árbitro", 6:"Los Otros Miembros del Equipo Arbitral", 7:"La Duración del Partido",
@@ -89,6 +132,7 @@ let STATE = {
   reportedIds: {},
   reports: {},
   reportsLoaded: false,
+  suggestions: [],
   confirmDeleteId: null,
   confirmResetStats: false,
 };
@@ -607,6 +651,8 @@ function viewFor(v){
   if(v==='trainConfig') return trainConfigView();
   if(v==='flagged') return flaggedView();
   if(v==='savedBrowse') return savedBrowseView();
+  if(v==='suggestForm') return suggestFormView();
+  if(v==='suggestionsAdmin') return suggestionsAdminView();
   if(v==='database') return databaseView();
   if(v==='dailyChallenge') return dailyChallengeView();
   if(v==='achievements') return achievementsView();
@@ -921,8 +967,10 @@ function homeView(){
     <button class="btn btn-primary" data-action="train-config">Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
+    ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
     ${Object.keys(STATE.storage.saved).length>0 ? `<button class="btn btn-ghost" data-action="open-law" data-law="saved">📚 Mi Lista <span class="badge">${Object.keys(STATE.storage.saved).length}</span></button>` : ''}
+    <button class="btn btn-ghost" data-action="open-suggest">💡 Sugerencias</button>
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
     ${progressHtml}
@@ -1414,6 +1462,47 @@ function savedBrowseView(){
     <button class="btn btn-secondary" data-action="saved-browse-prev" ${STATE.savedBrowseIdx<=0?'disabled':''}>&larr; Anterior</button>
     <button class="btn btn-secondary" data-action="saved-browse-next" ${STATE.savedBrowseIdx>=ids.length-1?'disabled':''}>Siguiente &rarr;</button>
   </div>
+  `;
+}
+
+function suggestFormView(){
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">Buzón de sugerencias</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">¿Qué te gustaría que tuviera WEREF? Leo todas las sugerencias e intento hacer lo que más pedís.</div>
+  <div class="qcard">
+    <label>Tu sugerencia</label>
+    <textarea id="suggest-message" rows="5" placeholder="Ej: me gustaría que hubiera un modo..."></textarea>
+    <button class="btn btn-primary" style="margin-top:14px;" data-action="send-suggestion">Enviar sugerencia</button>
+  </div>
+  `;
+}
+
+function suggestionsAdminView(){
+  const list = STATE.suggestions || [];
+  const pendingCount = list.filter(s=>s.status==='pending').length;
+  const statusBadge = (status) => status==='done'
+    ? ' <span class="badge" style="background:var(--green-ok); color:#fff;">Hecho</span>'
+    : status==='planned'
+    ? ' <span class="badge" style="background:var(--yellow); color:var(--yellow-ink);">Planificado</span>'
+    : ' <span class="badge">Pendiente</span>';
+  const rows = list.map(s => `
+    <div class="qcard" style="margin-bottom:10px;">
+      <div class="qtag">${new Date(s.created_at).toLocaleDateString('es-ES')} · ${esc(s.user_email || 'anónimo')}${statusBadge(s.status)}</div>
+      <div class="qtext" style="font-size:14px; white-space:pre-wrap;">${esc(s.message)}</div>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn ${s.status==='pending'?'btn-primary':'btn-ghost'}" style="padding:6px 12px; font-size:12.5px;" data-action="suggestion-status" data-id="${s.id}" data-status="pending">Pendiente</button>
+        <button class="btn ${s.status==='planned'?'btn-primary':'btn-ghost'}" style="padding:6px 12px; font-size:12.5px;" data-action="suggestion-status" data-id="${s.id}" data-status="planned">Planificado</button>
+        <button class="btn ${s.status==='done'?'btn-primary':'btn-ghost'}" style="padding:6px 12px; font-size:12.5px;" data-action="suggestion-status" data-id="${s.id}" data-status="done">Hecho</button>
+        <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px; color:var(--red);" data-action="suggestion-delete" data-id="${s.id}">Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">Sugerencias recibidas</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${list.length} en total · ${pendingCount} pendientes</div>
+  ${rows || '<div class="empty-state">Todavía no hay sugerencias.</div>'}
   `;
 }
 
@@ -2017,6 +2106,11 @@ function onAction(e){
   else if(action==='saved-browse'){ STATE.savedBrowseIdx = 0; STATE.view = 'savedBrowse'; render(); }
   else if(action==='saved-browse-prev'){ STATE.savedBrowseIdx--; render(); }
   else if(action==='saved-browse-next'){ STATE.savedBrowseIdx++; render(); }
+  else if(action==='open-suggest'){ STATE.view = 'suggestForm'; render(); }
+  else if(action==='send-suggestion'){ sendSuggestion(); }
+  else if(action==='suggestions-admin'){ if(!isDevUser()) return; STATE.view = 'suggestionsAdmin'; loadSuggestions(); render(); }
+  else if(action==='suggestion-status'){ if(!isDevUser()) return; setSuggestionStatus(el.dataset.id, el.dataset.status); }
+  else if(action==='suggestion-delete'){ if(!isDevUser()) return; deleteSuggestion(el.dataset.id); }
   else if(action==='toggle-saved'){
     const qid = el.dataset.qid;
     if(STATE.storage.saved[qid]) delete STATE.storage.saved[qid];
