@@ -1,10 +1,10 @@
 // Funciones de autenticación compartidas por index.html (login/registro) y app.html (sesión activa).
 
-async function doRegister(email, password, metadata){
+async function doRegister(email, password, metadata, captchaToken){
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password,
-    options: { data: metadata || {} }
+    options: { data: metadata || {}, captchaToken }
   });
   return { data, error };
 }
@@ -27,15 +27,16 @@ async function doGoogleLogin(){
   return { error };
 }
 
-async function doPasswordReset(email){
+async function doPasswordReset(email, captchaToken){
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/reset-password.html'
+    redirectTo: window.location.origin + '/reset-password.html',
+    captchaToken
   });
   return { error };
 }
 
-async function doLogin(email, password){
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+async function doLogin(email, password, captchaToken){
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password, options: { captchaToken } });
   return { data, error };
 }
 
