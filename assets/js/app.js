@@ -133,6 +133,8 @@ let STATE = {
   reports: {},
   reportsLoaded: false,
   suggestions: [],
+  leaderboard: [],
+  leaderboardMode: 'hearts',
   confirmDeleteId: null,
   confirmResetStats: false,
 };
@@ -272,6 +274,48 @@ async function saveHeartsRecord(){ await storageSet('heartsRecord', JSON.stringi
 async function saveSuddenDeathRecord(){ await storageSet('suddenDeathRecord', JSON.stringify(STATE.storage.suddenDeathRecord)); }
 async function saveTimeAttackRecord(){ await storageSet('timeAttackRecord', JSON.stringify(STATE.storage.timeAttackRecord)); }
 
+const COUNTRY_FLAGS = {
+  'Alemania':'🇩🇪','Andorra':'🇦🇩','Argelia':'🇩🇿','Argentina':'🇦🇷','Australia':'🇦🇺','Austria':'🇦🇹',
+  'Bélgica':'🇧🇪','Bolivia':'🇧🇴','Brasil':'🇧🇷','Canadá':'🇨🇦','Chile':'🇨🇱','China':'🇨🇳',
+  'Colombia':'🇨🇴','Corea del Sur':'🇰🇷','Costa Rica':'🇨🇷','Cuba':'🇨🇺','Dinamarca':'🇩🇰','Ecuador':'🇪🇨',
+  'Egipto':'🇪🇬','El Salvador':'🇸🇻','España':'🇪🇸','Estados Unidos':'🇺🇸','Filipinas':'🇵🇭','Finlandia':'🇫🇮',
+  'Francia':'🇫🇷','Grecia':'🇬🇷','Guatemala':'🇬🇹','Guinea Ecuatorial':'🇬🇶','Holanda (Países Bajos)':'🇳🇱','Honduras':'🇭🇳',
+  'India':'🇮🇳','Indonesia':'🇮🇩','Irlanda':'🇮🇪','Israel':'🇮🇱','Italia':'🇮🇹','Japón':'🇯🇵',
+  'Marruecos':'🇲🇦','México':'🇲🇽','Nicaragua':'🇳🇮','Noruega':'🇳🇴','Nueva Zelanda':'🇳🇿','Panamá':'🇵🇦',
+  'Paraguay':'🇵🇾','Perú':'🇵🇪','Polonia':'🇵🇱','Portugal':'🇵🇹','Puerto Rico':'🇵🇷','Reino Unido':'🇬🇧',
+  'República Dominicana':'🇩🇴','Rumanía':'🇷🇴','Rusia':'🇷🇺','Suecia':'🇸🇪','Suiza':'🇨🇭','Turquía':'🇹🇷',
+  'Ucrania':'🇺🇦','Uruguay':'🇺🇾','Venezuela':'🇻🇪'
+};
+
+async function upsertLeaderboardScore(mode, score){
+  try{
+    const { data: userRes } = await supabaseClient.auth.getUser();
+    const country = (userRes && userRes.user && userRes.user.user_metadata) ? (userRes.user.user_metadata.country || null) : null;
+    const { data: unameRow } = await supabaseClient.from('usernames').select('username').eq('user_id', CURRENT_USER_ID).maybeSingle();
+    const points = computePoints();
+    const rankName = currentRank(points).name;
+    await supabaseClient.from('leaderboard_scores').upsert({
+      user_id: CURRENT_USER_ID,
+      mode,
+      score,
+      username: unameRow ? unameRow.username : null,
+      country,
+      rank_name: rankName,
+      points
+    }, { onConflict: 'user_id,mode' });
+  }catch(e){}
+}
+
+async function loadLeaderboard(mode){
+  STATE.leaderboardMode = mode;
+  try{
+    const { data, error } = await supabaseClient.from('leaderboard_scores').select('*').eq('mode', mode).order('score', { ascending: false }).limit(25);
+    if(error || !data) return;
+    STATE.leaderboard = data;
+    render();
+  }catch(e){}
+}
+
 function recordTestResult(quiz){
   STATE.reviewDetailIdx = null;
   let score = 0;
@@ -315,6 +359,7 @@ function recordTestResult(quiz){
       if(quiz.mode==='hearts') saveHeartsRecord();
       else if(quiz.mode==='suddendeath') saveSuddenDeathRecord();
       else saveTimeAttackRecord();
+      upsertLeaderboardScore(quiz.mode, recordScore);
     }
   }
 }
@@ -655,6 +700,7 @@ function viewFor(v){
   if(v==='suggestionsAdmin') return suggestionsAdminView();
   if(v==='database') return databaseView();
   if(v==='dailyChallenge') return dailyChallengeView();
+  if(v==='leaderboard') return leaderboardView();
   if(v==='achievements') return achievementsView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
@@ -669,6 +715,8 @@ function dailyChallengeView(){
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Modo Competitivo</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Desafíos rápidos para poner a prueba tu nivel. Iremos añadiendo más modos aquí.</div>
+
+  <button class="btn btn-secondary" style="width:100%; margin-bottom:16px;" data-action="leaderboard">🏆 Ver clasificación (Top 25)</button>
 
   <div class="qcard" style="margin-bottom:16px;">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
@@ -711,6 +759,32 @@ function dailyChallengeView(){
     </div>
     <button class="btn" style="width:100%; background:var(--accent); color:#fff;" data-action="start-timeattack">Jugar Contrarreloj</button>
   </div>
+  `;
+}
+
+function leaderboardView(){
+  const mode = STATE.leaderboardMode || 'hearts';
+  const modeLabel = mode==='hearts' ? '❤️ Modo Corazones' : mode==='suddendeath' ? '💀 Muerte Súbita' : '⏱ Contrarreloj';
+  const rows = (STATE.leaderboard||[]).map((r,i) => `
+    <div class="breakdown-row">
+      <span>
+        <span class="mono" style="color:var(--muted); font-weight:700; margin-right:6px;">${i+1}.</span>
+        ${COUNTRY_FLAGS[r.country] || '🏳️'} ${esc(r.username || 'Anónimo')}
+        <span class="mono" style="color:var(--muted); font-size:11px;"> · ${esc(r.rank_name || '')}</span>
+      </span>
+      <span class="mono" style="color:var(--pitch); font-weight:700;">${formatScore(Number(r.score))}</span>
+    </div>
+  `).join('');
+  return `
+  <button class="backbtn" data-action="dailyChallenge">&larr; Modo Competitivo</button>
+  <h2 style="margin-bottom:4px;">🏆 Clasificación</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:14px; font-size:13.5px;">Top 25 de ${modeLabel}</div>
+  <div class="tabs" style="margin-bottom:14px;">
+    <button class="tab ${mode==='hearts'?'active':''}" data-action="leaderboard-tab" data-mode="hearts">Corazones</button>
+    <button class="tab ${mode==='suddendeath'?'active':''}" data-action="leaderboard-tab" data-mode="suddendeath">Muerte Súbita</button>
+    <button class="tab ${mode==='timeattack'?'active':''}" data-action="leaderboard-tab" data-mode="timeattack">Contrarreloj</button>
+  </div>
+  <div class="qcard">${rows || '<div class="empty-state">Todavía no hay puntuaciones en este modo. ¡Sé el primero!</div>'}</div>
   `;
 }
 
@@ -2073,6 +2147,8 @@ function onAction(e){
     render();
   }
   else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; render(); }
+  else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeaderboard(STATE.leaderboardMode||'hearts'); render(); }
+  else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
   else if(action==='start-daily-goal'){ startCountedQuiz(parseInt(el.dataset.count,10) || 10); }
   else if(action==='start-hearts'){ startHeartsMode(); }
   else if(action==='start-suddendeath'){ startSuddenDeathMode(); }
