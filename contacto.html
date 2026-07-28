@@ -33,13 +33,13 @@
 
   <form id="contact-form">
     <label for="contact-name">Nombre</label>
-    <input type="text" id="contact-name" autocomplete="name" required>
+    <input type="text" id="contact-name" autocomplete="name" required maxlength="100">
 
     <label for="contact-email">Correo electrónico</label>
-    <input type="email" id="contact-email" autocomplete="email" required>
+    <input type="email" id="contact-email" autocomplete="email" required maxlength="254">
 
     <label for="contact-message">Mensaje</label>
-    <textarea id="contact-message" rows="5" required></textarea>
+    <textarea id="contact-message" rows="5" required maxlength="3000"></textarea>
 
     <!-- Campo trampa para bots: oculto para personas, si llega relleno se descarta el envío -->
     <div style="position:absolute; left:-9999px;" aria-hidden="true">

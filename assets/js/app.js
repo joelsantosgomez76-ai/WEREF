@@ -1418,11 +1418,11 @@ function trainConfigView(){
     </div>
     ${cfg.timerMode==='total' ? `
       <label>Minutos para todo el examen</label>
-      <input type="text" inputmode="numeric" id="cfg-minutes" value="${cfg.minutes}">
+      <input type="text" inputmode="numeric" id="cfg-minutes" value="${cfg.minutes}" maxlength="4">
     ` : ''}
     ${cfg.timerMode==='perQuestion' ? `
       <label>Segundos por pregunta</label>
-      <input type="text" inputmode="numeric" id="cfg-seconds-per-q" value="${cfg.secondsPerQuestion}">
+      <input type="text" inputmode="numeric" id="cfg-seconds-per-q" value="${cfg.secondsPerQuestion}" maxlength="4">
       <div style="font-size:12px; color:var(--muted); margin-top:4px;">Si se acaba el tiempo de una pregunta, se pasa sola a la siguiente (sin responder si no elegiste nada).</div>
     ` : ''}
 
@@ -1477,7 +1477,7 @@ function suggestFormView(){
   <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">¿Qué te gustaría que tuviera WEREF? Leo todas las sugerencias e intento hacer lo que más pedís.</div>
   <div class="qcard">
     <label>Tu sugerencia</label>
-    <textarea id="suggest-message" rows="5" placeholder="Ej: me gustaría que hubiera un modo..."></textarea>
+    <textarea id="suggest-message" rows="5" placeholder="Ej: me gustaría que hubiera un modo..." maxlength="3000"></textarea>
     <button class="btn btn-primary" style="margin-top:14px;" data-action="send-suggestion">Enviar sugerencia</button>
   </div>
   `;
@@ -1555,12 +1555,12 @@ function editFormHtml(q){
     <select id="e-rule">${lawOpts}</select>
     `}
     <label>Pregunta</label>
-    <textarea id="e-question">${esc(q.question)}</textarea>
-    ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="e-${l}" value="${esc(q.options[i])}">`).join('')}
+    <textarea id="e-question" maxlength="1000">${esc(q.question)}</textarea>
+    ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="e-${l}" value="${esc(q.options[i])}" maxlength="300">`).join('')}
     <label>Respuesta correcta</label>
     <select id="e-correct">${letters.map(l=>`<option value="${l}" ${l===q.correct?'selected':''}>${l})</option>`).join('')}</select>
     <label>Explicación para quien estudia (opcional)</label>
-    <textarea id="e-explanation" placeholder="Por qué es correcta, artículo del reglamento, matices...">${esc(q.explanation||'')}</textarea>
+    <textarea id="e-explanation" placeholder="Por qué es correcta, artículo del reglamento, matices..." maxlength="2000">${esc(q.explanation||'')}</textarea>
     <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px;">
       <input type="checkbox" id="e-hard" style="width:auto;" ${q.difficulty==='hard'?'checked':''}> Es una pregunta difícil (aparecerá también en "Sala VAR")
     </label>
@@ -1684,7 +1684,7 @@ function databaseView(){
 
   <div class="qcard" style="margin-bottom:14px;">
     <label>Buscar texto</label>
-    <input type="text" id="db-search" placeholder="Busca por palabra en la pregunta o en las respuestas..." value="${esc(f.search)}">
+    <input type="text" id="db-search" placeholder="Busca por palabra en la pregunta o en las respuestas..." value="${esc(f.search)}" maxlength="100">
     <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
       <div style="flex:1; min-width:180px;">
         <label>Regla</label>
@@ -1739,15 +1739,15 @@ function addQuestionView(){
     <select id="f-law">${lawSel}</select>
     `}
     <label>Pregunta</label>
-    <textarea id="f-question" placeholder="Escribe el enunciado..."></textarea>
-    <label>Respuesta a)</label><input type="text" id="f-a">
-    <label>Respuesta b)</label><input type="text" id="f-b">
-    <label>Respuesta c)</label><input type="text" id="f-c">
-    <label>Respuesta d)</label><input type="text" id="f-d" placeholder="p.ej. Ninguna respuesta es correcta.">
+    <textarea id="f-question" placeholder="Escribe el enunciado..." maxlength="1000"></textarea>
+    <label>Respuesta a)</label><input type="text" id="f-a" maxlength="300">
+    <label>Respuesta b)</label><input type="text" id="f-b" maxlength="300">
+    <label>Respuesta c)</label><input type="text" id="f-c" maxlength="300">
+    <label>Respuesta d)</label><input type="text" id="f-d" placeholder="p.ej. Ninguna respuesta es correcta." maxlength="300">
     <label>Respuesta correcta</label>
     <select id="f-correct"><option value="a">a)</option><option value="b">b)</option><option value="c">c)</option><option value="d">d)</option></select>
     <label>Explicación para quien estudia (opcional)</label>
-    <textarea id="f-explanation" placeholder="Por qué es correcta, artículo del reglamento, matices..."></textarea>
+    <textarea id="f-explanation" placeholder="Por qué es correcta, artículo del reglamento, matices..." maxlength="2000"></textarea>
     <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px;">
       <input type="checkbox" id="f-hard" style="width:auto;"> Es una pregunta difícil (aparecerá también en "Sala VAR")
     </label>
