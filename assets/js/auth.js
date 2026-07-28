@@ -1,5 +1,11 @@
 // Funciones de autenticación compartidas por index.html (login/registro) y app.html (sesión activa).
 
+const PASSWORD_POLICY_MESSAGE = 'La contraseña debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas, números y un carácter especial.';
+
+function isStrongPassword(password){
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password);
+}
+
 async function doRegister(email, password, metadata, captchaToken){
   const { data, error } = await supabaseClient.auth.signUp({
     email,
@@ -56,7 +62,7 @@ function authErrorMessage(error){
   const msg = error.message || '';
   if(msg.includes('already registered') || msg.includes('already exists')) return 'Ya existe una cuenta con ese correo. Inicia sesión.';
   if(msg.includes('Invalid login credentials')) return 'Correo o contraseña incorrectos.';
-  if(msg.includes('Password should be at least')) return 'La contraseña debe tener al menos 6 caracteres.';
+  if(msg.includes('Password should be at least') || msg.includes('Password should contain')) return PASSWORD_POLICY_MESSAGE;
   if(msg.includes('Unable to validate email') || msg.includes('invalid')) return 'Introduce un correo electrónico válido.';
   return msg || 'Ha ocurrido un error. Inténtalo de nuevo.';
 }
