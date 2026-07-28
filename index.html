@@ -20,6 +20,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/styles.css">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  let hcaptchaApiReady = false;
+  function onHcaptchaApiLoad(){ hcaptchaApiReady = true; }
+</script>
+<script src="https://js.hcaptcha.com/1/api.js?onload=onHcaptchaApiLoad&render=explicit" async defer></script>
 </head>
 <body>
 
@@ -176,6 +181,8 @@
         </label>
       </div>
 
+      <div id="hcaptcha-container" style="margin:14px 0; display:flex; justify-content:center;"></div>
+
       <button type="submit" class="btn btn-primary auth-submit" id="auth-submit">Entrar</button>
       <div class="auth-error" id="auth-error" style="display:none;"></div>
     </form>
@@ -191,6 +198,25 @@
 <script src="assets/js/auth.js"></script>
 <script>
 let mode = 'login'; // 'login' | 'register' | 'recover'
+
+const HCAPTCHA_SITEKEY = '0f20c5a4-5778-4826-bea2-d9c65116a0e4';
+let hcaptchaWidgetId = null;
+let hcaptchaToken = null;
+
+function renderOrResetHcaptcha(){
+  if(!hcaptchaApiReady || typeof hcaptcha === 'undefined') return;
+  if(hcaptchaWidgetId === null){
+    hcaptchaWidgetId = hcaptcha.render('hcaptcha-container', {
+      sitekey: HCAPTCHA_SITEKEY,
+      callback: (token) => { hcaptchaToken = token; },
+      'expired-callback': () => { hcaptchaToken = null; },
+      'error-callback': () => { hcaptchaToken = null; }
+    });
+  } else {
+    hcaptcha.reset(hcaptchaWidgetId);
+  }
+  hcaptchaToken = null;
+}
 
 const modalEls = {
   backdrop: document.getElementById('auth-modal'),
@@ -295,6 +321,7 @@ function openModal(initialMode){
   renderMode();
   els.form.reset();
   modalEls.backdrop.style.display = 'flex';
+  renderOrResetHcaptcha();
 }
 function closeModal(){
   modalEls.backdrop.style.display = 'none';
@@ -332,13 +359,18 @@ els.form.addEventListener('submit', async (e)=>{
   els.error.style.display = 'none';
   els.error.style.background = '';
   els.error.style.color = '';
+  if(!hcaptchaToken){
+    els.error.textContent = 'Completa la verificación de seguridad antes de continuar.';
+    els.error.style.display = 'block';
+    return;
+  }
   els.submit.disabled = true;
   const email = els.email.value.trim();
   const password = els.password.value;
 
   try{
     if(mode==='recover'){
-      const { error } = await doPasswordReset(email);
+      const { error } = await doPasswordReset(email, hcaptchaToken);
       if(error){ throw error; }
       els.error.style.display = 'block';
       els.error.style.background = '#EAF7EE';
@@ -367,7 +399,7 @@ els.form.addEventListener('submit', async (e)=>{
         postcode: els.postcode.value.trim(),
         marketing_opt_in: els.marketing.checked
       };
-      const { data, error } = await doRegister(email, password, metadata);
+      const { data, error } = await doRegister(email, password, metadata, hcaptchaToken);
       if(error){ throw error; }
       const newUserId = (data.user && data.user.id) || (data.session && data.session.user.id);
       if(newUserId){ await claimUsername(newUserId, usernameValue); }
@@ -381,7 +413,7 @@ els.form.addEventListener('submit', async (e)=>{
         els.error.style.display = 'block';
       }
     } else {
-      const { data, error } = await doLogin(email, password);
+      const { data, error } = await doLogin(email, password, hcaptchaToken);
       if(error){ throw error; }
       window.location.href = 'app.html';
     }
@@ -390,6 +422,7 @@ els.form.addEventListener('submit', async (e)=>{
     els.error.style.display = 'block';
   } finally {
     els.submit.disabled = false;
+    renderOrResetHcaptcha();
   }
 });
 
