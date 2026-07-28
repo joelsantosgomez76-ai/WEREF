@@ -167,6 +167,7 @@
       <div id="auth-password-row">
         <label for="auth-password">Contraseña</label>
         <input type="password" id="auth-password" autocomplete="current-password" required minlength="6" maxlength="128">
+        <div id="auth-password-hint" style="display:none; font-size:12px; color:var(--muted); margin-top:6px;">Mínimo 8 caracteres, con mayúsculas, minúsculas, números y un carácter especial.</div>
         <button type="button" id="auth-forgot-link" style="background:none; border:none; padding:0; margin-top:6px; color:var(--muted); font-size:12.5px; text-decoration:underline; cursor:pointer;">¿Has olvidado tu contraseña?</button>
       </div>
 
@@ -238,6 +239,7 @@ const els = {
   email: document.getElementById('auth-email'),
   passwordRow: document.getElementById('auth-password-row'),
   password: document.getElementById('auth-password'),
+  passwordHint: document.getElementById('auth-password-hint'),
   forgotLink: document.getElementById('auth-forgot-link'),
   consentRows: document.getElementById('auth-consent-rows'),
   consent: document.getElementById('auth-consent'),
@@ -269,6 +271,8 @@ function renderMode(){
     els.socialRow.style.display = 'block';
     els.passwordRow.style.display = 'block';
     els.password.required = true;
+    els.password.minLength = 6;
+    els.passwordHint.style.display = 'none';
     els.forgotLink.style.display = 'block';
   } else if(mode==='register'){
     els.title.textContent = 'Crear cuenta';
@@ -290,6 +294,8 @@ function renderMode(){
     els.socialRow.style.display = 'block';
     els.passwordRow.style.display = 'block';
     els.password.required = true;
+    els.password.minLength = 8;
+    els.passwordHint.style.display = 'block';
     els.forgotLink.style.display = 'none';
   } else {
     els.title.textContent = 'Recuperar contraseña';
@@ -310,6 +316,7 @@ function renderMode(){
     els.socialRow.style.display = 'none';
     els.passwordRow.style.display = 'none';
     els.password.required = false;
+    els.passwordHint.style.display = 'none';
   }
   els.error.style.display = 'none';
   els.error.style.background = '';
@@ -379,6 +386,12 @@ els.form.addEventListener('submit', async (e)=>{
     } else if(mode==='register'){
       if(!els.consent.checked){
         els.error.textContent = 'Debes aceptar la Política de Privacidad y los Términos de Uso para crear una cuenta.';
+        els.error.style.display = 'block';
+        els.submit.disabled = false;
+        return;
+      }
+      if(!isStrongPassword(password)){
+        els.error.textContent = PASSWORD_POLICY_MESSAGE;
         els.error.style.display = 'block';
         els.submit.disabled = false;
         return;
