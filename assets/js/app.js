@@ -258,6 +258,17 @@ async function loadStorage(){
   try{ const v = await storageGet('glossaryQuestions'); STATE.storage.glossaryQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.glossaryQuestions = []; }
   try{ const v = await storageGet('myBank'); STATE.storage.myBank = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBank = []; }
   try{ const v = await storageGet('myBankCategories'); STATE.storage.myBankCategories = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBankCategories = []; }
+  {
+    // Compatibilidad con la versión anterior (categoría como texto libre sin lista propia):
+    // si alguna pregunta tiene una categoría que ya no está en la lista, la recuperamos
+    // para que no se quede "huérfana" sin aparecer en ningún sitio.
+    const known = new Set(STATE.storage.myBankCategories);
+    let missing = false;
+    STATE.storage.myBank.forEach(q=>{
+      if(q.category && !known.has(q.category)){ known.add(q.category); missing = true; }
+    });
+    if(missing){ STATE.storage.myBankCategories = Array.from(known); saveMyBankCategories(); }
+  }
   STATE.storage.userQuestions.forEach(q=>{ if(!q.id) q.id = 'U'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='law'; });
   STATE.storage.glossaryQuestions.forEach(q=>{ if(!q.id) q.id = 'G'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='glossary'; });
   checkAndUnlockBadges();
