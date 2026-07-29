@@ -479,10 +479,10 @@ function activeDaysSet(){
 }
 
 const CALENDAR_EVENT_TYPES = {
-  exam: { label: 'Examen teórico', icon: '📝' },
-  physical: { label: 'Prueba física', icon: '🏃' },
-  meeting: { label: 'Reunión de comité', icon: '👥' },
-  other: { label: 'Otro', icon: '📌' }
+  exam: { label: 'Examen teórico', icon: '📝', color: '#D62828', bg: '#FBE0E0' },
+  physical: { label: 'Prueba física', icon: '🏃', color: '#1D6FE0', bg: '#DFEBFC' },
+  meeting: { label: 'Reunión de comité', icon: '👥', color: '#8033D6', bg: '#EDE0FB' },
+  other: { label: 'Otro', icon: '📌', color: '#C98A00', bg: '#FBEECB' }
 };
 
 function eventDayKey(dateStr){
@@ -1829,7 +1829,13 @@ function streakCalendarView(){
       const hasEvent = dayEvents.length>0;
       const eventTitles = dayEvents.map(ev=>`${CALENDAR_EVENT_TYPES[ev.type].icon} ${ev.title}`).join(', ');
       const titleAttr = `${d} ${MONTH_NAMES[m]} ${year}${hasEvent ? ' · '+eventTitles : ''}`;
-      cells += `<div class="cal-cell ${isActive?'active':''} ${isFuture?'future':''} ${isToday?'today':''} ${hasEvent?'has-event':''}" title="${esc(titleAttr)}">${d}</div>`;
+      let cellStyle = '';
+      if(hasEvent){
+        const primaryType = CALENDAR_EVENT_TYPES[dayEvents[0].type] || CALENDAR_EVENT_TYPES.other;
+        cellStyle = `--event-dot:${primaryType.color}; opacity:1;`;
+        if(!isActive) cellStyle += ` background:${primaryType.bg}; color:${primaryType.color}; font-weight:700;`;
+      }
+      cells += `<div class="cal-cell ${isActive?'active':''} ${(isFuture && !hasEvent)?'future':''} ${isToday?'today':''} ${hasEvent?'has-event':''}" style="${cellStyle}" title="${esc(titleAttr)}">${d}</div>`;
     }
 
     months += `<div class="cal-month">
@@ -1842,8 +1848,11 @@ function streakCalendarView(){
   const eventRows = sortedEvents.map(ev=>{
     const isPast = ev.date < todayKeyISO(now);
     const t = CALENDAR_EVENT_TYPES[ev.type] || CALENDAR_EVENT_TYPES.other;
-    return `<div class="breakdown-row" style="${isPast?'opacity:0.5;':''}">
-      <span>${t.icon} <strong>${esc(ev.title)}</strong> <span class="mono" style="color:var(--muted); font-size:11px;">${formatEventDate(ev.date)}</span></span>
+    return `<div class="breakdown-row" style="border-left:4px solid ${t.color}; padding-left:10px; ${isPast?'opacity:0.5;':''}">
+      <span style="display:flex; align-items:center; gap:8px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:${t.bg}; font-size:13px; flex-shrink:0;">${t.icon}</span>
+        <span><strong>${esc(ev.title)}</strong><br><span class="mono" style="color:${t.color}; font-size:11px; font-weight:700;">${t.label} · ${formatEventDate(ev.date)}</span></span>
+      </span>
       <button class="icon-btn" title="Eliminar" data-action="calendar-delete-event" data-id="${ev.id}">🗑️</button>
     </div>`;
   }).join('');
@@ -1893,7 +1902,7 @@ function streakCalendarView(){
   <div style="display:flex; align-items:center; gap:6px; margin-top:14px; font-size:11.5px; color:var(--muted); flex-wrap:wrap;">
     <div class="cal-cell active" style="width:12px; height:12px; font-size:0;"></div> Día con actividad
     <div class="cal-cell" style="width:12px; height:12px; font-size:0; margin-left:10px;"></div> Sin actividad
-    <div class="cal-cell has-event" style="width:12px; height:12px; font-size:0; margin-left:10px;"></div> Con evento
+    ${Object.values(CALENDAR_EVENT_TYPES).map(t=>`<span style="display:inline-flex; align-items:center; gap:5px; margin-left:10px;"><span style="width:10px; height:10px; border-radius:50%; background:${t.color}; display:inline-block; flex-shrink:0;"></span>${t.label}</span>`).join('')}
   </div>
   `;
 }

@@ -188,8 +188,8 @@ button.option:hover:not(:disabled){border-color:var(--pitch); background:#FBF1F1
 .cal-cell.active{background:var(--accent); color:#fff; font-weight:700;}
 .cal-cell.today{box-shadow:0 0 0 1.5px var(--pitch) inset;}
 .cal-cell.future{opacity:0.4;}
-.cal-cell.has-event::after{content:''; position:absolute; top:1px; right:1px; width:4px; height:4px; border-radius:50%; background:var(--pitch); box-shadow:0 0 0 1px #fff;}
-.cal-cell.active.has-event::after{background:#fff; box-shadow:0 0 0 1px var(--accent);}
+.cal-cell.has-event::after{content:''; position:absolute; top:1px; right:1px; width:5px; height:5px; border-radius:50%; background:var(--event-dot, var(--pitch)); box-shadow:0 0 0 1px #fff;}
+.cal-cell.active.has-event::after{box-shadow:0 0 0 1px var(--accent);}
 .q-dot{
   width:30px; height:30px; border-radius:50%; border:1.5px solid var(--line); background:#fff;
   display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono'; font-size:11px; font-weight:700;
