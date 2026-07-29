@@ -144,6 +144,7 @@ let STATE = {
   myDocsEditingNotesId: null,
   myDocsRenamingFolderId: null,
   myDocsMovingId: null,
+  myDocsMovingFolderId: null,
   myDocsSortBy: 'name',
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
@@ -792,6 +793,25 @@ function render(){
     </div>`;
     document.body.appendChild(modal);
     modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  } else if(STATE.confirmDeleteMyDocFolderId){
+    const folder = (STATE.storage.myDocsFolders||[]).find(x=>x.id===STATE.confirmDeleteMyDocFolderId);
+    const hasChildren = folder && (myDocsChildFolders(folder.id).length>0 || myDocsInFolder(folder.id).length>0);
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<div class="modal-card">
+      <h3 style="margin-bottom:12px;">¿Eliminar esta carpeta?</h3>
+      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px;">📂 ${esc(folder ? folder.name : '')}</p>
+      ${hasChildren
+        ? `<p style="font-size:12.5px; color:var(--red); margin-bottom:16px;">Esta carpeta tiene documentos o subcarpetas dentro. Vacíala primero (muévelos o bórralos) antes de poder eliminarla.</p>`
+        : `<p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">Esta carpeta está vacía. Esta acción no se puede deshacer.</p>`}
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-ghost" data-action="mydocs-cancel-delete-folder">Cancelar</button>
+        ${hasChildren ? '' : `<button class="btn" style="background:var(--red); color:#fff;" data-action="mydocs-confirm-delete-folder">Sí, eliminar</button>`}
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
   }
 }
 
@@ -818,6 +838,7 @@ function viewFor(v){
   if(v==='myBankResult') return myBankResultView();
   if(v==='myDocs') return myDocsView();
   if(v==='myDocsPreview') return myDocsPreviewView();
+  if(v==='academia') return academiaView();
   if(v==='achievements') return achievementsView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
@@ -990,8 +1011,8 @@ function myBankCategoriesView(){
   `).join('');
 
   return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">📁 Mi Base de Datos</h2>
+  <button class="backbtn" data-action="academia">&larr; Mi Academia</button>
+  <h2 style="margin-bottom:4px;">📁 Mis Propios Test</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu contenido privado, organizado por categorías. Nadie más puede verlo, y nunca se mezcla con las preguntas de WEREF.</div>
 
   <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
@@ -1042,7 +1063,7 @@ function myBankCategoryView(){
     </div>
   `).join('');
   return `
-  <button class="backbtn" data-action="mybank">&larr; Mi Base de Datos</button>
+  <button class="backbtn" data-action="mybank">&larr; Mis Propios Test</button>
   <h2 style="margin-bottom:4px;">📂 ${esc(catLabel)}</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${list.length} pregunta(s)</div>
 
@@ -1117,7 +1138,7 @@ function saveMyBankQuestion(qid){
   saveMyBank();
   STATE.myBankEditingId = null;
   STATE.view = STATE.myBankViewCategory!==null ? 'myBankCategory' : 'myBank';
-  STATE.toast = 'Guardado en Mi Base de Datos.';
+  STATE.toast = 'Guardado en Mis Propios Test.';
   render();
 }
 
@@ -1152,8 +1173,8 @@ function myBankTrainConfigView(){
   const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
   const scoped = cfg.categories.length ? (STATE.storage.myBank||[]).filter(q=>cfg.categories.includes(q.category)) : (STATE.storage.myBank||[]);
   return `
-  <button class="backbtn" data-action="mybank">&larr; Mi Base de Datos</button>
-  <h2 style="margin-bottom:4px;">Crear test · Mi Base de Datos</h2>
+  <button class="backbtn" data-action="mybank">&larr; Mis Propios Test</button>
+  <h2 style="margin-bottom:4px;">Crear test · Mis Propios Test</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Elige qué categorías incluir, cuántas preguntas quieres y cómo quieres el tiempo.</div>
   <div class="qcard">
     ${cats.length>0 ? `
@@ -1325,7 +1346,7 @@ function myBankResultView(){
     <div class="label">${score} de ${total} respuestas correctas${answered<total ? ' · '+(total-answered)+' sin responder' : ''}</div>
   </div>
   <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
-    <button class="btn btn-primary" data-action="mybank">Volver a Mi Base de Datos</button>
+    <button class="btn btn-primary" data-action="mybank">Volver a Mis Propios Test</button>
     <button class="btn btn-secondary" data-action="mybank-train-config">Nuevo test</button>
   </div>
   `;
@@ -1453,7 +1474,7 @@ function myDocsView(){
       </button>`).join('');
     const docRows = myDocsSort(matchDocs,'createdAt').map(d=>myDocRowHtml(d, true)).join('');
     return `
-    <button class="backbtn" data-action="home">&larr; Inicio</button>
+    <button class="backbtn" data-action="academia">&larr; Mi Academia</button>
     <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
     <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Resultados de "${esc(STATE.myDocsSearch)}" en todas las carpetas.</div>
     ${uploadControls}
@@ -1482,12 +1503,30 @@ function myDocsView(){
         </div>
       </div>`;
     }
+    if(STATE.myDocsMovingFolderId===f.id){
+      const excludeIds = new Set([f.id, ...myDocsDescendantIds(f.id)]);
+      const folderOptions = [{id:'', name:'Mis Documentos', depth:0}].concat(
+        myDocsAllFoldersFlat().filter(x=>!excludeIds.has(x.folder.id)).map(x=>({id:x.folder.id, name:x.folder.name, depth:x.depth}))
+      );
+      return `<div style="padding:10px 0; border-bottom:1px solid var(--line);">
+        <div style="font-size:13px; margin-bottom:8px;">📂 ${esc(f.name)}</div>
+        <select id="mydocs-move-folder-select-${f.id}">
+          ${folderOptions.map(o=>`<option value="${o.id}" ${f.parentId===(o.id||null)?'selected':''}>${'— '.repeat(o.depth)}${esc(o.name)}</option>`).join('')}
+        </select>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-confirm-move-folder" data-folder="${f.id}">Mover aquí</button>
+          <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-cancel-move-folder">Cancelar</button>
+        </div>
+      </div>`;
+    }
     return `
     <div class="breakdown-row">
       <button style="flex:1; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit; padding:0;" data-action="mydocs-open-folder" data-folder="${f.id}">
         📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${childCount})</span>
       </button>
-      <button class="btn btn-ghost" style="padding:4px 10px; font-size:11.5px;" data-action="mydocs-rename-folder" data-folder="${f.id}">Renombrar</button>
+      <button class="icon-btn" title="Renombrar" data-action="mydocs-rename-folder" data-folder="${f.id}">✏️</button>
+      <button class="icon-btn" title="Mover" data-action="mydocs-move-folder" data-folder="${f.id}">➡️</button>
+      <button class="icon-btn" title="Eliminar" data-action="mydocs-delete-folder" data-folder="${f.id}">🗑️</button>
       <span class="arrow">›</span>
     </div>`;
   }).join('');
@@ -1495,7 +1534,7 @@ function myDocsView(){
   const docRows = docs.map(d=>myDocRowHtml(d, false)).join('');
 
   return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <button class="backbtn" data-action="academia">&larr; Mi Academia</button>
   <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Tus PDFs privados (informes, circulares, evaluaciones...). Solo tú puedes verlos. Máximo 20 MB por archivo.</div>
 
@@ -1554,6 +1593,34 @@ function myDocsAllFoldersFlat(){
   };
   walk(null, 0);
   return result;
+}
+
+function myDocsDescendantIds(id){
+  const result = new Set();
+  const walk = (parentId) => {
+    myDocsChildFolders(parentId).forEach(f => { result.add(f.id); walk(f.id); });
+  };
+  walk(id);
+  return result;
+}
+
+async function myDocsMoveFolder(id, newParentId){
+  const folder = (STATE.storage.myDocsFolders||[]).find(f=>f.id===id);
+  if(!folder) return;
+  const target = newParentId || null;
+  if(target === id){ STATE.toast = 'No puedes mover una carpeta dentro de sí misma.'; render(); return; }
+  if(target && myDocsDescendantIds(id).has(target)){ STATE.toast = 'No puedes mover una carpeta dentro de una de sus propias subcarpetas.'; render(); return; }
+  const siblings = myDocsChildFolders(target).filter(f=>f.id!==id);
+  if(siblings.some(f=>f.name.toLowerCase()===folder.name.toLowerCase())){
+    STATE.toast = 'Ya tienes una carpeta con ese nombre en el destino.';
+    render();
+    return;
+  }
+  folder.parentId = target;
+  await saveMyDocsFolders();
+  STATE.myDocsMovingFolderId = null;
+  STATE.toast = 'Carpeta movida.';
+  render();
 }
 
 async function moveMyDoc(id, folderId){
@@ -1771,11 +1838,37 @@ function achievementsView(){
   `;
 }
 
+function academiaView(){
+  const bankCount = (STATE.storage.myBank||[]).length;
+  const docsCount = (STATE.storage.myDocs||[]).length;
+  const savedCount = Object.keys(STATE.storage.saved).length;
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">🎓 Mi Academia</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Tu espacio personal: guarda tus documentos, crea tus propios test y repasa las preguntas que has ido guardando. Nada de esto se mezcla con el contenido oficial de WEREF.</div>
+  <div class="menu-list">
+    <button class="menu-item" data-action="mydocs-home">
+      <div><div class="title">📄 Documentos</div><div class="desc">Reglamentos, circulares, apuntes y PDFs privados${docsCount>0 ? ` · ${docsCount} documento(s)` : ''}</div></div>
+      <div class="arrow">›</div>
+    </button>
+    <button class="menu-item" data-action="mybank">
+      <div><div class="title">📁 Mis propios test</div><div class="desc">Crea tus categorías y preguntas para generar tests con tu propio contenido${bankCount>0 ? ` · ${bankCount} pregunta(s)` : ''}</div></div>
+      <div class="arrow">›</div>
+    </button>
+    <button class="menu-item" data-action="open-law" data-law="saved">
+      <div><div class="title">📚 Preguntas guardadas</div><div class="desc">Las preguntas que has marcado para repasar más tarde${savedCount>0 ? ` · ${savedCount} guardada(s)` : ''}</div></div>
+      <div class="arrow">›</div>
+    </button>
+  </div>
+  `;
+}
+
 function homeView(){
   const os = overallStats();
   const points = computePoints();
   const rank = currentRank(points);
   const next = nextRankInfo(points);
+  const academiaTotal = (STATE.storage.myBank||[]).length + (STATE.storage.myDocs||[]).length + Object.keys(STATE.storage.saved).length;
   const rp = recentPerformance(20);
   let recentPerfHtml;
   if(!rp){
@@ -1902,15 +1995,15 @@ function homeView(){
       </button>
     </div>
   </div>
+  <div style="display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
+    <button class="btn btn-primary" data-action="train-config">📘 Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
+    <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">🏆 Modo Competitivo</button>
+    <button class="btn btn-primary" style="background:var(--pitch);" data-action="academia">🎓 Mi Academia${academiaTotal>0 ? ` <span class="badge">${academiaTotal}</span>` : ''}</button>
+  </div>
   <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
-    <button class="btn btn-primary" data-action="train-config">Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
-    <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
-    <button class="btn btn-ghost" data-action="mybank">📁 Mi Base de Datos${(STATE.storage.myBank||[]).length>0 ? ` <span class="badge">${STATE.storage.myBank.length}</span>` : ''}</button>
-    <button class="btn btn-ghost" data-action="mydocs-home">📄 Mis Documentos${(STATE.storage.myDocs||[]).length>0 ? ` <span class="badge">${STATE.storage.myDocs.length}</span>` : ''}</button>
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
-    ${Object.keys(STATE.storage.saved).length>0 ? `<button class="btn btn-ghost" data-action="open-law" data-law="saved">📚 Mi Lista <span class="badge">${Object.keys(STATE.storage.saved).length}</span></button>` : ''}
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
     ${progressHtml}
@@ -1953,25 +2046,27 @@ function lawMenuView(){
        <div><div class="name">Preguntas Glosario <span class="mono" style="font-size:11px; color:var(--muted); font-weight:500;">IFAB</span></div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`
     : isSaved
     ? `<div class="num">📚</div>
-       <div><div class="name">Mi Lista <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Guardadas por ti</span></div><div class="stat">${s.total>0 ? s.total+' pregunta(s) guardadas' : 'Nada guardado todavía'}</div></div>`
+       <div><div class="name">Preguntas Guardadas <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Guardadas por ti</span></div><div class="stat">${s.total>0 ? s.total+' pregunta(s) guardadas' : 'Nada guardado todavía'}</div></div>`
     : `<div class="num">${law}</div>
        <div><div class="name">${esc(LAW_NAMES[law])}</div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`;
+  const backAction = isSaved ? 'academia' : 'home';
+  const backLabel = isSaved ? '&larr; Mi Academia' : '&larr; Todas las reglas';
   if(isFailed && s.total===0){
     return `
-    <button class="backbtn" data-action="home">&larr; Todas las reglas</button>
+    <button class="backbtn" data-action="${backAction}">${backLabel}</button>
     <div class="big-law-head">${headHtml}</div>
     <div class="empty-state">¡Nada pendiente! No tienes ninguna pregunta fallada ahora mismo. Sigue haciendo tests y, si fallas alguna, aparecerá aquí para que la repases.</div>
     `;
   }
   if(isSaved && s.total===0){
     return `
-    <button class="backbtn" data-action="home">&larr; Todas las reglas</button>
+    <button class="backbtn" data-action="${backAction}">${backLabel}</button>
     <div class="big-law-head">${headHtml}</div>
     <div class="empty-state">Todavía no has guardado ninguna pregunta. Pulsa "📚 Guardar en Mi Lista" durante un test para añadirla aquí.</div>
     `;
   }
   return `
-  <button class="backbtn" data-action="home">&larr; Todas las reglas</button>
+  <button class="backbtn" data-action="${backAction}">${backLabel}</button>
   <div class="big-law-head">
     ${headHtml}
   </div>
@@ -2334,7 +2429,7 @@ function trainConfigView(){
     const active = cfg.laws.includes(i);
     chips += `<button class="tab ${active?'active':''}" data-action="toggle-train-law" data-law="${i}">R${i}</button>`;
   }
-  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='saved' ? 'Mi Lista' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
+  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='saved' ? 'Preguntas Guardadas' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
   const backAction = scopeOverride ? 'open-law' : 'home';
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${scopeOverride||''}">&larr; ${scopeOverride ? scopeLabel : 'Inicio'}</button>
@@ -2385,7 +2480,7 @@ function savedBrowseView(){
   const ids = Object.keys(STATE.storage.saved);
   const letters=['a','b','c','d'];
   if(ids.length===0){
-    return `<button class="backbtn" data-action="open-law" data-law="saved">&larr; Mi Lista</button>
+    return `<button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas Guardadas</button>
     <div class="empty-state">Ya no te quedan preguntas guardadas.</div>`;
   }
   if(STATE.savedBrowseIdx >= ids.length) STATE.savedBrowseIdx = ids.length - 1;
@@ -2393,7 +2488,7 @@ function savedBrowseView(){
   const id = ids[STATE.savedBrowseIdx];
   const q = allQuestions().find(x=>x.id===id);
   return `
-  <button class="backbtn" data-action="open-law" data-law="saved">&larr; Mi Lista</button>
+  <button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas Guardadas</button>
   <div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:13px;">Pregunta ${STATE.savedBrowseIdx+1} de ${ids.length}</div>
   <div class="qcard" style="margin-bottom:14px;">
     <div class="qtag">${scopeLabel(q)}</div>
@@ -2401,7 +2496,7 @@ function savedBrowseView(){
     ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
     ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
     <div style="margin-top:12px;">
-      <button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">Quitar de Mi Lista</button>
+      <button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">Quitar de Guardadas</button>
     </div>
   </div>
   <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
@@ -3028,6 +3123,7 @@ function onAction(e){
   else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; render(); }
   else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeaderboard(STATE.leaderboardMode||'hearts'); render(); }
   else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
+  else if(action==='academia'){ STATE.view='academia'; render(); }
   else if(action==='mybank'){ STATE.myBankEditingId=null; STATE.myBankViewCategory=null; STATE.myBankCreatingCategory=false; STATE.myBankSearch=''; STATE.view='myBank'; render(); }
   else if(action==='mybank-new-category'){ STATE.myBankCreatingCategory=true; render(); }
   else if(action==='mybank-cancel-category'){ STATE.myBankCreatingCategory=false; render(); }
@@ -3095,10 +3191,23 @@ function onAction(e){
   else if(action==='mydocs-new-folder'){ STATE.myDocsCreatingFolder=true; render(); }
   else if(action==='mydocs-cancel-folder'){ STATE.myDocsCreatingFolder=false; render(); }
   else if(action==='mydocs-save-folder'){ myDocsAddFolder(); }
-  else if(action==='mydocs-delete-folder'){ myDocsDeleteFolder(el.dataset.folder); }
-  else if(action==='mydocs-rename-folder'){ STATE.myDocsRenamingFolderId = el.dataset.folder; render(); }
+  else if(action==='mydocs-delete-folder'){ STATE.confirmDeleteMyDocFolderId = el.dataset.folder; render(); }
+  else if(action==='mydocs-cancel-delete-folder'){ STATE.confirmDeleteMyDocFolderId = null; render(); }
+  else if(action==='mydocs-confirm-delete-folder'){
+    const id = STATE.confirmDeleteMyDocFolderId;
+    STATE.confirmDeleteMyDocFolderId = null;
+    myDocsDeleteFolder(id);
+  }
+  else if(action==='mydocs-rename-folder'){ STATE.myDocsRenamingFolderId = el.dataset.folder; STATE.myDocsMovingFolderId = null; render(); }
   else if(action==='mydocs-cancel-rename-folder'){ STATE.myDocsRenamingFolderId = null; render(); }
   else if(action==='mydocs-save-rename-folder'){ myDocsRenameFolder(el.dataset.folder); }
+  else if(action==='mydocs-move-folder'){ STATE.myDocsMovingFolderId = el.dataset.folder; STATE.myDocsRenamingFolderId = null; render(); }
+  else if(action==='mydocs-cancel-move-folder'){ STATE.myDocsMovingFolderId = null; render(); }
+  else if(action==='mydocs-confirm-move-folder'){
+    const id = el.dataset.folder;
+    const select = document.getElementById('mydocs-move-folder-select-'+id);
+    myDocsMoveFolder(id, select ? select.value : '');
+  }
   else if(action==='mydocs-set-sort'){ STATE.myDocsSortBy = el.dataset.sort; render(); }
   else if(action==='mydocs-move'){ STATE.myDocsMovingId = el.dataset.id; render(); }
   else if(action==='mydocs-preview'){ myDocsPreview(el.dataset.id); }
