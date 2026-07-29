@@ -2049,8 +2049,8 @@ function homeView(){
           <span class="mono" style="font-weight:700; font-size:15px; color:${scoreColor(weak.pct)};">${weak.pct}%</span>
         </div>
         <div>
-          <div style="font-weight:700; font-size:14px;">Regla ${weak.rule} más floja</div>
-          <div style="font-size:12.5px; color:var(--muted);">${esc(LAW_NAMES[weak.rule])} · toca para practicar</div>
+          <div style="font-weight:700; font-size:14px;">Recomendación para hoy</div>
+          <div style="font-size:12.5px; color:var(--muted); margin-top:2px;">Te recomendamos practicar la Regla ${weak.rule} (${esc(LAW_NAMES[weak.rule])}). Es la regla en la que más fallas actualmente — dedicar unos minutos a repasarla mejorará tu rendimiento global.</div>
         </div>
       </button>`;
 
