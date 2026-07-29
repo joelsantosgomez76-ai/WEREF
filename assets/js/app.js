@@ -851,7 +851,7 @@ function dailyChallengeView(){
   const taRecord = STATE.storage.timeAttackRecord || 0;
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Modo Competitivo</h2>
+  <h2 style="margin-bottom:4px;">WEREF League</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Desafíos rápidos para poner a prueba tu nivel. Iremos añadiendo más modos aquí.</div>
 
   <button class="btn btn-secondary" style="width:100%; margin-bottom:16px;" data-action="leaderboard">🏆 Ver clasificación (Top 25)</button>
@@ -946,7 +946,7 @@ function leaderboardView(){
   }
 
   return `
-  <button class="backbtn" data-action="dailyChallenge">&larr; Modo Competitivo</button>
+  <button class="backbtn" data-action="dailyChallenge">&larr; WEREF League</button>
   <h2 style="margin-bottom:4px;">🏆 Clasificación</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:14px; font-size:13.5px;">Top 25 de ${modeLabel}</div>
   <div class="tabs" style="margin-bottom:14px;">
@@ -1997,7 +1997,7 @@ function homeView(){
   </div>
   <div style="display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="train-config">📘 Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
-    <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">🏆 Modo Competitivo</button>
+    <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">🏆 WEREF League</button>
     <button class="btn btn-primary" style="background:var(--pitch);" data-action="academia">🎓 Mi Academia${academiaTotal>0 ? ` <span class="badge">${academiaTotal}</span>` : ''}</button>
   </div>
   <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
