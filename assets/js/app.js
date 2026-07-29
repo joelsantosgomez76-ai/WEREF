@@ -2990,14 +2990,6 @@ function statsView(){
     <button class="btn btn-secondary" data-action="flagged-list">Ver y corregir marcadas</button>
     <button class="btn btn-ghost" data-action="review-flagged">Practicarlas como test</button>
   </div>` : ''}
-  <div class="section-title">Copia de seguridad</div>
-  <div class="qcard" style="display:flex; gap:10px; flex-wrap:wrap;">
-    <button class="btn btn-secondary" data-action="export-data">Descargar copia de seguridad</button>
-    <label class="btn btn-ghost" style="display:inline-flex; align-items:center; cursor:pointer;">
-      Importar copia
-      <input type="file" id="import-file" accept="application/json" style="display:none;">
-    </label>
-  </div>
   <div class="footer-note">Guardando en la nube, asociado a tu cuenta${typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL ? ' ('+esc(CURRENT_USER_EMAIL)+')' : ''}.</div>
 
   <div class="section-title">Mi cuenta</div>
@@ -3106,46 +3098,11 @@ function importExcelFile(file){
   reader.readAsArrayBuffer(file);
 }
 
-function exportData(){
-  const payload = {
-    progress: STATE.storage.progress,
-    userQuestions: STATE.storage.userQuestions,
-    flags: STATE.storage.flags,
-    saved: STATE.storage.saved,
-    exportedAt: new Date().toISOString()
-  };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'formacion_arbitral_backup.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function importData(file){
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try{
-      const data = JSON.parse(e.target.result);
-      STATE.storage.progress = data.progress || {};
-      STATE.storage.userQuestions = data.userQuestions || [];
-      STATE.storage.flags = data.flags || {};
-      STATE.storage.saved = data.saved || {};
-      await saveProgress(); await saveUserQuestions(); await saveFlags(); await saveSaved();
-      STATE.toast = 'Copia de seguridad importada correctamente.';
-      render();
-    }catch(err){ STATE.toast = 'No se pudo leer ese archivo.'; render(); }
-  };
-  reader.readAsText(file);
-}
-
 /* ---------------- EVENTS ---------------- */
 function bindEvents(){
   document.querySelectorAll('[data-action]').forEach(el=>{
     el.addEventListener('click', onAction);
   });
-  const importInput = document.getElementById('import-file');
-  if(importInput){ importInput.addEventListener('change', (e)=>{ if(e.target.files[0]) importData(e.target.files[0]); }); }
   const importExcelInput = document.getElementById('import-excel-file');
   if(importExcelInput){ importExcelInput.addEventListener('change', (e)=>{ if(e.target.files[0]) importExcelFile(e.target.files[0]); }); }
 
@@ -3413,7 +3370,6 @@ function onAction(e){
     saveFlags();
     render();
   }
-  else if(action==='export-data'){ exportData(); }
   else if(action==='export-excel'){ exportExcel(); }
   else if(action==='reset-stats'){ STATE.confirmResetStats = true; render(); }
   else if(action==='confirm-reset-stats'){
