@@ -133,6 +133,8 @@ let STATE = {
   myBankCreatingCategory: false,
   myBankTrainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'none', categories: [], feedbackMode: 'exam' },
   myBankQuiz: null,
+  confirmDeleteMyBankId: null,
+  confirmDeleteMyBankCategory: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
   dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
   reportedIds: {},
@@ -718,6 +720,41 @@ function render(){
       <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button class="btn btn-ghost" data-action="cancel-reset-stats">Cancelar</button>
         <button class="btn" style="background:var(--red); color:#fff;" data-action="confirm-reset-stats">Sí, reiniciar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  } else if(STATE.confirmDeleteMyBankId){
+    const q = (STATE.storage.myBank||[]).find(x=>x.id===STATE.confirmDeleteMyBankId);
+    const preview = q ? q.question : '';
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<div class="modal-card">
+      <h3 style="margin-bottom:12px;">¿Estás seguro de que quieres eliminar esta pregunta?</h3>
+      <div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; font-weight:700; margin-bottom:4px;">Pregunta a eliminar:</div>
+      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px; white-space:pre-wrap; word-break:break-word;">${esc(preview)}</p>
+      <p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">Esta acción no se puede deshacer.</p>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-ghost" data-action="mybank-cancel-delete">Cancelar</button>
+        <button class="btn" style="background:var(--red); color:#fff;" data-action="mybank-confirm-delete">Sí, eliminar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  } else if(STATE.confirmDeleteMyBankCategory !== null){
+    const catName = STATE.confirmDeleteMyBankCategory;
+    const count = (STATE.storage.myBank||[]).filter(q=>q.category===catName).length;
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<div class="modal-card">
+      <h3 style="margin-bottom:12px;">¿Eliminar la categoría "${esc(catName)}"?</h3>
+      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px;">${count>0 ? `${count} pregunta(s) de esta categoría pasarán a "Sin categoría". No se borra ninguna pregunta.` : 'Esta categoría no tiene preguntas.'}</p>
+      <p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">Esta acción no se puede deshacer.</p>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-ghost" data-action="mybank-cancel-delete-category">Cancelar</button>
+        <button class="btn" style="background:var(--red); color:#fff;" data-action="mybank-confirm-delete-category">Sí, eliminar</button>
       </div>
     </div>`;
     document.body.appendChild(modal);
@@ -2632,11 +2669,19 @@ function onAction(e){
   else if(action==='mybank-save-category'){ myBankAddCategory(); }
   else if(action==='mybank-open-category'){ STATE.myBankViewCategory=el.dataset.category; STATE.myBankSearch=''; STATE.view='myBankCategory'; render(); }
   else if(action==='mybank-open-category-back'){ STATE.view='myBankCategory'; render(); }
-  else if(action==='mybank-delete-category'){ myBankDeleteCategory(el.dataset.category); }
+  else if(action==='mybank-delete-category'){ STATE.confirmDeleteMyBankCategory = el.dataset.category; render(); }
+  else if(action==='mybank-cancel-delete-category'){ STATE.confirmDeleteMyBankCategory = null; render(); }
+  else if(action==='mybank-confirm-delete-category'){
+    myBankDeleteCategory(STATE.confirmDeleteMyBankCategory);
+    STATE.confirmDeleteMyBankCategory = null;
+  }
   else if(action==='mybank-add'){ STATE.myBankEditingId=null; STATE.view='myBankForm'; render(); }
   else if(action==='mybank-edit'){ STATE.myBankEditingId=el.dataset.qid; STATE.view='myBankForm'; render(); }
-  else if(action==='mybank-delete'){
-    STATE.storage.myBank = (STATE.storage.myBank||[]).filter(q=>q.id!==el.dataset.qid);
+  else if(action==='mybank-delete'){ STATE.confirmDeleteMyBankId = el.dataset.qid; render(); }
+  else if(action==='mybank-cancel-delete'){ STATE.confirmDeleteMyBankId = null; render(); }
+  else if(action==='mybank-confirm-delete'){
+    STATE.storage.myBank = (STATE.storage.myBank||[]).filter(q=>q.id!==STATE.confirmDeleteMyBankId);
+    STATE.confirmDeleteMyBankId = null;
     saveMyBank();
     render();
   }
