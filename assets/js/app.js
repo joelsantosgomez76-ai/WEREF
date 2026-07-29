@@ -983,7 +983,7 @@ function myBankCategoriesView(){
   const totalQuestions = (STATE.storage.myBank||[]).length;
 
   const rows = cats.map(c => `
-    <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="${esc(c)}">
+    <button class="breakdown-row" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="${esc(c)}">
       <span>📂 ${esc(c)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${counts[c]||0})</span></span>
       <span class="arrow">›</span>
     </button>
@@ -1015,7 +1015,7 @@ function myBankCategoriesView(){
   </div>
 
   ${uncategorizedCount>0 ? `
-  <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="">
+  <button class="breakdown-row" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="">
     <span>🗂️ Sin categoría <span class="mono" style="color:var(--muted); font-size:11.5px;">(${uncategorizedCount})</span></span>
     <span class="arrow">›</span>
   </button>
@@ -1447,7 +1447,7 @@ function myDocsView(){
     const matchFolders = (STATE.storage.myDocsFolders||[]).filter(f=>f.name.toLowerCase().includes(s));
     const matchDocs = (STATE.storage.myDocs||[]).filter(d => d.name.toLowerCase().includes(s) || (d.notes||'').toLowerCase().includes(s));
     const folderRows = myDocsSort(matchFolders,'createdAt').map(f => `
-      <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mydocs-open-folder" data-folder="${f.id}">
+      <button class="breakdown-row" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mydocs-open-folder" data-folder="${f.id}">
         <span>📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11px;">${esc(myDocsBreadcrumb(f.parentId).map(x=>x.name).join(' / ') || 'Mis Documentos')}</span></span>
         <span class="arrow">›</span>
       </button>`).join('');
@@ -1662,7 +1662,7 @@ function recentPerformanceView(){
     const label = r.total===0
       ? '<span class="law-sub-muted">Sin datos aún</span>'
       : `${accuracyBadge(r.pct)}`;
-    return `<button class="breakdown-row" data-action="open-law" data-law="${r.rule}" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;">
+    return `<button class="breakdown-row" data-action="open-law" data-law="${r.rule}" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;">
       <span>Regla ${r.rule} · ${esc(LAW_NAMES[r.rule])}</span>
       <span style="display:flex; align-items:center; gap:6px;">${label}</span>
     </button>`;
@@ -2266,7 +2266,7 @@ function resultView(){
   let rows = Object.keys(byLaw).sort((a,b)=>a-b).map(law=>{
     const b = byLaw[law];
     const rulePct = Math.round(b.correct/b.total*100);
-    return `<button class="breakdown-row" data-action="open-law" data-law="${law}" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;"><span>Regla ${law} · ${esc(LAW_NAMES[law])}</span><span class="mono" style="color:${scoreColor(rulePct)};">${rulePct}%</span></button>`;
+    return `<button class="breakdown-row" data-action="open-law" data-law="${law}" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;"><span>Regla ${law} · ${esc(LAW_NAMES[law])}</span><span class="mono" style="color:${scoreColor(rulePct)};">${rulePct}%</span></button>`;
   }).join('');
 
   return `
