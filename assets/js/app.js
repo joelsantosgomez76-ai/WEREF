@@ -142,6 +142,9 @@ let STATE = {
   myDocsPreviewId: null,
   myDocsPreviewUrl: null,
   myDocsEditingNotesId: null,
+  myDocsRenamingFolderId: null,
+  myDocsMovingId: null,
+  myDocsSortBy: 'name',
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
@@ -1363,34 +1366,23 @@ function myDocsBreadcrumb(folderId){
   return trail;
 }
 
-function myDocsView(){
-  const folderId = STATE.myDocsCurrentFolder;
-  const subfolders = myDocsChildFolders(folderId);
-  const s = (STATE.myDocsSearch||'').trim().toLowerCase();
-  let docs = myDocsInFolder(folderId);
-  if(s) docs = docs.filter(d => d.name.toLowerCase().includes(s) || (d.notes||'').toLowerCase().includes(s));
-  const trail = myDocsBreadcrumb(folderId);
+function myDocsSort(list, dateField){
+  const by = STATE.myDocsSortBy || 'name';
+  const arr = list.slice();
+  if(by==='date') arr.sort((a,b)=>(b[dateField]||0)-(a[dateField]||0));
+  else arr.sort((a,b)=>a.name.localeCompare(b.name));
+  return arr;
+}
 
-  const breadcrumbHtml = `
-    <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="">📁 Mis Documentos</button>
-    ${trail.map(f=>`<span style="color:var(--muted);">/</span> <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="${f.id}">${esc(f.name)}</button>`).join(' ')}
-  `;
-
-  const folderRows = subfolders.map(f => {
-    const childCount = myDocsChildFolders(f.id).length + myDocsInFolder(f.id).length;
-    return `
-    <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mydocs-open-folder" data-folder="${f.id}">
-      <span>📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${childCount})</span></span>
-      <span class="arrow">›</span>
-    </button>`;
-  }).join('');
-
-  const docRows = docs.map(d => `
+function myDocRowHtml(d, showPath){
+  const pathLabel = showPath ? myDocsBreadcrumb(d.folderId).map(f=>f.name).join(' / ') || 'Mis Documentos' : null;
+  const folderOptions = [{id:'', name:'Mis Documentos', depth:0}].concat(myDocsAllFoldersFlat().map(x=>({id:x.folder.id, name:x.folder.name, depth:x.depth})));
+  return `
     <div class="qcard" style="margin-bottom:10px;">
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
         <div>
           <div style="font-weight:700; font-size:14px;">📄 ${esc(d.name)}</div>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${formatBytes(d.size)} · ${new Date(d.createdAt).toLocaleDateString('es-ES')}</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${formatBytes(d.size)} · ${new Date(d.createdAt).toLocaleDateString('es-ES')}${pathLabel ? ' · 📁 '+esc(pathLabel) : ''}</div>
         </div>
       </div>
       ${STATE.myDocsEditingNotesId===d.id ? `
@@ -1400,21 +1392,34 @@ function myDocsView(){
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-cancel-notes">Cancelar</button>
         </div>
       ` : (d.notes ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px; white-space:pre-wrap;">${esc(d.notes)}</div>` : '')}
+      ${STATE.myDocsMovingId===d.id ? `
+        <div style="margin-top:10px;">
+          <label>Mover a</label>
+          <select id="mydocs-move-select-${d.id}">
+            ${folderOptions.map(f=>`<option value="${f.id}" ${d.folderId===(f.id||null)?'selected':''}>${'— '.repeat(f.depth)}${esc(f.name)}</option>`).join('')}
+          </select>
+        </div>
+      ` : ''}
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn btn-secondary" style="padding:7px 14px; font-size:13px;" data-action="mydocs-preview" data-id="${d.id}">Ver</button>
         ${STATE.myDocsEditingNotesId===d.id ? '' : `<button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="mydocs-edit-notes" data-id="${d.id}">${d.notes?'Editar nota':'+ Nota'}</button>`}
+        ${STATE.myDocsMovingId===d.id ? '' : `<button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="mydocs-move" data-id="${d.id}">Mover</button>`}
         <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="mydocs-delete" data-id="${d.id}">Eliminar</button>
       </div>
     </div>
-  `).join('');
+  `;
+}
 
-  return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Tus PDFs privados (informes, circulares, evaluaciones...). Solo tú puedes verlos. Máximo 20 MB por archivo.</div>
-
-  <div style="margin-bottom:14px; font-size:13px;">${breadcrumbHtml}</div>
-
+function myDocsView(){
+  const folderId = STATE.myDocsCurrentFolder;
+  const s = (STATE.myDocsSearch||'').trim().toLowerCase();
+  const sortControls = `
+    <div class="tabs">
+      <button class="tab ${STATE.myDocsSortBy==='name'?'active':''}" data-action="mydocs-set-sort" data-sort="name">Nombre</button>
+      <button class="tab ${STATE.myDocsSortBy==='date'?'active':''}" data-action="mydocs-set-sort" data-sort="date">Fecha</button>
+    </div>
+  `;
+  const uploadControls = `
   <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
     ${STATE.myDocsCreatingFolder ? '' : `<button class="btn btn-secondary" data-action="mydocs-new-folder">+ Nueva carpeta</button>`}
     <label class="btn btn-primary" style="cursor:pointer; margin:0;">
@@ -1422,7 +1427,6 @@ function myDocsView(){
       <input type="file" id="mydocs-upload-input" accept="application/pdf" style="display:none;" ${STATE.myDocsUploading?'disabled':''}>
     </label>
   </div>
-
   ${STATE.myDocsCreatingFolder ? `
   <div class="qcard" style="margin-bottom:14px;">
     <label>Nombre de la carpeta</label>
@@ -1433,11 +1437,72 @@ function myDocsView(){
     </div>
   </div>
   ` : ''}
-
   <div class="qcard" style="margin-bottom:14px;">
-    <label>Buscar en esta carpeta</label>
+    <label>Buscar en todos tus documentos y carpetas</label>
     <input type="text" id="mydocs-search" placeholder="Busca por nombre o nota..." value="${esc(STATE.myDocsSearch)}" maxlength="100">
   </div>
+  `;
+
+  if(s){
+    const matchFolders = (STATE.storage.myDocsFolders||[]).filter(f=>f.name.toLowerCase().includes(s));
+    const matchDocs = (STATE.storage.myDocs||[]).filter(d => d.name.toLowerCase().includes(s) || (d.notes||'').toLowerCase().includes(s));
+    const folderRows = myDocsSort(matchFolders,'createdAt').map(f => `
+      <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mydocs-open-folder" data-folder="${f.id}">
+        <span>📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11px;">${esc(myDocsBreadcrumb(f.parentId).map(x=>x.name).join(' / ') || 'Mis Documentos')}</span></span>
+        <span class="arrow">›</span>
+      </button>`).join('');
+    const docRows = myDocsSort(matchDocs,'createdAt').map(d=>myDocRowHtml(d, true)).join('');
+    return `
+    <button class="backbtn" data-action="home">&larr; Inicio</button>
+    <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
+    <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Resultados de "${esc(STATE.myDocsSearch)}" en todas las carpetas.</div>
+    ${uploadControls}
+    ${matchFolders.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:14px;">${folderRows}</div>` : ''}
+    ${docRows || `<div class="empty-state">Nada coincide con esa búsqueda.</div>`}
+    `;
+  }
+
+  const subfolders = myDocsSort(myDocsChildFolders(folderId), 'createdAt');
+  const docs = myDocsSort(myDocsInFolder(folderId), 'createdAt');
+  const trail = myDocsBreadcrumb(folderId);
+
+  const breadcrumbHtml = `
+    <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="">📁 Mis Documentos</button>
+    ${trail.map(f=>`<span style="color:var(--muted);">/</span> <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="${f.id}">${esc(f.name)}</button>`).join(' ')}
+  `;
+
+  const folderRows = subfolders.map(f => {
+    const childCount = myDocsChildFolders(f.id).length + myDocsInFolder(f.id).length;
+    if(STATE.myDocsRenamingFolderId===f.id){
+      return `<div style="padding:10px 0; border-bottom:1px solid var(--line);">
+        <input type="text" id="mydocs-rename-input-${f.id}" value="${esc(f.name)}" maxlength="60">
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-save-rename-folder" data-folder="${f.id}">Guardar</button>
+          <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-cancel-rename-folder">Cancelar</button>
+        </div>
+      </div>`;
+    }
+    return `
+    <div class="breakdown-row">
+      <button style="flex:1; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit; padding:0;" data-action="mydocs-open-folder" data-folder="${f.id}">
+        📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${childCount})</span>
+      </button>
+      <button class="btn btn-ghost" style="padding:4px 10px; font-size:11.5px;" data-action="mydocs-rename-folder" data-folder="${f.id}">Renombrar</button>
+      <span class="arrow">›</span>
+    </div>`;
+  }).join('');
+
+  const docRows = docs.map(d=>myDocRowHtml(d, false)).join('');
+
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Tus PDFs privados (informes, circulares, evaluaciones...). Solo tú puedes verlos. Máximo 20 MB por archivo.</div>
+
+  <div style="margin-bottom:10px; font-size:13px;">${breadcrumbHtml}</div>
+  <div style="margin-bottom:14px;">${sortControls}</div>
+
+  ${uploadControls}
 
   ${subfolders.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:14px;">${folderRows}</div>` : ''}
 
@@ -1455,9 +1520,49 @@ async function myDocsAddFolder(){
     render();
     return;
   }
-  STATE.storage.myDocsFolders.push({ id:'FLD'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), name, parentId: STATE.myDocsCurrentFolder });
+  STATE.storage.myDocsFolders.push({ id:'FLD'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), name, parentId: STATE.myDocsCurrentFolder, createdAt: Date.now() });
   await saveMyDocsFolders();
   STATE.myDocsCreatingFolder = false;
+  render();
+}
+
+function myDocsRenameFolder(id){
+  const input = document.getElementById('mydocs-rename-input-'+id);
+  const name = input.value.trim();
+  const folder = STATE.storage.myDocsFolders.find(f=>f.id===id);
+  if(!folder) return;
+  if(!name){ STATE.toast = 'Escribe un nombre para la carpeta.'; render(); return; }
+  const siblings = myDocsChildFolders(folder.parentId).filter(f=>f.id!==id);
+  if(siblings.some(f=>f.name.toLowerCase()===name.toLowerCase())){
+    STATE.toast = 'Ya tienes una carpeta con ese nombre aquí.';
+    render();
+    return;
+  }
+  folder.name = name;
+  saveMyDocsFolders();
+  STATE.myDocsRenamingFolderId = null;
+  render();
+}
+
+function myDocsAllFoldersFlat(){
+  const result = [];
+  const walk = (parentId, depth) => {
+    myDocsChildFolders(parentId).forEach(f => {
+      result.push({ folder: f, depth });
+      walk(f.id, depth+1);
+    });
+  };
+  walk(null, 0);
+  return result;
+}
+
+async function moveMyDoc(id, folderId){
+  const doc = (STATE.storage.myDocs||[]).find(d=>d.id===id);
+  if(!doc) return;
+  doc.folderId = folderId || null;
+  await saveMyDocs();
+  STATE.myDocsMovingId = null;
+  STATE.toast = 'Documento movido.';
   render();
 }
 
@@ -2827,6 +2932,10 @@ function bindEvents(){
   if(mydocsSearch){ mydocsSearch.addEventListener('input', (e)=>{ STATE.myDocsSearch = e.target.value; render(); }); }
   const mydocsUploadInput = document.getElementById('mydocs-upload-input');
   if(mydocsUploadInput){ mydocsUploadInput.addEventListener('change', (e)=>{ if(e.target.files[0]) uploadMyDoc(e.target.files[0]); }); }
+  if(STATE.myDocsMovingId){
+    const moveSelect = document.getElementById('mydocs-move-select-'+STATE.myDocsMovingId);
+    if(moveSelect){ moveSelect.addEventListener('change', (e)=>{ moveMyDoc(STATE.myDocsMovingId, e.target.value || null); }); }
+  }
 
   const dbSearch = document.getElementById('db-search');
   if(dbSearch){ dbSearch.addEventListener('input', (e)=>{ STATE.dbFilter.search = e.target.value; STATE.dbFilter.page = 1; render(); }); }
@@ -2987,6 +3096,11 @@ function onAction(e){
   else if(action==='mydocs-cancel-folder'){ STATE.myDocsCreatingFolder=false; render(); }
   else if(action==='mydocs-save-folder'){ myDocsAddFolder(); }
   else if(action==='mydocs-delete-folder'){ myDocsDeleteFolder(el.dataset.folder); }
+  else if(action==='mydocs-rename-folder'){ STATE.myDocsRenamingFolderId = el.dataset.folder; render(); }
+  else if(action==='mydocs-cancel-rename-folder'){ STATE.myDocsRenamingFolderId = null; render(); }
+  else if(action==='mydocs-save-rename-folder'){ myDocsRenameFolder(el.dataset.folder); }
+  else if(action==='mydocs-set-sort'){ STATE.myDocsSortBy = el.dataset.sort; render(); }
+  else if(action==='mydocs-move'){ STATE.myDocsMovingId = el.dataset.id; render(); }
   else if(action==='mydocs-preview'){ myDocsPreview(el.dataset.id); }
   else if(action==='mydocs-edit-notes'){ STATE.myDocsEditingNotesId = el.dataset.id; render(); }
   else if(action==='mydocs-cancel-notes'){ STATE.myDocsEditingNotesId = null; render(); }
