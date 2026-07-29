@@ -145,6 +145,7 @@ let STATE = {
   myDocsRenamingFolderId: null,
   myDocsMovingId: null,
   myDocsMovingFolderId: null,
+  calendarAddingEvent: false,
   myDocsSortBy: 'name',
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
@@ -275,6 +276,7 @@ async function loadStorage(){
   try{ const v = await storageGet('myBankCategories'); STATE.storage.myBankCategories = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBankCategories = []; }
   try{ const v = await storageGet('myDocsFolders'); STATE.storage.myDocsFolders = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocsFolders = []; }
   try{ const v = await storageGet('myDocs'); STATE.storage.myDocs = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocs = []; }
+  try{ const v = await storageGet('calendarEvents'); STATE.storage.calendarEvents = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.calendarEvents = []; }
   {
     // Compatibilidad con la versión anterior (categoría como texto libre sin lista propia):
     // si alguna pregunta tiene una categoría que ya no está en la lista, la recuperamos
@@ -300,6 +302,28 @@ async function saveReviewed(){ await storageSet('reviewed', JSON.stringify(STATE
 async function saveGlossaryQuestions(){ await storageSet('glossaryQuestions', JSON.stringify(STATE.storage.glossaryQuestions)); }
 async function saveMyBank(){ await storageSet('myBank', JSON.stringify(STATE.storage.myBank)); }
 async function saveMyBankCategories(){ await storageSet('myBankCategories', JSON.stringify(STATE.storage.myBankCategories)); }
+async function saveCalendarEvents(){ await storageSet('calendarEvents', JSON.stringify(STATE.storage.calendarEvents)); }
+
+function calendarSaveEvent(){
+  const dateVal = document.getElementById('cal-event-date').value;
+  const title = document.getElementById('cal-event-title').value.trim();
+  const type = document.getElementById('cal-event-type').value;
+  if(!dateVal){ STATE.toast = 'Elige una fecha para el evento.'; render(); return; }
+  if(!title){ STATE.toast = 'Escribe un título para el evento.'; render(); return; }
+  STATE.storage.calendarEvents.push({
+    id: 'EV'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+    date: dateVal, title, type: CALENDAR_EVENT_TYPES[type] ? type : 'other'
+  });
+  saveCalendarEvents();
+  STATE.calendarAddingEvent = false;
+  render();
+}
+
+function calendarDeleteEvent(id){
+  STATE.storage.calendarEvents = (STATE.storage.calendarEvents||[]).filter(ev=>ev.id!==id);
+  saveCalendarEvents();
+  render();
+}
 async function saveMyDocsFolders(){ await storageSet('myDocsFolders', JSON.stringify(STATE.storage.myDocsFolders)); }
 async function saveMyDocs(){ await storageSet('myDocs', JSON.stringify(STATE.storage.myDocs)); }
 async function saveDeleted(){ await storageSet('deleted', JSON.stringify(STATE.storage.deleted)); }
@@ -452,6 +476,41 @@ function dayKey(ts){
 function activeDaysSet(){
   const timestamps = Object.values(STATE.storage.progress || {}).map(p=>p.ts).filter(Boolean);
   return new Set(timestamps.map(dayKey));
+}
+
+const CALENDAR_EVENT_TYPES = {
+  exam: { label: 'Examen teórico', icon: '📝' },
+  physical: { label: 'Prueba física', icon: '🏃' },
+  meeting: { label: 'Reunión de comité', icon: '👥' },
+  other: { label: 'Otro', icon: '📌' }
+};
+
+function eventDayKey(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return y+'-'+m+'-'+d;
+}
+
+function calendarEventsByDay(){
+  const map = {};
+  (STATE.storage.calendarEvents||[]).forEach(ev=>{
+    const key = eventDayKey(ev.date);
+    if(!map[key]) map[key] = [];
+    map[key].push(ev);
+  });
+  return map;
+}
+
+function todayKeyISO(d){
+  const dt = d || new Date();
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth()+1).padStart(2,'0');
+  const day = String(dt.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+
+function formatEventDate(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return d+' '+MONTH_NAMES[m-1]+' '+y;
 }
 
 function computeStreak(){
@@ -1744,9 +1803,11 @@ function recentPerformanceView(){
 
 function streakCalendarView(){
   const days = activeDaysSet();
+  const eventsByDay = calendarEventsByDay();
   const streak = computeStreak();
   const totalActiveDays = days.size;
   const now = new Date();
+  const todayKey = dayKey(now.getTime());
   const year = STATE.calendarYear || now.getFullYear();
   const isCurrentYear = year === now.getFullYear();
 
@@ -1764,7 +1825,11 @@ function streakCalendarView(){
       const isActive = days.has(key);
       const isFuture = new Date(year,m,d) > now;
       const isToday = isCurrentYear && now.getDate()===d && now.getMonth()===m;
-      cells += `<div class="cal-cell ${isActive?'active':''} ${isFuture?'future':''} ${isToday?'today':''}" title="${d} ${MONTH_NAMES[m]} ${year}">${d}</div>`;
+      const dayEvents = eventsByDay[key] || [];
+      const hasEvent = dayEvents.length>0;
+      const eventTitles = dayEvents.map(ev=>`${CALENDAR_EVENT_TYPES[ev.type].icon} ${ev.title}`).join(', ');
+      const titleAttr = `${d} ${MONTH_NAMES[m]} ${year}${hasEvent ? ' · '+eventTitles : ''}`;
+      cells += `<div class="cal-cell ${isActive?'active':''} ${isFuture?'future':''} ${isToday?'today':''} ${hasEvent?'has-event':''}" title="${esc(titleAttr)}">${d}</div>`;
     }
 
     months += `<div class="cal-month">
@@ -1773,16 +1838,50 @@ function streakCalendarView(){
     </div>`;
   }
 
+  const sortedEvents = (STATE.storage.calendarEvents||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const eventRows = sortedEvents.map(ev=>{
+    const isPast = ev.date < todayKeyISO(now);
+    const t = CALENDAR_EVENT_TYPES[ev.type] || CALENDAR_EVENT_TYPES.other;
+    return `<div class="breakdown-row" style="${isPast?'opacity:0.5;':''}">
+      <span>${t.icon} <strong>${esc(ev.title)}</strong> <span class="mono" style="color:var(--muted); font-size:11px;">${formatEventDate(ev.date)}</span></span>
+      <button class="icon-btn" title="Eliminar" data-action="calendar-delete-event" data-id="${ev.id}">🗑️</button>
+    </div>`;
+  }).join('');
+
+  const addForm = STATE.calendarAddingEvent ? `
+  <div class="qcard" style="margin-bottom:14px;">
+    <label>Fecha</label>
+    <input type="date" id="cal-event-date">
+    <label>Título</label>
+    <input type="text" id="cal-event-title" placeholder="Ej: Examen teórico CTA" maxlength="100">
+    <label>Tipo</label>
+    <select id="cal-event-type">
+      ${Object.keys(CALENDAR_EVENT_TYPES).map(k=>`<option value="${k}">${CALENDAR_EVENT_TYPES[k].icon} ${CALENDAR_EVENT_TYPES[k].label}</option>`).join('')}
+    </select>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button class="btn btn-primary" data-action="calendar-save-event">Guardar</button>
+      <button class="btn btn-ghost" data-action="calendar-cancel-event">Cancelar</button>
+    </div>
+  </div>
+  ` : '';
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Racha de estudio</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Cada día que respondes al menos una pregunta se marca aquí.</div>
+  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Cada día que respondes al menos una pregunta se marca aquí. Añade también tus fechas importantes: exámenes, pruebas físicas o reuniones.</div>
 
   <div class="result-hero" style="margin-bottom:18px;">
     <div style="font-size:26px;">🔥</div>
     <div class="big" style="color:var(--pitch); font-size:38px;">${streak}</div>
     <div class="label">día${streak===1?'':'s'} seguidos ahora mismo · ${totalActiveDays} día${totalActiveDays===1?'':'s'} activo${totalActiveDays===1?'':'s'} en total</div>
   </div>
+
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+    <div class="section-title" style="margin:0;">Tus eventos</div>
+    ${STATE.calendarAddingEvent ? '' : `<button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="calendar-add-event">+ Añadir evento</button>`}
+  </div>
+  ${addForm}
+  ${sortedEvents.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:18px;">${eventRows}</div>` : `<div class="empty-state" style="padding:20px;">Todavía no has añadido ningún evento. Usa "+ Añadir evento" para marcar tu próximo examen, prueba física o reunión.</div>`}
 
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
     <button class="btn btn-ghost" data-action="calendar-year" data-delta="-1" ${year<=2025?'disabled':''}>‹ ${year-1}</button>
@@ -1791,9 +1890,10 @@ function streakCalendarView(){
   </div>
 
   <div class="cal-wrap">${months}</div>
-  <div style="display:flex; align-items:center; gap:6px; margin-top:14px; font-size:11.5px; color:var(--muted);">
+  <div style="display:flex; align-items:center; gap:6px; margin-top:14px; font-size:11.5px; color:var(--muted); flex-wrap:wrap;">
     <div class="cal-cell active" style="width:12px; height:12px; font-size:0;"></div> Día con actividad
     <div class="cal-cell" style="width:12px; height:12px; font-size:0; margin-left:10px;"></div> Sin actividad
+    <div class="cal-cell has-event" style="width:12px; height:12px; font-size:0; margin-left:10px;"></div> Con evento
   </div>
   `;
 }
@@ -3119,6 +3219,10 @@ function onAction(e){
     STATE.calendarYear = Math.max(2025, next);
     render();
   }
+  else if(action==='calendar-add-event'){ STATE.calendarAddingEvent = true; render(); }
+  else if(action==='calendar-cancel-event'){ STATE.calendarAddingEvent = false; render(); }
+  else if(action==='calendar-save-event'){ calendarSaveEvent(); }
+  else if(action==='calendar-delete-event'){ calendarDeleteEvent(el.dataset.id); }
   else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; render(); }
   else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeaderboard(STATE.leaderboardMode||'hearts'); render(); }
   else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
