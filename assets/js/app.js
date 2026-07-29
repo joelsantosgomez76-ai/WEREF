@@ -129,6 +129,7 @@ let STATE = {
   savedBrowseIdx: 0,
   myBankEditingId: null,
   myBankSearch: '',
+  myBankCategory: 'all',
   myBankQuiz: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
   dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
@@ -852,15 +853,29 @@ function leaderboardView(){
    Independiente de allQuestions()/BASE_QUESTIONS: nunca se mezcla con el contenido de la
    plataforma, ni al revisar, ni al generar tests, ni en Sala VAR/Repaso/Mi Lista/reportes. */
 
+function myBankCategories(){
+  const set = new Set();
+  (STATE.storage.myBank||[]).forEach(q => { if(q.category) set.add(q.category); });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b));
+}
+
 function myBankFilteredList(){
-  const list = STATE.storage.myBank || [];
+  let list = STATE.storage.myBank || [];
+  const cat = STATE.myBankCategory || 'all';
+  if(cat === 'sin-categoria') list = list.filter(q => !q.category);
+  else if(cat !== 'all') list = list.filter(q => q.category === cat);
   const s = (STATE.myBankSearch||'').trim().toLowerCase();
-  if(!s) return list;
-  return list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o=>o.toLowerCase().includes(s)));
+  if(s){
+    list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o=>o.toLowerCase().includes(s)) || (q.category||'').toLowerCase().includes(s));
+  }
+  return list;
 }
 
 function myBankView(){
   const list = myBankFilteredList();
+  const total = (STATE.storage.myBank||[]).length;
+  const categories = myBankCategories();
+  const hasUncategorized = (STATE.storage.myBank||[]).some(q=>!q.category);
   const letters = ['a','b','c','d'];
   const rows = list.map(q => `
     <div class="qcard" style="margin-bottom:10px;">
@@ -881,12 +896,20 @@ function myBankView(){
 
   <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="mybank-add">+ Añadir pregunta</button>
-    ${(STATE.storage.myBank||[]).length>0 ? `<button class="btn btn-secondary" data-action="mybank-start-quiz">▶ Crear test con mis preguntas</button>` : ''}
+    ${list.length>0 ? `<button class="btn btn-secondary" data-action="mybank-start-quiz">▶ Crear test con estas preguntas (${list.length})</button>` : ''}
   </div>
 
   <div class="qcard" style="margin-bottom:14px;">
     <label>Buscar en mis preguntas</label>
-    <input type="text" id="mybank-search" placeholder="Busca por palabra..." value="${esc(STATE.myBankSearch)}" maxlength="100">
+    <input type="text" id="mybank-search" placeholder="Busca por palabra o categoría..." value="${esc(STATE.myBankSearch)}" maxlength="100">
+    ${categories.length>0 ? `
+    <label>Categoría</label>
+    <select id="mybank-category">
+      <option value="all" ${STATE.myBankCategory==='all'?'selected':''}>Todas (${total})</option>
+      ${categories.map(c=>`<option value="${esc(c)}" ${STATE.myBankCategory===c?'selected':''}>${esc(c)} (${(STATE.storage.myBank||[]).filter(q=>q.category===c).length})</option>`).join('')}
+      ${hasUncategorized ? `<option value="sin-categoria" ${STATE.myBankCategory==='sin-categoria'?'selected':''}>Sin categoría</option>` : ''}
+    </select>
+    ` : ''}
   </div>
 
   ${rows || `<div class="empty-state">${(STATE.storage.myBank||[]).length===0 ? 'Todavía no has añadido ninguna pregunta propia. Pulsa "+ Añadir pregunta" para crear la primera.' : 'Ninguna pregunta coincide con esa búsqueda.'}</div>`}
@@ -950,7 +973,7 @@ function saveMyBankQuestion(qid){
 }
 
 function startMyBankQuiz(){
-  const pool = shuffle((STATE.storage.myBank||[]).slice());
+  const pool = shuffle(myBankFilteredList().slice());
   if(pool.length===0){ STATE.toast = 'Añade al menos una pregunta antes de crear un test.'; render(); return; }
   STATE.myBankQuiz = { qids: pool.map(q=>q.id), idx:0, answers:{}, selected:null, showFeedback:false };
   STATE.view = 'myBankQuiz';
@@ -2317,6 +2340,8 @@ function bindEvents(){
 
   const mybankSearch = document.getElementById('mybank-search');
   if(mybankSearch){ mybankSearch.addEventListener('input', (e)=>{ STATE.myBankSearch = e.target.value; render(); }); }
+  const mybankCategory = document.getElementById('mybank-category');
+  if(mybankCategory){ mybankCategory.addEventListener('change', (e)=>{ STATE.myBankCategory = e.target.value; render(); }); }
 
   const dbSearch = document.getElementById('db-search');
   if(dbSearch){ dbSearch.addEventListener('input', (e)=>{ STATE.dbFilter.search = e.target.value; STATE.dbFilter.page = 1; render(); }); }
