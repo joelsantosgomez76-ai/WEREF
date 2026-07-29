@@ -123,10 +123,13 @@ let STATE = {
   editingId: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0 },
+  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[] },
   toast: null,
   reviewDetailIdx: null,
   savedBrowseIdx: 0,
+  myBankEditingId: null,
+  myBankSearch: '',
+  myBankQuiz: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
   dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
   reportedIds: {},
@@ -250,6 +253,7 @@ async function loadStorage(){
   try{ const v = await storageGet('suddenDeathRecord'); STATE.storage.suddenDeathRecord = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.suddenDeathRecord = 0; }
   try{ const v = await storageGet('timeAttackRecord'); STATE.storage.timeAttackRecord = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.timeAttackRecord = 0; }
   try{ const v = await storageGet('glossaryQuestions'); STATE.storage.glossaryQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.glossaryQuestions = []; }
+  try{ const v = await storageGet('myBank'); STATE.storage.myBank = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBank = []; }
   STATE.storage.userQuestions.forEach(q=>{ if(!q.id) q.id = 'U'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='law'; });
   STATE.storage.glossaryQuestions.forEach(q=>{ if(!q.id) q.id = 'G'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='glossary'; });
   checkAndUnlockBadges();
@@ -262,6 +266,7 @@ async function saveSaved(){ await storageSet('saved', JSON.stringify(STATE.stora
 async function saveEdits(){ await storageSet('edits', JSON.stringify(STATE.storage.edits)); }
 async function saveReviewed(){ await storageSet('reviewed', JSON.stringify(STATE.storage.reviewed)); }
 async function saveGlossaryQuestions(){ await storageSet('glossaryQuestions', JSON.stringify(STATE.storage.glossaryQuestions)); }
+async function saveMyBank(){ await storageSet('myBank', JSON.stringify(STATE.storage.myBank)); }
 async function saveDeleted(){ await storageSet('deleted', JSON.stringify(STATE.storage.deleted)); }
 async function saveStatsResetAt(){ await storageSet('statsResetAt', JSON.stringify(STATE.storage.statsResetAt)); }
 async function saveTestHistory(){ await storageSet('testHistory', JSON.stringify(STATE.storage.testHistory)); }
@@ -719,6 +724,10 @@ function viewFor(v){
   if(v==='database') return databaseView();
   if(v==='dailyChallenge') return dailyChallengeView();
   if(v==='leaderboard') return leaderboardView();
+  if(v==='myBank') return myBankView();
+  if(v==='myBankForm') return myBankFormView();
+  if(v==='myBankQuiz') return myBankQuizView();
+  if(v==='myBankResult') return myBankResultView();
   if(v==='achievements') return achievementsView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
@@ -836,6 +845,202 @@ function leaderboardView(){
   </div>
   <div class="qcard" style="padding:6px 10px;">${rows || '<div class="empty-state">Todavía no hay puntuaciones en este modo. ¡Sé el primero!</div>'}</div>
   ${standingHtml}
+  `;
+}
+
+/* ---------------- MI BASE DE DATOS: banco de preguntas 100% privado del usuario ----------------
+   Independiente de allQuestions()/BASE_QUESTIONS: nunca se mezcla con el contenido de la
+   plataforma, ni al revisar, ni al generar tests, ni en Sala VAR/Repaso/Mi Lista/reportes. */
+
+function myBankFilteredList(){
+  const list = STATE.storage.myBank || [];
+  const s = (STATE.myBankSearch||'').trim().toLowerCase();
+  if(!s) return list;
+  return list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o=>o.toLowerCase().includes(s)));
+}
+
+function myBankView(){
+  const list = myBankFilteredList();
+  const letters = ['a','b','c','d'];
+  const rows = list.map(q => `
+    <div class="qcard" style="margin-bottom:10px;">
+      ${q.category ? `<div class="qtag">${esc(q.category)}</div>` : ''}
+      <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
+      ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
+      ${q.explanation ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="mybank-edit" data-qid="${q.id}">Editar</button>
+        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="mybank-delete" data-qid="${q.id}">Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">📁 Mi Base de Datos</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu contenido privado. Nadie más puede verlo, y nunca se mezcla con las preguntas de WEREF.</div>
+
+  <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button class="btn btn-primary" data-action="mybank-add">+ Añadir pregunta</button>
+    ${(STATE.storage.myBank||[]).length>0 ? `<button class="btn btn-secondary" data-action="mybank-start-quiz">▶ Crear test con mis preguntas</button>` : ''}
+  </div>
+
+  <div class="qcard" style="margin-bottom:14px;">
+    <label>Buscar en mis preguntas</label>
+    <input type="text" id="mybank-search" placeholder="Busca por palabra..." value="${esc(STATE.myBankSearch)}" maxlength="100">
+  </div>
+
+  ${rows || `<div class="empty-state">${(STATE.storage.myBank||[]).length===0 ? 'Todavía no has añadido ninguna pregunta propia. Pulsa "+ Añadir pregunta" para crear la primera.' : 'Ninguna pregunta coincide con esa búsqueda.'}</div>`}
+  `;
+}
+
+function myBankFormView(){
+  const editing = STATE.myBankEditingId ? (STATE.storage.myBank||[]).find(q=>q.id===STATE.myBankEditingId) : null;
+  const letters = ['a','b','c','d'];
+  return `
+  <button class="backbtn" data-action="mybank">&larr; Mi Base de Datos</button>
+  <h2>${editing ? 'Editar pregunta' : 'Añadir pregunta'}</h2>
+  <div class="qcard">
+    <label>Categoría (opcional)</label>
+    <input type="text" id="mb-category" placeholder="Ej: Tema 3, Casos prácticos..." maxlength="60" value="${esc(editing ? (editing.category||'') : '')}">
+    <label>Pregunta</label>
+    <textarea id="mb-question" placeholder="Escribe el enunciado..." maxlength="1000">${editing ? esc(editing.question) : ''}</textarea>
+    ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="mb-${l}" maxlength="300" value="${editing ? esc(editing.options[i]||'') : ''}">`).join('')}
+    <label>Respuesta correcta</label>
+    <select id="mb-correct">${letters.map(l=>`<option value="${l}" ${editing && editing.correct===l?'selected':''}>${l})</option>`).join('')}</select>
+    <label>Explicación o anotación personal (opcional)</label>
+    <textarea id="mb-explanation" placeholder="Por qué es correcta, referencia, apunte propio..." maxlength="2000">${editing ? esc(editing.explanation||'') : ''}</textarea>
+    <div style="margin-top:18px; display:flex; gap:10px;">
+      <button class="btn btn-primary" data-action="mybank-save" ${editing ? `data-qid="${editing.id}"` : ''}>Guardar</button>
+      <button class="btn btn-ghost" data-action="mybank">Cancelar</button>
+    </div>
+  </div>
+  `;
+}
+
+function saveMyBankQuestion(qid){
+  const category = document.getElementById('mb-category').value.trim();
+  const question = document.getElementById('mb-question').value.trim();
+  const a = document.getElementById('mb-a').value.trim();
+  const b = document.getElementById('mb-b').value.trim();
+  const c = document.getElementById('mb-c').value.trim();
+  const d = document.getElementById('mb-d').value.trim();
+  const correct = document.getElementById('mb-correct').value;
+  const explanation = document.getElementById('mb-explanation').value.trim();
+  if(!question || !a || !b || !c || !d){
+    STATE.toast = 'Rellena la pregunta y las cuatro respuestas.';
+    render();
+    return;
+  }
+  if(!STATE.storage.myBank) STATE.storage.myBank = [];
+  if(qid){
+    const existing = STATE.storage.myBank.find(q=>q.id===qid);
+    if(existing){ Object.assign(existing, { category, question, options:[a,b,c,d], correct, explanation }); }
+  } else {
+    STATE.storage.myBank.push({
+      id: 'MB'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+      category, question, options:[a,b,c,d], correct, explanation,
+      createdAt: Date.now()
+    });
+  }
+  saveMyBank();
+  STATE.myBankEditingId = null;
+  STATE.view = 'myBank';
+  STATE.toast = 'Guardado en Mi Base de Datos.';
+  render();
+}
+
+function startMyBankQuiz(){
+  const pool = shuffle((STATE.storage.myBank||[]).slice());
+  if(pool.length===0){ STATE.toast = 'Añade al menos una pregunta antes de crear un test.'; render(); return; }
+  STATE.myBankQuiz = { qids: pool.map(q=>q.id), idx:0, answers:{}, selected:null, showFeedback:false };
+  STATE.view = 'myBankQuiz';
+  render();
+}
+
+function myBankCurrentQ(){
+  const quiz = STATE.myBankQuiz;
+  return (STATE.storage.myBank||[]).find(q=>q.id===quiz.qids[quiz.idx]);
+}
+
+function myBankSelectAnswer(letter){
+  const quiz = STATE.myBankQuiz;
+  const q = myBankCurrentQ();
+  quiz.answers[q.id] = letter;
+  quiz.selected = letter;
+  quiz.showFeedback = true;
+  render();
+}
+
+function myBankNext(){
+  const quiz = STATE.myBankQuiz;
+  if(quiz.idx+1 >= quiz.qids.length){
+    STATE.view = 'myBankResult';
+  } else {
+    quiz.idx++;
+    quiz.selected = null;
+    quiz.showFeedback = false;
+  }
+  render();
+}
+
+function myBankQuizView(){
+  const quiz = STATE.myBankQuiz;
+  const q = myBankCurrentQ();
+  const total = quiz.qids.length;
+  const letters = ['a','b','c','d'];
+  const reveal = quiz.showFeedback;
+  const optsHtml = q.options.map((opt,i)=>{
+    const letter = letters[i];
+    let cls = 'option';
+    let disabled = '';
+    if(reveal){
+      disabled = 'disabled';
+      if(letter===q.correct) cls += ' correct';
+      else if(letter===quiz.selected) cls += ' incorrect';
+    }
+    return `<button class="${cls}" data-action="mybank-answer" data-letter="${letter}" ${disabled}>
+      <span class="letter">${letter})</span>${esc(opt)}
+    </button>`;
+  }).join('');
+  return `
+  <div class="quiz-topbar">
+    <span class="qcount">Pregunta ${quiz.idx+1} / ${total}</span>
+    <button class="btn btn-ghost" style="padding:4px 12px; font-size:12px;" data-action="mybank">Salir</button>
+  </div>
+  <div class="qcard">
+    ${q.category ? `<div class="qtag">${esc(q.category)}</div>` : ''}
+    <div class="qtext">${esc(q.question)}</div>
+    ${optsHtml}
+    ${reveal ? `<div class="card-feedback ${quiz.selected===q.correct?'ok':'bad'}">
+      <div class="ref-card ${quiz.selected===q.correct?'yellow':'red'}"></div>
+      <div class="msg">${quiz.selected===q.correct ? '¡Correcto!' : 'Incorrecto.'}<small>${quiz.selected===q.correct ? '' : 'La respuesta correcta era la '+q.correct.toUpperCase()+').'}</small></div>
+    </div>
+    ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}` : ''}
+  </div>
+  <div class="quiz-actions">
+    ${reveal ? `<button class="btn btn-primary" data-action="mybank-next">${quiz.idx+1<total?'Siguiente':'Ver resultado'}</button>` : ''}
+  </div>
+  `;
+}
+
+function myBankResultView(){
+  const quiz = STATE.myBankQuiz;
+  const total = quiz.qids.length;
+  const bank = STATE.storage.myBank||[];
+  const score = quiz.qids.filter(qid => {
+    const q = bank.find(x=>x.id===qid);
+    return q && quiz.answers[qid] === q.correct;
+  }).length;
+  const pct = total ? Math.round(score/total*100) : 0;
+  return `
+  <div class="result-hero">
+    <div class="big" style="color:${scoreColor(pct)};">${pct}%</div>
+    <div class="label">${score} de ${total} respuestas correctas</div>
+  </div>
+  <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+    <button class="btn btn-primary" data-action="mybank">Volver a Mi Base de Datos</button>
+    <button class="btn btn-secondary" data-action="mybank-start-quiz">Repetir test</button>
+  </div>
   `;
 }
 
@@ -1091,6 +1296,7 @@ function homeView(){
   <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="train-config">Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
+    <button class="btn btn-ghost" data-action="mybank">📁 Mi Base de Datos${(STATE.storage.myBank||[]).length>0 ? ` <span class="badge">${STATE.storage.myBank.length}</span>` : ''}</button>
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
@@ -2109,6 +2315,9 @@ function bindEvents(){
   const importExcelInput = document.getElementById('import-excel-file');
   if(importExcelInput){ importExcelInput.addEventListener('change', (e)=>{ if(e.target.files[0]) importExcelFile(e.target.files[0]); }); }
 
+  const mybankSearch = document.getElementById('mybank-search');
+  if(mybankSearch){ mybankSearch.addEventListener('input', (e)=>{ STATE.myBankSearch = e.target.value; render(); }); }
+
   const dbSearch = document.getElementById('db-search');
   if(dbSearch){ dbSearch.addEventListener('input', (e)=>{ STATE.dbFilter.search = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dbLaw = document.getElementById('db-law');
@@ -2200,6 +2409,18 @@ function onAction(e){
   else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; render(); }
   else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeaderboard(STATE.leaderboardMode||'hearts'); render(); }
   else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
+  else if(action==='mybank'){ STATE.myBankEditingId=null; STATE.view='myBank'; render(); }
+  else if(action==='mybank-add'){ STATE.myBankEditingId=null; STATE.view='myBankForm'; render(); }
+  else if(action==='mybank-edit'){ STATE.myBankEditingId=el.dataset.qid; STATE.view='myBankForm'; render(); }
+  else if(action==='mybank-delete'){
+    STATE.storage.myBank = (STATE.storage.myBank||[]).filter(q=>q.id!==el.dataset.qid);
+    saveMyBank();
+    render();
+  }
+  else if(action==='mybank-save'){ saveMyBankQuestion(el.dataset.qid || null); }
+  else if(action==='mybank-start-quiz'){ startMyBankQuiz(); }
+  else if(action==='mybank-answer'){ if(!STATE.myBankQuiz.showFeedback) myBankSelectAnswer(el.dataset.letter); }
+  else if(action==='mybank-next'){ myBankNext(); }
   else if(action==='start-daily-goal'){ startCountedQuiz(parseInt(el.dataset.count,10) || 10); }
   else if(action==='start-hearts'){ startHeartsMode(); }
   else if(action==='start-suddendeath'){ startSuddenDeathMode(); }
