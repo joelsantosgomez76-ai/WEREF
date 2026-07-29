@@ -123,7 +123,7 @@ let STATE = {
   editingId: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[] },
+  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
   toast: null,
   reviewDetailIdx: null,
   savedBrowseIdx: 0,
@@ -135,6 +135,15 @@ let STATE = {
   myBankQuiz: null,
   confirmDeleteMyBankId: null,
   confirmDeleteMyBankCategory: null,
+  myDocsCurrentFolder: null,
+  myDocsCreatingFolder: false,
+  myDocsSearch: '',
+  myDocsUploading: false,
+  myDocsPreviewId: null,
+  myDocsPreviewUrl: null,
+  myDocsEditingNotesId: null,
+  confirmDeleteMyDocId: null,
+  confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
   dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
   reportedIds: {},
@@ -260,6 +269,8 @@ async function loadStorage(){
   try{ const v = await storageGet('glossaryQuestions'); STATE.storage.glossaryQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.glossaryQuestions = []; }
   try{ const v = await storageGet('myBank'); STATE.storage.myBank = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBank = []; }
   try{ const v = await storageGet('myBankCategories'); STATE.storage.myBankCategories = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBankCategories = []; }
+  try{ const v = await storageGet('myDocsFolders'); STATE.storage.myDocsFolders = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocsFolders = []; }
+  try{ const v = await storageGet('myDocs'); STATE.storage.myDocs = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocs = []; }
   {
     // Compatibilidad con la versión anterior (categoría como texto libre sin lista propia):
     // si alguna pregunta tiene una categoría que ya no está en la lista, la recuperamos
@@ -285,6 +296,8 @@ async function saveReviewed(){ await storageSet('reviewed', JSON.stringify(STATE
 async function saveGlossaryQuestions(){ await storageSet('glossaryQuestions', JSON.stringify(STATE.storage.glossaryQuestions)); }
 async function saveMyBank(){ await storageSet('myBank', JSON.stringify(STATE.storage.myBank)); }
 async function saveMyBankCategories(){ await storageSet('myBankCategories', JSON.stringify(STATE.storage.myBankCategories)); }
+async function saveMyDocsFolders(){ await storageSet('myDocsFolders', JSON.stringify(STATE.storage.myDocsFolders)); }
+async function saveMyDocs(){ await storageSet('myDocs', JSON.stringify(STATE.storage.myDocs)); }
 async function saveDeleted(){ await storageSet('deleted', JSON.stringify(STATE.storage.deleted)); }
 async function saveStatsResetAt(){ await storageSet('statsResetAt', JSON.stringify(STATE.storage.statsResetAt)); }
 async function saveTestHistory(){ await storageSet('testHistory', JSON.stringify(STATE.storage.testHistory)); }
@@ -759,6 +772,23 @@ function render(){
     </div>`;
     document.body.appendChild(modal);
     modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  } else if(STATE.confirmDeleteMyDocId){
+    const doc = (STATE.storage.myDocs||[]).find(x=>x.id===STATE.confirmDeleteMyDocId);
+    const preview = doc ? doc.name : '';
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<div class="modal-card">
+      <h3 style="margin-bottom:12px;">¿Eliminar este documento?</h3>
+      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px; white-space:pre-wrap; word-break:break-word;">📄 ${esc(preview)}</p>
+      <p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">Esta acción no se puede deshacer.</p>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-ghost" data-action="mydocs-cancel-delete">Cancelar</button>
+        <button class="btn" style="background:var(--red); color:#fff;" data-action="mydocs-confirm-delete">Sí, eliminar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
   }
 }
 
@@ -783,6 +813,8 @@ function viewFor(v){
   if(v==='myBankTrainConfig') return myBankTrainConfigView();
   if(v==='myBankQuiz') return myBankQuizView();
   if(v==='myBankResult') return myBankResultView();
+  if(v==='myDocs') return myDocsView();
+  if(v==='myDocsPreview') return myDocsPreviewView();
   if(v==='achievements') return achievementsView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
@@ -1296,6 +1328,226 @@ function myBankResultView(){
   `;
 }
 
+/* ---------------- MIS DOCUMENTOS: archivos PDF privados por usuario ----------------
+   Metadatos (carpetas y ficha de cada documento) en el mismo almacén privado de siempre;
+   los archivos en sí viven en Supabase Storage, bucket "mybank-docs", en una ruta con tu
+   propio user_id delante, protegida por políticas para que nadie más pueda leerlas. */
+
+const MYDOCS_BUCKET = 'mybank-docs';
+const MYDOCS_MAX_BYTES = 20 * 1024 * 1024;
+
+function formatBytes(bytes){
+  if(!bytes) return '0 KB';
+  const kb = bytes/1024;
+  if(kb < 1024) return Math.round(kb)+' KB';
+  return (kb/1024).toFixed(1)+' MB';
+}
+
+function myDocsChildFolders(parentId){
+  return (STATE.storage.myDocsFolders||[]).filter(f=>f.parentId===parentId).sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+function myDocsInFolder(folderId){
+  return (STATE.storage.myDocs||[]).filter(d=>d.folderId===folderId);
+}
+
+function myDocsBreadcrumb(folderId){
+  const trail = [];
+  let cur = folderId;
+  while(cur){
+    const f = (STATE.storage.myDocsFolders||[]).find(x=>x.id===cur);
+    if(!f) break;
+    trail.unshift(f);
+    cur = f.parentId;
+  }
+  return trail;
+}
+
+function myDocsView(){
+  const folderId = STATE.myDocsCurrentFolder;
+  const subfolders = myDocsChildFolders(folderId);
+  const s = (STATE.myDocsSearch||'').trim().toLowerCase();
+  let docs = myDocsInFolder(folderId);
+  if(s) docs = docs.filter(d => d.name.toLowerCase().includes(s) || (d.notes||'').toLowerCase().includes(s));
+  const trail = myDocsBreadcrumb(folderId);
+
+  const breadcrumbHtml = `
+    <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="">📁 Mis Documentos</button>
+    ${trail.map(f=>`<span style="color:var(--muted);">/</span> <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="${f.id}">${esc(f.name)}</button>`).join(' ')}
+  `;
+
+  const folderRows = subfolders.map(f => {
+    const childCount = myDocsChildFolders(f.id).length + myDocsInFolder(f.id).length;
+    return `
+    <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mydocs-open-folder" data-folder="${f.id}">
+      <span>📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${childCount})</span></span>
+      <span class="arrow">›</span>
+    </button>`;
+  }).join('');
+
+  const docRows = docs.map(d => `
+    <div class="qcard" style="margin-bottom:10px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+        <div>
+          <div style="font-weight:700; font-size:14px;">📄 ${esc(d.name)}</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${formatBytes(d.size)} · ${new Date(d.createdAt).toLocaleDateString('es-ES')}</div>
+        </div>
+      </div>
+      ${STATE.myDocsEditingNotesId===d.id ? `
+        <textarea id="mydoc-notes-${d.id}" placeholder="Notas o comentario personal..." maxlength="1000" style="margin-top:10px;">${esc(d.notes||'')}</textarea>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-save-notes" data-id="${d.id}">Guardar nota</button>
+          <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-cancel-notes">Cancelar</button>
+        </div>
+      ` : (d.notes ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px; white-space:pre-wrap;">${esc(d.notes)}</div>` : '')}
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn btn-secondary" style="padding:7px 14px; font-size:13px;" data-action="mydocs-preview" data-id="${d.id}">Ver</button>
+        ${STATE.myDocsEditingNotesId===d.id ? '' : `<button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="mydocs-edit-notes" data-id="${d.id}">${d.notes?'Editar nota':'+ Nota'}</button>`}
+        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="mydocs-delete" data-id="${d.id}">Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Tus PDFs privados (informes, circulares, evaluaciones...). Solo tú puedes verlos. Máximo 20 MB por archivo.</div>
+
+  <div style="margin-bottom:14px; font-size:13px;">${breadcrumbHtml}</div>
+
+  <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    ${STATE.myDocsCreatingFolder ? '' : `<button class="btn btn-secondary" data-action="mydocs-new-folder">+ Nueva carpeta</button>`}
+    <label class="btn btn-primary" style="cursor:pointer; margin:0;">
+      ${STATE.myDocsUploading ? 'Subiendo...' : '+ Subir PDF'}
+      <input type="file" id="mydocs-upload-input" accept="application/pdf" style="display:none;" ${STATE.myDocsUploading?'disabled':''}>
+    </label>
+  </div>
+
+  ${STATE.myDocsCreatingFolder ? `
+  <div class="qcard" style="margin-bottom:14px;">
+    <label>Nombre de la carpeta</label>
+    <input type="text" id="mydocs-new-folder-name" placeholder="Ej: Temporada 2025/2026" maxlength="60">
+    <div style="margin-top:12px; display:flex; gap:10px;">
+      <button class="btn btn-primary" data-action="mydocs-save-folder">Crear</button>
+      <button class="btn btn-ghost" data-action="mydocs-cancel-folder">Cancelar</button>
+    </div>
+  </div>
+  ` : ''}
+
+  <div class="qcard" style="margin-bottom:14px;">
+    <label>Buscar en esta carpeta</label>
+    <input type="text" id="mydocs-search" placeholder="Busca por nombre o nota..." value="${esc(STATE.myDocsSearch)}" maxlength="100">
+  </div>
+
+  ${subfolders.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:14px;">${folderRows}</div>` : ''}
+
+  ${docRows || `<div class="empty-state">${subfolders.length===0 && docs.length===0 ? 'Esta carpeta está vacía. Crea una subcarpeta o sube tu primer PDF.' : 'Ningún documento coincide con esa búsqueda.'}</div>`}
+  `;
+}
+
+async function myDocsAddFolder(){
+  const input = document.getElementById('mydocs-new-folder-name');
+  const name = input.value.trim();
+  if(!name){ STATE.toast = 'Escribe un nombre para la carpeta.'; render(); return; }
+  const siblings = myDocsChildFolders(STATE.myDocsCurrentFolder);
+  if(siblings.some(f=>f.name.toLowerCase()===name.toLowerCase())){
+    STATE.toast = 'Ya tienes una carpeta con ese nombre aquí.';
+    render();
+    return;
+  }
+  STATE.storage.myDocsFolders.push({ id:'FLD'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), name, parentId: STATE.myDocsCurrentFolder });
+  await saveMyDocsFolders();
+  STATE.myDocsCreatingFolder = false;
+  render();
+}
+
+function myDocsDeleteFolder(id){
+  const hasChildren = myDocsChildFolders(id).length>0 || myDocsInFolder(id).length>0;
+  if(hasChildren){
+    STATE.toast = 'Vacía esta carpeta antes de eliminarla (mueve o borra sus documentos y subcarpetas).';
+    render();
+    return;
+  }
+  STATE.storage.myDocsFolders = STATE.storage.myDocsFolders.filter(f=>f.id!==id);
+  saveMyDocsFolders();
+  render();
+}
+
+async function uploadMyDoc(file){
+  if(!file) return;
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if(!isPdf){ STATE.toast = 'Solo se admiten archivos PDF.'; render(); return; }
+  if(file.size > MYDOCS_MAX_BYTES){ STATE.toast = 'El archivo pesa demasiado (máximo 20 MB).'; render(); return; }
+  STATE.myDocsUploading = true;
+  render();
+  try{
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path = `${CURRENT_USER_ID}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeName}`;
+    const { error } = await supabaseClient.storage.from(MYDOCS_BUCKET).upload(path, file, { contentType: 'application/pdf' });
+    if(error) throw error;
+    STATE.storage.myDocs.push({
+      id: 'MD'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+      name: file.name, folderId: STATE.myDocsCurrentFolder, path, size: file.size, notes: '',
+      createdAt: Date.now()
+    });
+    await saveMyDocs();
+    STATE.toast = 'Documento subido.';
+  }catch(e){
+    STATE.toast = 'No se pudo subir el documento. Inténtalo de nuevo.';
+  }
+  STATE.myDocsUploading = false;
+  render();
+}
+
+async function myDocsPreview(id){
+  const doc = (STATE.storage.myDocs||[]).find(d=>d.id===id);
+  if(!doc) return;
+  STATE.myDocsPreviewId = id;
+  STATE.myDocsPreviewUrl = null;
+  STATE.view = 'myDocsPreview';
+  render();
+  try{
+    const { data, error } = await supabaseClient.storage.from(MYDOCS_BUCKET).createSignedUrl(doc.path, 3600);
+    if(error) throw error;
+    STATE.myDocsPreviewUrl = data.signedUrl;
+    render();
+  }catch(e){
+    STATE.toast = 'No se pudo cargar el documento.';
+    render();
+  }
+}
+
+function myDocsPreviewView(){
+  const doc = (STATE.storage.myDocs||[]).find(d=>d.id===STATE.myDocsPreviewId);
+  if(!doc) return `<button class="backbtn" data-action="mydocs">&larr; Mis Documentos</button><div class="empty-state">Documento no encontrado.</div>`;
+  return `
+  <button class="backbtn" data-action="mydocs">&larr; Mis Documentos</button>
+  <h2 style="margin-bottom:4px; font-size:16px;">📄 ${esc(doc.name)}</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:12.5px;">${formatBytes(doc.size)} · ${new Date(doc.createdAt).toLocaleDateString('es-ES')}</div>
+  ${STATE.myDocsPreviewUrl
+    ? `<iframe src="${STATE.myDocsPreviewUrl}" style="width:100%; height:70vh; border:1.5px solid var(--line); border-radius:10px; background:#fff;"></iframe>
+       <div style="margin-top:10px;"><a href="${STATE.myDocsPreviewUrl}" target="_blank" rel="noopener" class="btn btn-ghost" style="text-decoration:none; display:inline-block;">Abrir en pestaña nueva</a></div>`
+    : `<div class="empty-state">Cargando documento...</div>`}
+  `;
+}
+
+async function deleteMyDoc(id){
+  const doc = (STATE.storage.myDocs||[]).find(d=>d.id===id);
+  if(!doc) return;
+  try{ await supabaseClient.storage.from(MYDOCS_BUCKET).remove([doc.path]); }catch(e){}
+  STATE.storage.myDocs = STATE.storage.myDocs.filter(d=>d.id!==id);
+  await saveMyDocs();
+  render();
+}
+
+function saveMyDocNotes(id){
+  const el = document.getElementById('mydoc-notes-'+id);
+  const doc = (STATE.storage.myDocs||[]).find(d=>d.id===id);
+  if(doc && el){ doc.notes = el.value.trim(); saveMyDocs(); }
+  STATE.myDocsEditingNotesId = null;
+  render();
+}
+
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const WEEKDAY_LETTERS = ['L','M','X','J','V','S','D'];
 
@@ -1549,6 +1801,7 @@ function homeView(){
     <button class="btn btn-primary" data-action="train-config">Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">Modo Competitivo</button>
     <button class="btn btn-ghost" data-action="mybank">📁 Mi Base de Datos${(STATE.storage.myBank||[]).length>0 ? ` <span class="badge">${STATE.storage.myBank.length}</span>` : ''}</button>
+    <button class="btn btn-ghost" data-action="mydocs-home">📄 Mis Documentos${(STATE.storage.myDocs||[]).length>0 ? ` <span class="badge">${STATE.storage.myDocs.length}</span>` : ''}</button>
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
@@ -2569,8 +2822,11 @@ function bindEvents(){
 
   const mybankSearch = document.getElementById('mybank-search');
   if(mybankSearch){ mybankSearch.addEventListener('input', (e)=>{ STATE.myBankSearch = e.target.value; render(); }); }
-  const mybankCategory = document.getElementById('mybank-category');
-  if(mybankCategory){ mybankCategory.addEventListener('change', (e)=>{ STATE.myBankCategory = e.target.value; render(); }); }
+
+  const mydocsSearch = document.getElementById('mydocs-search');
+  if(mydocsSearch){ mydocsSearch.addEventListener('input', (e)=>{ STATE.myDocsSearch = e.target.value; render(); }); }
+  const mydocsUploadInput = document.getElementById('mydocs-upload-input');
+  if(mydocsUploadInput){ mydocsUploadInput.addEventListener('change', (e)=>{ if(e.target.files[0]) uploadMyDoc(e.target.files[0]); }); }
 
   const dbSearch = document.getElementById('db-search');
   if(dbSearch){ dbSearch.addEventListener('input', (e)=>{ STATE.dbFilter.search = e.target.value; STATE.dbFilter.page = 1; render(); }); }
@@ -2724,6 +2980,24 @@ function onAction(e){
   else if(action==='mybank-advance-nav'){ myBankGoToQuestion(STATE.myBankQuiz.idx+1); }
   else if(action==='mybank-finish'){ myBankFinish(); }
   else if(action==='mybank-quit'){ myBankStopTimer(); STATE.view='myBank'; render(); }
+  else if(action==='mydocs-home'){ STATE.myDocsCurrentFolder=null; STATE.myDocsSearch=''; STATE.myDocsCreatingFolder=false; STATE.view='myDocs'; render(); }
+  else if(action==='mydocs'){ STATE.view='myDocs'; render(); }
+  else if(action==='mydocs-open-folder'){ STATE.myDocsCurrentFolder = el.dataset.folder || null; STATE.myDocsSearch=''; render(); }
+  else if(action==='mydocs-new-folder'){ STATE.myDocsCreatingFolder=true; render(); }
+  else if(action==='mydocs-cancel-folder'){ STATE.myDocsCreatingFolder=false; render(); }
+  else if(action==='mydocs-save-folder'){ myDocsAddFolder(); }
+  else if(action==='mydocs-delete-folder'){ myDocsDeleteFolder(el.dataset.folder); }
+  else if(action==='mydocs-preview'){ myDocsPreview(el.dataset.id); }
+  else if(action==='mydocs-edit-notes'){ STATE.myDocsEditingNotesId = el.dataset.id; render(); }
+  else if(action==='mydocs-cancel-notes'){ STATE.myDocsEditingNotesId = null; render(); }
+  else if(action==='mydocs-save-notes'){ saveMyDocNotes(el.dataset.id); }
+  else if(action==='mydocs-delete'){ STATE.confirmDeleteMyDocId = el.dataset.id; render(); }
+  else if(action==='mydocs-cancel-delete'){ STATE.confirmDeleteMyDocId = null; render(); }
+  else if(action==='mydocs-confirm-delete'){
+    const id = STATE.confirmDeleteMyDocId;
+    STATE.confirmDeleteMyDocId = null;
+    deleteMyDoc(id);
+  }
   else if(action==='start-daily-goal'){ startCountedQuiz(parseInt(el.dataset.count,10) || 10); }
   else if(action==='start-hearts'){ startHeartsMode(); }
   else if(action==='start-suddendeath'){ startSuddenDeathMode(); }
