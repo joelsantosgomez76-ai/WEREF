@@ -183,11 +183,13 @@ button.option:hover:not(:disabled){border-color:var(--pitch); background:#FBF1F1
 .cal-month{background:var(--chalk-card); border:1px solid var(--line); border-radius:10px; padding:10px;}
 .cal-month-name{font-family:'Oswald'; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--pitch); margin-bottom:6px;}
 .cal-grid{display:grid; grid-template-columns:repeat(7, 1fr); gap:3px;}
-.cal-cell{aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:9px; border-radius:4px; background:var(--line); color:var(--muted);}
+.cal-cell{position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:9px; border-radius:4px; background:var(--line); color:var(--muted);}
 .cal-cell.empty{background:none;}
 .cal-cell.active{background:var(--accent); color:#fff; font-weight:700;}
 .cal-cell.today{box-shadow:0 0 0 1.5px var(--pitch) inset;}
 .cal-cell.future{opacity:0.4;}
+.cal-cell.has-event::after{content:''; position:absolute; top:1px; right:1px; width:4px; height:4px; border-radius:50%; background:var(--pitch); box-shadow:0 0 0 1px #fff;}
+.cal-cell.active.has-event::after{background:#fff; box-shadow:0 0 0 1px var(--accent);}
 .q-dot{
   width:30px; height:30px; border-radius:50%; border:1.5px solid var(--line); background:#fff;
   display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono'; font-size:11px; font-weight:700;
