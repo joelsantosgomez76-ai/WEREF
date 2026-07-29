@@ -304,10 +304,13 @@ async function saveMyBank(){ await storageSet('myBank', JSON.stringify(STATE.sto
 async function saveMyBankCategories(){ await storageSet('myBankCategories', JSON.stringify(STATE.storage.myBankCategories)); }
 async function saveCalendarEvents(){ await storageSet('calendarEvents', JSON.stringify(STATE.storage.calendarEvents)); }
 
+const CALENDAR_EVENTS_MAX = 10;
+
 function calendarSaveEvent(){
   const dateVal = document.getElementById('cal-event-date').value;
   const title = document.getElementById('cal-event-title').value.trim();
   const type = document.getElementById('cal-event-type').value;
+  if((STATE.storage.calendarEvents||[]).length >= CALENDAR_EVENTS_MAX){ STATE.toast = `Solo puedes tener ${CALENDAR_EVENTS_MAX} eventos a la vez. Elimina alguno para añadir otro.`; render(); return; }
   if(!dateVal){ STATE.toast = 'Elige una fecha para el evento.'; render(); return; }
   if(!title){ STATE.toast = 'Escribe un título para el evento.'; render(); return; }
   STATE.storage.calendarEvents.push({
@@ -1886,9 +1889,10 @@ function streakCalendarView(){
   </div>
 
   <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
-    <div class="section-title" style="margin:0;">Tus eventos</div>
-    ${STATE.calendarAddingEvent ? '' : `<button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="calendar-add-event">+ Añadir evento</button>`}
+    <div class="section-title" style="margin:0;">Tus eventos <span class="mono" style="font-size:11px; color:var(--muted); text-transform:none;">(${sortedEvents.length}/${CALENDAR_EVENTS_MAX})</span></div>
+    ${STATE.calendarAddingEvent || sortedEvents.length>=CALENDAR_EVENTS_MAX ? '' : `<button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="calendar-add-event">+ Añadir evento</button>`}
   </div>
+  ${(!STATE.calendarAddingEvent && sortedEvents.length>=CALENDAR_EVENTS_MAX) ? `<div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:12.5px;">Has llegado al máximo de ${CALENDAR_EVENTS_MAX} eventos. Elimina alguno para añadir otro.</div>` : ''}
   ${addForm}
   ${sortedEvents.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:18px;">${eventRows}</div>` : `<div class="empty-state" style="padding:20px;">Todavía no has añadido ningún evento. Usa "+ Añadir evento" para marcar tu próximo examen, prueba física o reunión.</div>`}
 
