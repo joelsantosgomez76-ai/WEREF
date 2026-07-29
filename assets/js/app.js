@@ -1895,7 +1895,7 @@ function streakCalendarView(){
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
     <button class="btn btn-ghost" data-action="calendar-year" data-delta="-1" ${year<=2025?'disabled':''}>‹ ${year-1}</button>
     <div style="font-weight:700; font-size:16px;">${year}</div>
-    <button class="btn btn-ghost" data-action="calendar-year" data-delta="1" ${isCurrentYear?'disabled':''}>${year+1} ›</button>
+    <button class="btn btn-ghost" data-action="calendar-year" data-delta="1" ${year>=now.getFullYear()+1?'disabled':''}>${year+1} ›</button>
   </div>
 
   <div class="cal-wrap">${months}</div>
