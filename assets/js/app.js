@@ -2017,9 +2017,8 @@ function homeView(){
   </div>
   <div class="law-grid">${cards}${glossaryCard}${hardCard}${failedCard}</div>
   <div class="qcard" style="margin-top:24px; text-align:center; padding:26px 20px;">
-    <div style="font-size:28px; margin-bottom:8px;">📮</div>
-    <div style="font-weight:700; font-size:15px; color:var(--pitch); margin-bottom:4px;">Buzón de sugerencias</div>
-    <div style="font-size:13px; color:var(--muted); margin-bottom:14px;">¿Qué le falta a WEREF? Cuéntamelo, leo todas las sugerencias e intento hacer lo que más pedís.</div>
+    <div style="font-weight:700; font-size:15px; color:var(--pitch); margin-bottom:4px;">🚀 Construyamos WEREF juntos</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:14px;">Esta plataforma también la crean sus usuarios. Si tienes una idea, has encontrado algo que mejorar o echas de menos alguna función, cuéntanoslo. Tu opinión puede marcar la diferencia.</div>
     <button class="btn btn-secondary" data-action="open-suggest">Enviar una sugerencia</button>
   </div>
   `;
