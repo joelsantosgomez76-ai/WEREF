@@ -2639,10 +2639,10 @@ function suggestFormView(){
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Buzón de sugerencias</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">¿Qué te gustaría que tuviera WEREF? Leo todas las sugerencias e intento hacer lo que más pedís.</div>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Ayúdanos a mejorar WEREF. Comparte tus ideas, propuestas o funcionalidades que te gustaría ver en la plataforma. Leemos todas las sugerencias y muchas de ellas terminan convirtiéndose en nuevas mejoras.</div>
   <div class="qcard">
     <label>Tu sugerencia</label>
-    <textarea id="suggest-message" rows="10" style="resize:none;" placeholder="Ej: me gustaría que hubiera un modo..." maxlength="3000"></textarea>
+    <textarea id="suggest-message" rows="6" style="resize:none; overflow-y:hidden;" placeholder="Ej: me gustaría que hubiera un modo..." maxlength="3000"></textarea>
     <button class="btn btn-primary" style="margin-top:14px;" data-action="send-suggestion">Enviar sugerencia</button>
   </div>
   `;
@@ -3105,6 +3105,13 @@ function bindEvents(){
   });
   const importExcelInput = document.getElementById('import-excel-file');
   if(importExcelInput){ importExcelInput.addEventListener('change', (e)=>{ if(e.target.files[0]) importExcelFile(e.target.files[0]); }); }
+
+  const suggestMessage = document.getElementById('suggest-message');
+  if(suggestMessage){
+    const autoGrow = () => { suggestMessage.style.height = 'auto'; suggestMessage.style.height = suggestMessage.scrollHeight + 'px'; };
+    autoGrow();
+    suggestMessage.addEventListener('input', autoGrow);
+  }
 
   const mybankSearch = document.getElementById('mybank-search');
   if(mybankSearch){ mybankSearch.addEventListener('input', (e)=>{ STATE.myBankSearch = e.target.value; render(); }); }
