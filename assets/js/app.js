@@ -123,13 +123,15 @@ let STATE = {
   editingId: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[] },
+  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[] },
   toast: null,
   reviewDetailIdx: null,
   savedBrowseIdx: 0,
   myBankEditingId: null,
   myBankSearch: '',
-  myBankCategory: 'all',
+  myBankViewCategory: null,
+  myBankCreatingCategory: false,
+  myBankTrainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'none', categories: [], feedbackMode: 'exam' },
   myBankQuiz: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
   dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
@@ -255,6 +257,7 @@ async function loadStorage(){
   try{ const v = await storageGet('timeAttackRecord'); STATE.storage.timeAttackRecord = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.timeAttackRecord = 0; }
   try{ const v = await storageGet('glossaryQuestions'); STATE.storage.glossaryQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.glossaryQuestions = []; }
   try{ const v = await storageGet('myBank'); STATE.storage.myBank = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBank = []; }
+  try{ const v = await storageGet('myBankCategories'); STATE.storage.myBankCategories = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBankCategories = []; }
   STATE.storage.userQuestions.forEach(q=>{ if(!q.id) q.id = 'U'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='law'; });
   STATE.storage.glossaryQuestions.forEach(q=>{ if(!q.id) q.id = 'G'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='glossary'; });
   checkAndUnlockBadges();
@@ -268,6 +271,7 @@ async function saveEdits(){ await storageSet('edits', JSON.stringify(STATE.stora
 async function saveReviewed(){ await storageSet('reviewed', JSON.stringify(STATE.storage.reviewed)); }
 async function saveGlossaryQuestions(){ await storageSet('glossaryQuestions', JSON.stringify(STATE.storage.glossaryQuestions)); }
 async function saveMyBank(){ await storageSet('myBank', JSON.stringify(STATE.storage.myBank)); }
+async function saveMyBankCategories(){ await storageSet('myBankCategories', JSON.stringify(STATE.storage.myBankCategories)); }
 async function saveDeleted(){ await storageSet('deleted', JSON.stringify(STATE.storage.deleted)); }
 async function saveStatsResetAt(){ await storageSet('statsResetAt', JSON.stringify(STATE.storage.statsResetAt)); }
 async function saveTestHistory(){ await storageSet('testHistory', JSON.stringify(STATE.storage.testHistory)); }
@@ -725,8 +729,10 @@ function viewFor(v){
   if(v==='database') return databaseView();
   if(v==='dailyChallenge') return dailyChallengeView();
   if(v==='leaderboard') return leaderboardView();
-  if(v==='myBank') return myBankView();
+  if(v==='myBank') return myBankCategoriesView();
+  if(v==='myBankCategory') return myBankCategoryView();
   if(v==='myBankForm') return myBankFormView();
+  if(v==='myBankTrainConfig') return myBankTrainConfigView();
   if(v==='myBankQuiz') return myBankQuizView();
   if(v==='myBankResult') return myBankResultView();
   if(v==='achievements') return achievementsView();
@@ -851,35 +857,98 @@ function leaderboardView(){
 
 /* ---------------- MI BASE DE DATOS: banco de preguntas 100% privado del usuario ----------------
    Independiente de allQuestions()/BASE_QUESTIONS: nunca se mezcla con el contenido de la
-   plataforma, ni al revisar, ni al generar tests, ni en Sala VAR/Repaso/Mi Lista/reportes. */
+   plataforma, ni al revisar, ni al generar tests, ni en Sala VAR/Repaso/Mi Lista/reportes.
+   Modelo "categorías primero": el usuario crea categorías y añade preguntas dentro de ellas;
+   el test se genera eligiendo una o varias categorías, con las mismas opciones (número de
+   preguntas, cronómetro, examen/estudio) que "Crear test personalizado" de la plataforma. */
 
-function myBankCategories(){
-  const set = new Set();
-  (STATE.storage.myBank||[]).forEach(q => { if(q.category) set.add(q.category); });
-  return Array.from(set).sort((a,b)=>a.localeCompare(b));
+let MYBANK_TIMER_HANDLE = null;
+function myBankStopTimer(){ if(MYBANK_TIMER_HANDLE){ clearInterval(MYBANK_TIMER_HANDLE); MYBANK_TIMER_HANDLE = null; } }
+function myBankStartTimer(){
+  myBankStopTimer();
+  MYBANK_TIMER_HANDLE = setInterval(()=>{
+    const quiz = STATE.myBankQuiz;
+    if(!quiz){ myBankStopTimer(); return; }
+    quiz.remainingSec--;
+    const el = document.getElementById('mybank-timer-display');
+    if(el) el.textContent = formatTime(quiz.remainingSec);
+    if(quiz.remainingSec <= 0){
+      if(quiz.timerMode==='perQuestion' && quiz.idx+1 < quiz.qids.length){
+        quiz.idx++;
+        quiz.remainingSec = quiz.perQSeconds;
+        render();
+      } else {
+        myBankStopTimer();
+        STATE.view = 'myBankResult';
+        STATE.toast = '¡Tiempo agotado!';
+        render();
+      }
+    }
+  }, 1000);
 }
 
-function myBankFilteredList(){
-  let list = STATE.storage.myBank || [];
-  const cat = STATE.myBankCategory || 'all';
-  if(cat === 'sin-categoria') list = list.filter(q => !q.category);
-  else if(cat !== 'all') list = list.filter(q => q.category === cat);
+function myBankCategoryCounts(){
+  const counts = {};
+  (STATE.storage.myBank||[]).forEach(q => { const c = q.category || ''; counts[c] = (counts[c]||0) + 1; });
+  return counts;
+}
+
+function myBankCategoriesView(){
+  const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
+  const counts = myBankCategoryCounts();
+  const uncategorizedCount = counts[''] || 0;
+  const totalQuestions = (STATE.storage.myBank||[]).length;
+
+  const rows = cats.map(c => `
+    <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="${esc(c)}">
+      <span>📂 ${esc(c)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${counts[c]||0})</span></span>
+      <span class="arrow">›</span>
+    </button>
+  `).join('');
+
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">📁 Mi Base de Datos</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu contenido privado, organizado por categorías. Nadie más puede verlo, y nunca se mezcla con las preguntas de WEREF.</div>
+
+  <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
+    ${STATE.myBankCreatingCategory ? '' : `<button class="btn btn-primary" data-action="mybank-new-category">+ Nueva categoría</button>`}
+    ${totalQuestions>0 ? `<button class="btn btn-secondary" data-action="mybank-train-config">▶ Crear test</button>` : ''}
+  </div>
+
+  ${STATE.myBankCreatingCategory ? `
+  <div class="qcard" style="margin-bottom:14px;">
+    <label>Nombre de la categoría</label>
+    <input type="text" id="mybank-new-category-name" placeholder="Ej: Tema 3, Casos prácticos..." maxlength="60">
+    <div style="margin-top:12px; display:flex; gap:10px;">
+      <button class="btn btn-primary" data-action="mybank-save-category">Crear</button>
+      <button class="btn btn-ghost" data-action="mybank-cancel-category">Cancelar</button>
+    </div>
+  </div>
+  ` : ''}
+
+  <div class="qcard" style="padding:6px 10px; margin-bottom:14px;">
+    ${rows || (uncategorizedCount===0 ? `<div class="empty-state">Todavía no has creado ninguna categoría. Crea la primera para empezar a añadir preguntas.</div>` : '')}
+  </div>
+
+  ${uncategorizedCount>0 ? `
+  <button class="breakdown-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="">
+    <span>🗂️ Sin categoría <span class="mono" style="color:var(--muted); font-size:11.5px;">(${uncategorizedCount})</span></span>
+    <span class="arrow">›</span>
+  </button>
+  ` : ''}
+  `;
+}
+
+function myBankCategoryView(){
+  const cat = STATE.myBankViewCategory;
+  const catLabel = cat === '' ? 'Sin categoría' : cat;
+  const list = (STATE.storage.myBank||[]).filter(q => (q.category||'') === cat);
   const s = (STATE.myBankSearch||'').trim().toLowerCase();
-  if(s){
-    list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o=>o.toLowerCase().includes(s)) || (q.category||'').toLowerCase().includes(s));
-  }
-  return list;
-}
-
-function myBankView(){
-  const list = myBankFilteredList();
-  const total = (STATE.storage.myBank||[]).length;
-  const categories = myBankCategories();
-  const hasUncategorized = (STATE.storage.myBank||[]).some(q=>!q.category);
+  const filtered = s ? list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o=>o.toLowerCase().includes(s))) : list;
   const letters = ['a','b','c','d'];
-  const rows = list.map(q => `
+  const rows = filtered.map(q => `
     <div class="qcard" style="margin-bottom:10px;">
-      ${q.category ? `<div class="qtag">${esc(q.category)}</div>` : ''}
       <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
       ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
       ${q.explanation ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
@@ -890,41 +959,38 @@ function myBankView(){
     </div>
   `).join('');
   return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">📁 Mi Base de Datos</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu contenido privado. Nadie más puede verlo, y nunca se mezcla con las preguntas de WEREF.</div>
+  <button class="backbtn" data-action="mybank">&larr; Mi Base de Datos</button>
+  <h2 style="margin-bottom:4px;">📂 ${esc(catLabel)}</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${list.length} pregunta(s)</div>
 
   <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
-    <button class="btn btn-primary" data-action="mybank-add">+ Añadir pregunta</button>
-    ${list.length>0 ? `<button class="btn btn-secondary" data-action="mybank-start-quiz">▶ Crear test con estas preguntas (${list.length})</button>` : ''}
+    <button class="btn btn-primary" data-action="mybank-add">+ Añadir pregunta aquí</button>
+    ${cat!=='' ? `<button class="btn btn-ghost" style="color:var(--red); border-color:#F0C4C4;" data-action="mybank-delete-category" data-category="${esc(cat)}">Eliminar categoría</button>` : ''}
   </div>
 
   <div class="qcard" style="margin-bottom:14px;">
-    <label>Buscar en mis preguntas</label>
-    <input type="text" id="mybank-search" placeholder="Busca por palabra o categoría..." value="${esc(STATE.myBankSearch)}" maxlength="100">
-    ${categories.length>0 ? `
-    <label>Categoría</label>
-    <select id="mybank-category">
-      <option value="all" ${STATE.myBankCategory==='all'?'selected':''}>Todas (${total})</option>
-      ${categories.map(c=>`<option value="${esc(c)}" ${STATE.myBankCategory===c?'selected':''}>${esc(c)} (${(STATE.storage.myBank||[]).filter(q=>q.category===c).length})</option>`).join('')}
-      ${hasUncategorized ? `<option value="sin-categoria" ${STATE.myBankCategory==='sin-categoria'?'selected':''}>Sin categoría</option>` : ''}
-    </select>
-    ` : ''}
+    <label>Buscar en esta categoría</label>
+    <input type="text" id="mybank-search" placeholder="Busca por palabra..." value="${esc(STATE.myBankSearch)}" maxlength="100">
   </div>
 
-  ${rows || `<div class="empty-state">${(STATE.storage.myBank||[]).length===0 ? 'Todavía no has añadido ninguna pregunta propia. Pulsa "+ Añadir pregunta" para crear la primera.' : 'Ninguna pregunta coincide con esa búsqueda.'}</div>`}
+  ${rows || `<div class="empty-state">${list.length===0 ? 'Todavía no hay preguntas en esta categoría.' : 'Ninguna coincide con esa búsqueda.'}</div>`}
   `;
 }
 
 function myBankFormView(){
   const editing = STATE.myBankEditingId ? (STATE.storage.myBank||[]).find(q=>q.id===STATE.myBankEditingId) : null;
+  const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
+  const defaultCat = editing ? (editing.category||'') : (STATE.myBankViewCategory !== null ? STATE.myBankViewCategory : (cats[0]||''));
   const letters = ['a','b','c','d'];
   return `
-  <button class="backbtn" data-action="mybank">&larr; Mi Base de Datos</button>
+  <button class="backbtn" data-action="${STATE.myBankViewCategory!==null ? 'mybank-open-category-back' : 'mybank'}">&larr; Volver</button>
   <h2>${editing ? 'Editar pregunta' : 'Añadir pregunta'}</h2>
   <div class="qcard">
-    <label>Categoría (opcional)</label>
-    <input type="text" id="mb-category" placeholder="Ej: Tema 3, Casos prácticos..." maxlength="60" value="${esc(editing ? (editing.category||'') : '')}">
+    <label>Categoría</label>
+    <select id="mb-category">
+      ${cats.map(c=>`<option value="${esc(c)}" ${defaultCat===c?'selected':''}>${esc(c)}</option>`).join('')}
+      <option value="" ${defaultCat===''?'selected':''}>Sin categoría</option>
+    </select>
     <label>Pregunta</label>
     <textarea id="mb-question" placeholder="Escribe el enunciado..." maxlength="1000">${editing ? esc(editing.question) : ''}</textarea>
     ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="mb-${l}" maxlength="300" value="${editing ? esc(editing.options[i]||'') : ''}">`).join('')}
@@ -934,14 +1000,14 @@ function myBankFormView(){
     <textarea id="mb-explanation" placeholder="Por qué es correcta, referencia, apunte propio..." maxlength="2000">${editing ? esc(editing.explanation||'') : ''}</textarea>
     <div style="margin-top:18px; display:flex; gap:10px;">
       <button class="btn btn-primary" data-action="mybank-save" ${editing ? `data-qid="${editing.id}"` : ''}>Guardar</button>
-      <button class="btn btn-ghost" data-action="mybank">Cancelar</button>
+      <button class="btn btn-ghost" data-action="${STATE.myBankViewCategory!==null ? 'mybank-open-category-back' : 'mybank'}">Cancelar</button>
     </div>
   </div>
   `;
 }
 
 function saveMyBankQuestion(qid){
-  const category = document.getElementById('mb-category').value.trim();
+  const category = document.getElementById('mb-category').value;
   const question = document.getElementById('mb-question').value.trim();
   const a = document.getElementById('mb-a').value.trim();
   const b = document.getElementById('mb-b').value.trim();
@@ -967,17 +1033,114 @@ function saveMyBankQuestion(qid){
   }
   saveMyBank();
   STATE.myBankEditingId = null;
-  STATE.view = 'myBank';
+  STATE.view = STATE.myBankViewCategory!==null ? 'myBankCategory' : 'myBank';
   STATE.toast = 'Guardado en Mi Base de Datos.';
   render();
 }
 
-function startMyBankQuiz(){
-  const pool = shuffle(myBankFilteredList().slice());
-  if(pool.length===0){ STATE.toast = 'Añade al menos una pregunta antes de crear un test.'; render(); return; }
-  STATE.myBankQuiz = { qids: pool.map(q=>q.id), idx:0, answers:{}, selected:null, showFeedback:false };
+function myBankAddCategory(){
+  const input = document.getElementById('mybank-new-category-name');
+  const name = input.value.trim();
+  if(!name){ STATE.toast = 'Escribe un nombre para la categoría.'; render(); return; }
+  if(!STATE.storage.myBankCategories) STATE.storage.myBankCategories = [];
+  if(STATE.storage.myBankCategories.some(c=>c.toLowerCase()===name.toLowerCase())){
+    STATE.toast = 'Ya tienes una categoría con ese nombre.';
+    render();
+    return;
+  }
+  STATE.storage.myBankCategories.push(name);
+  saveMyBankCategories();
+  STATE.myBankCreatingCategory = false;
+  render();
+}
+
+function myBankDeleteCategory(name){
+  STATE.storage.myBankCategories = (STATE.storage.myBankCategories||[]).filter(c=>c!==name);
+  (STATE.storage.myBank||[]).forEach(q => { if(q.category===name) q.category = ''; });
+  saveMyBankCategories();
+  saveMyBank();
+  STATE.myBankViewCategory = null;
+  STATE.view = 'myBank';
+  render();
+}
+
+function myBankTrainConfigView(){
+  const cfg = STATE.myBankTrainCfg;
+  const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
+  const scoped = cfg.categories.length ? (STATE.storage.myBank||[]).filter(q=>cfg.categories.includes(q.category)) : (STATE.storage.myBank||[]);
+  return `
+  <button class="backbtn" data-action="mybank">&larr; Mi Base de Datos</button>
+  <h2 style="margin-bottom:4px;">Crear test · Mi Base de Datos</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Elige qué categorías incluir, cuántas preguntas quieres y cómo quieres el tiempo.</div>
+  <div class="qcard">
+    ${cats.length>0 ? `
+    <label>Categorías incluidas</label>
+    <div class="tabs">
+      <button class="tab ${cfg.categories.length===0?'active':''}" data-action="mybank-toggle-train-category" data-category="all">Todas</button>
+      ${cats.map(c=>`<button class="tab ${cfg.categories.includes(c)?'active':''}" data-action="mybank-toggle-train-category" data-category="${esc(c)}">${esc(c)}</button>`).join('')}
+    </div>
+    ` : ''}
+    <div style="font-size:12px; color:var(--muted); margin-top:8px;">${scoped.length} pregunta(s) disponibles con esta selección.</div>
+
+    <label>Número de preguntas <span class="mono" style="color:var(--muted); text-transform:none; font-weight:500;">(máximo 50)</span></label>
+    <input type="text" inputmode="numeric" id="mybank-cfg-count" value="${Math.min(cfg.count,50)}" maxlength="2">
+
+    <label>Tipo de test</label>
+    <div class="tabs">
+      <button class="tab ${cfg.feedbackMode==='exam'?'active':''}" data-action="mybank-set-feedback-mode" data-fbmode="exam">Modo examen</button>
+      <button class="tab ${cfg.feedbackMode==='study'?'active':''}" data-action="mybank-set-feedback-mode" data-fbmode="study">Modo estudio</button>
+    </div>
+    <div style="font-size:12px; color:var(--muted); margin-top:4px;">${cfg.feedbackMode==='study' ? 'Verás si aciertas y la solución al momento de responder cada pregunta.' : 'No sabrás los resultados hasta terminar todo el test.'}</div>
+
+    <label>Temporización</label>
+    <div class="tabs">
+      <button class="tab ${cfg.timerMode==='none'?'active':''}" data-action="mybank-set-timer-mode" data-mode="none">Sin límite</button>
+      <button class="tab ${cfg.timerMode==='total'?'active':''}" data-action="mybank-set-timer-mode" data-mode="total">Tiempo total</button>
+      <button class="tab ${cfg.timerMode==='perQuestion'?'active':''}" data-action="mybank-set-timer-mode" data-mode="perQuestion">Tiempo por pregunta</button>
+    </div>
+    ${cfg.timerMode==='total' ? `
+      <label>Minutos para todo el examen</label>
+      <input type="text" inputmode="numeric" id="mybank-cfg-minutes" value="${cfg.minutes}" maxlength="4">
+    ` : ''}
+    ${cfg.timerMode==='perQuestion' ? `
+      <label>Segundos por pregunta</label>
+      <input type="text" inputmode="numeric" id="mybank-cfg-seconds-per-q" value="${cfg.secondsPerQuestion}" maxlength="4">
+    ` : ''}
+
+    <div style="margin-top:20px;">
+      <button class="btn btn-primary" data-action="mybank-generate-exam">Generar examen</button>
+    </div>
+  </div>
+  `;
+}
+
+function startMyBankTraining(opts){
+  let pool = (opts.categories && opts.categories.length)
+    ? (STATE.storage.myBank||[]).filter(q => opts.categories.includes(q.category))
+    : (STATE.storage.myBank||[]).slice();
+  pool = shuffle(pool.slice());
+  const count = Math.max(1, Math.min(opts.count || 20, 50, pool.length));
+  pool = pool.slice(0, count);
+  if(pool.length===0){ STATE.toast = 'No hay preguntas disponibles con esos filtros.'; render(); return; }
+
+  let timerMode = opts.timerMode || 'none';
+  let timeSec=0, remainingSec=0, perQSeconds=0;
+  if(timerMode==='total'){
+    timeSec = (opts.minutes && opts.minutes>0) ? Math.round(opts.minutes*60) : 0;
+    if(timeSec<=0) timerMode='none';
+    remainingSec = timeSec;
+  } else if(timerMode==='perQuestion'){
+    perQSeconds = Math.max(5, opts.secondsPerQuestion || 45);
+    remainingSec = perQSeconds;
+  }
+
+  STATE.myBankQuiz = {
+    qids: pool.map(q=>q.id), idx:0, answers:{},
+    instantFeedback: !!opts.instantFeedback, timerMode, timeSec, remainingSec, perQSeconds
+  };
   STATE.view = 'myBankQuiz';
   render();
+  if(timerMode==='total' || timerMode==='perQuestion') myBankStartTimer();
 }
 
 function myBankCurrentQ(){
@@ -989,20 +1152,27 @@ function myBankSelectAnswer(letter){
   const quiz = STATE.myBankQuiz;
   const q = myBankCurrentQ();
   quiz.answers[q.id] = letter;
-  quiz.selected = letter;
-  quiz.showFeedback = true;
+  if(quiz.instantFeedback && quiz.timerMode==='perQuestion') myBankStopTimer();
   render();
 }
 
-function myBankNext(){
+function myBankGoToQuestion(newIdx){
   const quiz = STATE.myBankQuiz;
-  if(quiz.idx+1 >= quiz.qids.length){
-    STATE.view = 'myBankResult';
-  } else {
-    quiz.idx++;
-    quiz.selected = null;
-    quiz.showFeedback = false;
-  }
+  if(newIdx<0 || newIdx>=quiz.qids.length) return;
+  quiz.idx = newIdx;
+  if(quiz.timerMode==='perQuestion'){ quiz.remainingSec = quiz.perQSeconds; }
+  render();
+}
+
+function myBankAdvance(){
+  const quiz = STATE.myBankQuiz;
+  if(quiz.idx+1 < quiz.qids.length) myBankGoToQuestion(quiz.idx+1);
+  else myBankFinish();
+}
+
+function myBankFinish(){
+  myBankStopTimer();
+  STATE.view = 'myBankResult';
   render();
 }
 
@@ -1011,7 +1181,8 @@ function myBankQuizView(){
   const q = myBankCurrentQ();
   const total = quiz.qids.length;
   const letters = ['a','b','c','d'];
-  const reveal = quiz.showFeedback;
+  const selectedLetter = quiz.answers[q.id] || null;
+  const reveal = quiz.instantFeedback && !!selectedLetter;
   const optsHtml = q.options.map((opt,i)=>{
     const letter = letters[i];
     let cls = 'option';
@@ -1019,7 +1190,9 @@ function myBankQuizView(){
     if(reveal){
       disabled = 'disabled';
       if(letter===q.correct) cls += ' correct';
-      else if(letter===quiz.selected) cls += ' incorrect';
+      else if(letter===selectedLetter) cls += ' incorrect';
+    } else if(selectedLetter===letter){
+      cls += ' selected';
     }
     return `<button class="${cls}" data-action="mybank-answer" data-letter="${letter}" ${disabled}>
       <span class="letter">${letter})</span>${esc(opt)}
@@ -1028,20 +1201,27 @@ function myBankQuizView(){
   return `
   <div class="quiz-topbar">
     <span class="qcount">Pregunta ${quiz.idx+1} / ${total}</span>
-    <button class="btn btn-ghost" style="padding:4px 12px; font-size:12px;" data-action="mybank">Salir</button>
+    ${quiz.timerMode==='total' ? `<span class="score mono" id="mybank-timer-display">${formatTime(quiz.remainingSec)}</span>` :
+      quiz.timerMode==='perQuestion' ? `<span class="score mono" id="mybank-timer-display">⏱ ${formatTime(quiz.remainingSec)}</span>` :
+      `<span class="score">Sin límite de tiempo</span>`}
   </div>
   <div class="qcard">
     ${q.category ? `<div class="qtag">${esc(q.category)}</div>` : ''}
     <div class="qtext">${esc(q.question)}</div>
     ${optsHtml}
-    ${reveal ? `<div class="card-feedback ${quiz.selected===q.correct?'ok':'bad'}">
-      <div class="ref-card ${quiz.selected===q.correct?'yellow':'red'}"></div>
-      <div class="msg">${quiz.selected===q.correct ? '¡Correcto!' : 'Incorrecto.'}<small>${quiz.selected===q.correct ? '' : 'La respuesta correcta era la '+q.correct.toUpperCase()+').'}</small></div>
+    ${reveal ? `<div class="card-feedback ${selectedLetter===q.correct?'ok':'bad'}">
+      <div class="ref-card ${selectedLetter===q.correct?'yellow':'red'}"></div>
+      <div class="msg">${selectedLetter===q.correct ? '¡Correcto!' : 'Incorrecto.'}<small>${selectedLetter===q.correct ? '' : 'La respuesta correcta era la '+q.correct.toUpperCase()+').'}</small></div>
     </div>
     ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}` : ''}
   </div>
   <div class="quiz-actions">
-    ${reveal ? `<button class="btn btn-primary" data-action="mybank-next">${quiz.idx+1<total?'Siguiente':'Ver resultado'}</button>` : ''}
+    <button class="btn btn-ghost" data-action="mybank-quit">Salir</button>
+    <button class="btn btn-secondary" data-action="mybank-prev" ${quiz.idx===0?'disabled':''}>Anterior</button>
+    ${quiz.instantFeedback
+      ? (reveal ? `<button class="btn btn-primary" data-action="mybank-advance">${quiz.idx+1<total?'Siguiente':'Ver resultado'}</button>` : '')
+      : `${quiz.idx+1<total ? `<button class="btn btn-secondary" data-action="mybank-advance-nav">Siguiente</button>` : ''}<button class="btn btn-primary" data-action="mybank-finish">Finalizar test</button>`
+    }
   </div>
   `;
 }
@@ -1054,15 +1234,16 @@ function myBankResultView(){
     const q = bank.find(x=>x.id===qid);
     return q && quiz.answers[qid] === q.correct;
   }).length;
+  const answered = Object.keys(quiz.answers).length;
   const pct = total ? Math.round(score/total*100) : 0;
   return `
   <div class="result-hero">
     <div class="big" style="color:${scoreColor(pct)};">${pct}%</div>
-    <div class="label">${score} de ${total} respuestas correctas</div>
+    <div class="label">${score} de ${total} respuestas correctas${answered<total ? ' · '+(total-answered)+' sin responder' : ''}</div>
   </div>
   <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="mybank">Volver a Mi Base de Datos</button>
-    <button class="btn btn-secondary" data-action="mybank-start-quiz">Repetir test</button>
+    <button class="btn btn-secondary" data-action="mybank-train-config">Nuevo test</button>
   </div>
   `;
 }
@@ -2434,7 +2615,13 @@ function onAction(e){
   else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; render(); }
   else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeaderboard(STATE.leaderboardMode||'hearts'); render(); }
   else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
-  else if(action==='mybank'){ STATE.myBankEditingId=null; STATE.view='myBank'; render(); }
+  else if(action==='mybank'){ STATE.myBankEditingId=null; STATE.myBankViewCategory=null; STATE.myBankCreatingCategory=false; STATE.myBankSearch=''; STATE.view='myBank'; render(); }
+  else if(action==='mybank-new-category'){ STATE.myBankCreatingCategory=true; render(); }
+  else if(action==='mybank-cancel-category'){ STATE.myBankCreatingCategory=false; render(); }
+  else if(action==='mybank-save-category'){ myBankAddCategory(); }
+  else if(action==='mybank-open-category'){ STATE.myBankViewCategory=el.dataset.category; STATE.myBankSearch=''; STATE.view='myBankCategory'; render(); }
+  else if(action==='mybank-open-category-back'){ STATE.view='myBankCategory'; render(); }
+  else if(action==='mybank-delete-category'){ myBankDeleteCategory(el.dataset.category); }
   else if(action==='mybank-add'){ STATE.myBankEditingId=null; STATE.view='myBankForm'; render(); }
   else if(action==='mybank-edit'){ STATE.myBankEditingId=el.dataset.qid; STATE.view='myBankForm'; render(); }
   else if(action==='mybank-delete'){
@@ -2443,9 +2630,44 @@ function onAction(e){
     render();
   }
   else if(action==='mybank-save'){ saveMyBankQuestion(el.dataset.qid || null); }
-  else if(action==='mybank-start-quiz'){ startMyBankQuiz(); }
-  else if(action==='mybank-answer'){ if(!STATE.myBankQuiz.showFeedback) myBankSelectAnswer(el.dataset.letter); }
-  else if(action==='mybank-next'){ myBankNext(); }
+  else if(action==='mybank-train-config'){ STATE.view='myBankTrainConfig'; render(); }
+  else if(action==='mybank-toggle-train-category'){
+    const val = el.dataset.category;
+    if(val==='all'){ STATE.myBankTrainCfg.categories = []; }
+    else {
+      const idx = STATE.myBankTrainCfg.categories.indexOf(val);
+      if(idx>=0) STATE.myBankTrainCfg.categories.splice(idx,1); else STATE.myBankTrainCfg.categories.push(val);
+    }
+    render();
+  }
+  else if(action==='mybank-set-timer-mode'){ STATE.myBankTrainCfg.timerMode = el.dataset.mode; render(); }
+  else if(action==='mybank-set-feedback-mode'){ STATE.myBankTrainCfg.feedbackMode = el.dataset.fbmode; render(); }
+  else if(action==='mybank-generate-exam'){
+    const countVal = parseInt(document.getElementById('mybank-cfg-count').value,10);
+    STATE.myBankTrainCfg.count = Math.min(50, Math.max(1, isNaN(countVal) ? 20 : countVal));
+    if(STATE.myBankTrainCfg.timerMode==='total'){
+      const minutesVal = parseInt(document.getElementById('mybank-cfg-minutes').value,10);
+      STATE.myBankTrainCfg.minutes = isNaN(minutesVal) ? 0 : minutesVal;
+    }
+    if(STATE.myBankTrainCfg.timerMode==='perQuestion'){
+      const secVal = parseInt(document.getElementById('mybank-cfg-seconds-per-q').value,10);
+      STATE.myBankTrainCfg.secondsPerQuestion = isNaN(secVal) ? 45 : secVal;
+    }
+    startMyBankTraining({
+      count: STATE.myBankTrainCfg.count,
+      timerMode: STATE.myBankTrainCfg.timerMode,
+      minutes: STATE.myBankTrainCfg.minutes,
+      secondsPerQuestion: STATE.myBankTrainCfg.secondsPerQuestion,
+      categories: STATE.myBankTrainCfg.categories,
+      instantFeedback: STATE.myBankTrainCfg.feedbackMode === 'study'
+    });
+  }
+  else if(action==='mybank-answer'){ myBankSelectAnswer(el.dataset.letter); }
+  else if(action==='mybank-prev'){ myBankGoToQuestion(STATE.myBankQuiz.idx-1); }
+  else if(action==='mybank-advance'){ myBankAdvance(); }
+  else if(action==='mybank-advance-nav'){ myBankGoToQuestion(STATE.myBankQuiz.idx+1); }
+  else if(action==='mybank-finish'){ myBankFinish(); }
+  else if(action==='mybank-quit'){ myBankStopTimer(); STATE.view='myBank'; render(); }
   else if(action==='start-daily-goal'){ startCountedQuiz(parseInt(el.dataset.count,10) || 10); }
   else if(action==='start-hearts'){ startHeartsMode(); }
   else if(action==='start-suddendeath'){ startSuddenDeathMode(); }
