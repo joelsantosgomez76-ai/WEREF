@@ -1998,12 +1998,32 @@ function homeView(){
   }
 
   const streak = computeStreak();
-  const streakHtml = streak === 0
-    ? `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:12px;">
+  const todayISO = todayKeyISO();
+  const nextEvent = (STATE.storage.calendarEvents||[])
+    .filter(ev => ev.date >= todayISO)
+    .sort((a,b)=>a.date.localeCompare(b.date))[0];
+
+  let streakHtml;
+  if(nextEvent){
+    const t = CALENDAR_EVENT_TYPES[nextEvent.type] || CALENDAR_EVENT_TYPES.other;
+    const daysUntil = Math.round((new Date(nextEvent.date+'T00:00:00') - new Date(todayISO+'T00:00:00')) / 86400000);
+    const whenLabel = daysUntil===0 ? 'Hoy' : daysUntil===1 ? 'Mañana' : `En ${daysUntil} días`;
+    streakHtml = `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:16px;">
+        <div style="width:52px; height:52px; border-radius:50%; background:${t.bg}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <span style="font-size:22px;">${t.icon}</span>
+        </div>
+        <div>
+          <div style="font-weight:700; font-size:14px;">${esc(nextEvent.title)}</div>
+          <div style="font-size:12.5px; color:var(--muted);">${whenLabel} · ${formatEventDate(nextEvent.date)} · toca para ver el calendario</div>
+        </div>
+      </button>`;
+  } else if(streak === 0){
+    streakHtml = `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:12px;">
         <div style="font-size:20px;">🔥</div>
         <div style="font-size:13px; color:var(--muted);">Empieza hoy tu racha de estudio.</div>
-      </button>`
-    : `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:16px;">
+      </button>`;
+  } else {
+    streakHtml = `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:16px;">
         <div style="width:52px; height:52px; border-radius:50%; background:#FFF1E8; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
           <span style="font-size:22px;">🔥</span>
         </div>
@@ -2012,6 +2032,7 @@ function homeView(){
           <div style="font-size:12.5px; color:var(--muted);">Racha de estudio activa · toca para ver el calendario</div>
         </div>
       </button>`;
+  }
 
   const weak = weakestRuleRecent(20);
   const weakHtml = !weak
