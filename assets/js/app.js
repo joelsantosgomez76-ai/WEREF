@@ -2642,7 +2642,7 @@ function suggestFormView(){
   <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">¿Qué te gustaría que tuviera WEREF? Leo todas las sugerencias e intento hacer lo que más pedís.</div>
   <div class="qcard">
     <label>Tu sugerencia</label>
-    <textarea id="suggest-message" rows="5" placeholder="Ej: me gustaría que hubiera un modo..." maxlength="3000"></textarea>
+    <textarea id="suggest-message" rows="10" style="resize:none;" placeholder="Ej: me gustaría que hubiera un modo..." maxlength="3000"></textarea>
     <button class="btn btn-primary" style="margin-top:14px;" data-action="send-suggestion">Enviar sugerencia</button>
   </div>
   `;
