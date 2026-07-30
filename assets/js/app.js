@@ -1798,8 +1798,8 @@ function recentPerformanceView(){
   }).join('');
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Rendimiento reciente por regla</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">% de acierto calculado sobre las últimas 25 preguntas que has respondido de cada regla (o menos, si todavía no llegas a 25). Toca una regla para practicarla.</div>
+  <h2 style="margin-bottom:4px;">Analiza tu rendimiento</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Comprueba en qué reglas obtienes mejores resultados y cuáles necesitas reforzar. Los porcentajes se calculan sobre tus últimas 25 respuestas por regla.</div>
   <div class="qcard">${items}</div>
   `;
 }
@@ -1991,7 +1991,7 @@ function homeView(){
     </button>`;
   } else {
     recentPerfHtml = `<button class="qcard" data-action="recent-performance" style="flex:1; min-width:220px; text-align:left; cursor:pointer;">
-      <div style="font-weight:700; font-size:14px; margin-bottom:8px;">🎯 Rendimiento reciente</div>
+      <div style="font-weight:700; font-size:14px; margin-bottom:8px;">🎯 Analiza tu rendimiento</div>
       <div style="font-size:13px; color:${scoreColor(rp.pct)}; font-weight:700; margin-bottom:10px;">${rp.pct}% de acierto en tus últimos 20 tests</div>
       <div style="text-align:right; font-size:12px; color:var(--pitch); font-weight:700;">Ver por regla →</div>
     </button>`;
