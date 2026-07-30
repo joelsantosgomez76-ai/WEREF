@@ -130,6 +130,8 @@ let STATE = {
   myBankEditingId: null,
   myBankSearch: '',
   myBankViewCategory: null,
+  myBankOptionCount: null,
+  myBankFormDraft: null,
   myBankCreatingCategory: false,
   myBankTrainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'none', categories: [], feedbackMode: 'exam' },
   myBankQuiz: null,
@@ -1308,23 +1310,35 @@ function myBankFormView(){
   const editing = STATE.myBankEditingId ? (STATE.storage.myBank||[]).find(q=>q.id===STATE.myBankEditingId) : null;
   const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
   const defaultCat = editing ? (editing.category||'') : (STATE.myBankViewCategory !== null ? STATE.myBankViewCategory : (cats[0]||''));
-  const letters = ['a','b','c','d'];
+  const draft = STATE.myBankFormDraft;
+  const catVal = draft && draft.category!==undefined ? draft.category : defaultCat;
+  const allLetters = ['a','b','c','d'];
+  const optionCount = STATE.myBankOptionCount || (editing ? editing.options.length : 4);
+  const letters = allLetters.slice(0, optionCount);
+  const getField = (field) => (draft && draft[field]!==undefined) ? draft[field] : (editing && editing[field]!==undefined ? editing[field] : '');
+  const getOption = (i) => (draft && draft.options && draft.options[i]!==undefined) ? (draft.options[i]||'') : (editing && editing.options[i]!==undefined ? editing.options[i] : '');
+  let correctVal = draft ? draft.correct : (editing ? editing.correct : 'a');
+  if(!letters.includes(correctVal)) correctVal = letters[0];
   return `
   <button class="backbtn" data-action="${STATE.myBankViewCategory!==null ? 'mybank-open-category-back' : 'mybank'}">&larr; Volver</button>
   <h2>${editing ? 'Editar pregunta' : 'Añadir pregunta'}</h2>
   <div class="qcard">
     <label>Categoría</label>
     <select id="mb-category">
-      ${cats.map(c=>`<option value="${esc(c)}" ${defaultCat===c?'selected':''}>${esc(c)}</option>`).join('')}
-      <option value="" ${defaultCat===''?'selected':''}>Sin categoría</option>
+      ${cats.map(c=>`<option value="${esc(c)}" ${catVal===c?'selected':''}>${esc(c)}</option>`).join('')}
+      <option value="" ${catVal===''?'selected':''}>Sin categoría</option>
     </select>
     <label>Pregunta</label>
-    <textarea id="mb-question" placeholder="Escribe el enunciado..." maxlength="1000">${editing ? esc(editing.question) : ''}</textarea>
-    ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="mb-${l}" maxlength="300" value="${editing ? esc(editing.options[i]||'') : ''}">`).join('')}
+    <textarea id="mb-question" placeholder="Escribe el enunciado..." maxlength="1000">${esc(getField('question'))}</textarea>
+    <label>Número de opciones de respuesta</label>
+    <select id="mb-option-count">
+      ${[3,4].map(n=>`<option value="${n}" ${optionCount===n?'selected':''}>${n} opciones</option>`).join('')}
+    </select>
+    ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="mb-${l}" maxlength="300" value="${esc(getOption(i))}">`).join('')}
     <label>Respuesta correcta</label>
-    <select id="mb-correct">${letters.map(l=>`<option value="${l}" ${editing && editing.correct===l?'selected':''}>${l})</option>`).join('')}</select>
+    <select id="mb-correct">${letters.map(l=>`<option value="${l}" ${correctVal===l?'selected':''}>${l})</option>`).join('')}</select>
     <label>Explicación o anotación personal (opcional)</label>
-    <textarea id="mb-explanation" placeholder="Por qué es correcta, referencia, apunte propio..." maxlength="2000">${editing ? esc(editing.explanation||'') : ''}</textarea>
+    <textarea id="mb-explanation" placeholder="Por qué es correcta, referencia, apunte propio..." maxlength="2000">${esc(getField('explanation'))}</textarea>
     <div style="margin-top:18px; display:flex; gap:10px;">
       <button class="btn btn-primary" data-action="mybank-save" ${editing ? `data-qid="${editing.id}"` : ''}>Guardar</button>
       <button class="btn btn-ghost" data-action="${STATE.myBankViewCategory!==null ? 'mybank-open-category-back' : 'mybank'}">Cancelar</button>
@@ -1336,30 +1350,33 @@ function myBankFormView(){
 function saveMyBankQuestion(qid){
   const category = document.getElementById('mb-category').value;
   const question = document.getElementById('mb-question').value.trim();
-  const a = document.getElementById('mb-a').value.trim();
-  const b = document.getElementById('mb-b').value.trim();
-  const c = document.getElementById('mb-c').value.trim();
-  const d = document.getElementById('mb-d').value.trim();
+  const existingQ = qid ? (STATE.storage.myBank||[]).find(q=>q.id===qid) : null;
+  const optionCount = STATE.myBankOptionCount || (existingQ ? existingQ.options.length : 4);
+  const allLetters = ['a','b','c','d'];
+  const letters = allLetters.slice(0, optionCount);
+  const options = letters.map(l => document.getElementById('mb-'+l).value.trim());
   const correct = document.getElementById('mb-correct').value;
   const explanation = document.getElementById('mb-explanation').value.trim();
-  if(!question || !a || !b || !c || !d){
-    STATE.toast = 'Rellena la pregunta y las cuatro respuestas.';
+  if(!question || options.some(o=>!o)){
+    STATE.toast = 'Rellena la pregunta y todas las respuestas.';
     render();
     return;
   }
   if(!STATE.storage.myBank) STATE.storage.myBank = [];
   if(qid){
     const existing = STATE.storage.myBank.find(q=>q.id===qid);
-    if(existing){ Object.assign(existing, { category, question, options:[a,b,c,d], correct, explanation }); }
+    if(existing){ Object.assign(existing, { category, question, options, correct, explanation }); }
   } else {
     STATE.storage.myBank.push({
       id: 'MB'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
-      category, question, options:[a,b,c,d], correct, explanation,
+      category, question, options, correct, explanation,
       createdAt: Date.now()
     });
   }
   saveMyBank();
   STATE.myBankEditingId = null;
+  STATE.myBankOptionCount = null;
+  STATE.myBankFormDraft = null;
   STATE.view = STATE.myBankViewCategory!==null ? 'myBankCategory' : 'myBank';
   STATE.toast = 'Guardado en Mis Propios Test.';
   render();
@@ -3422,6 +3439,22 @@ function bindEvents(){
   const mybankSearch = document.getElementById('mybank-search');
   if(mybankSearch){ mybankSearch.addEventListener('input', (e)=>{ STATE.myBankSearch = e.target.value; render(); }); }
 
+  const mbOptionCount = document.getElementById('mb-option-count');
+  if(mbOptionCount){
+    mbOptionCount.addEventListener('change', (e)=>{
+      const allLetters = ['a','b','c','d'];
+      STATE.myBankFormDraft = {
+        category: (document.getElementById('mb-category')||{}).value,
+        question: (document.getElementById('mb-question')||{}).value,
+        options: allLetters.map(l => { const el2 = document.getElementById('mb-'+l); return el2 ? el2.value : undefined; }),
+        correct: (document.getElementById('mb-correct')||{}).value,
+        explanation: (document.getElementById('mb-explanation')||{}).value
+      };
+      STATE.myBankOptionCount = parseInt(e.target.value,10);
+      render();
+    });
+  }
+
   const mydocsSearch = document.getElementById('mydocs-search');
   if(mydocsSearch){ mydocsSearch.addEventListener('input', (e)=>{ STATE.myDocsSearch = e.target.value; render(); }); }
   const mydocsUploadInput = document.getElementById('mydocs-upload-input');
@@ -3553,8 +3586,8 @@ function onAction(e){
     myBankDeleteCategory(STATE.confirmDeleteMyBankCategory);
     STATE.confirmDeleteMyBankCategory = null;
   }
-  else if(action==='mybank-add'){ STATE.myBankEditingId=null; STATE.view='myBankForm'; render(); }
-  else if(action==='mybank-edit'){ STATE.myBankEditingId=el.dataset.qid; STATE.view='myBankForm'; render(); }
+  else if(action==='mybank-add'){ STATE.myBankEditingId=null; STATE.myBankOptionCount=null; STATE.myBankFormDraft=null; STATE.view='myBankForm'; render(); }
+  else if(action==='mybank-edit'){ STATE.myBankEditingId=el.dataset.qid; STATE.myBankOptionCount=null; STATE.myBankFormDraft=null; STATE.view='myBankForm'; render(); }
   else if(action==='mybank-delete'){ STATE.confirmDeleteMyBankId = el.dataset.qid; render(); }
   else if(action==='mybank-cancel-delete'){ STATE.confirmDeleteMyBankId = null; render(); }
   else if(action==='mybank-confirm-delete'){
