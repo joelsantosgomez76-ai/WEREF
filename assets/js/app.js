@@ -565,6 +565,23 @@ function formatEventDate(dateStr){
   return d+' '+MONTH_NAMES[m-1]+' '+y;
 }
 
+function formatRelativeTime(ts){
+  if(!ts) return null;
+  const diffMs = Date.now() - Number(ts);
+  const diffMin = Math.floor(diffMs/60000);
+  if(diffMin < 1) return 'Hace un momento';
+  if(diffMin < 60) return `Hace ${diffMin} minuto${diffMin===1?'':'s'}`;
+  const diffH = Math.floor(diffMin/60);
+  if(diffH < 24) return `Hace ${diffH} hora${diffH===1?'':'s'}`;
+  const diffD = Math.floor(diffH/24);
+  if(diffD === 1) return 'Ayer';
+  if(diffD < 30) return `Hace ${diffD} días`;
+  const diffMonths = Math.floor(diffD/30);
+  if(diffMonths < 12) return `Hace ${diffMonths} mes${diffMonths===1?'':'es'}`;
+  const diffY = Math.floor(diffMonths/12);
+  return `Hace ${diffY} año${diffY===1?'':'s'}`;
+}
+
 function computeStreak(){
   const days = activeDaysSet();
   if(days.size === 0) return 0;
@@ -2191,27 +2208,83 @@ async function saveProfileEdit(){
 }
 
 function academiaView(){
-  const bankCount = (STATE.storage.myBank||[]).length;
-  const docsCount = (STATE.storage.myDocs||[]).length;
-  const savedCount = Object.keys(STATE.storage.saved).length;
+  const docs = STATE.storage.myDocs||[];
+  const bank = STATE.storage.myBank||[];
+  const savedMap = STATE.storage.saved||{};
+  const docsCount = docs.length;
+  const bankCount = bank.length;
+  const savedCount = Object.keys(savedMap).length;
+  const hasContent = docsCount>0 || bankCount>0 || savedCount>0;
+
+  const docsLastTs = docsCount>0 ? Math.max(...docs.map(d=>d.createdAt||0)) : null;
+  const bankLastTs = bankCount>0 ? Math.max(...bank.map(q=>q.createdAt||0)) : null;
+  const savedLastTs = savedCount>0 ? Math.max(...Object.values(savedMap).map(v=>Number(v)||0)) : null;
+  const overallLastTs = [docsLastTs, bankLastTs, savedLastTs].filter(Boolean);
+  const overallLastText = overallLastTs.length ? formatRelativeTime(Math.max(...overallLastTs)) : null;
+
+  const DOC_COLOR = '#1D6FE0', BANK_COLOR = 'var(--accent)', SAVED_COLOR = 'var(--yellow-ink)', SAVED_BORDER = 'var(--yellow)';
+
+  const summaryHtml = hasContent ? `
+  <div class="qcard" style="margin-bottom:16px;">
+    <div class="lb-summary-row" style="margin-bottom:${overallLastText?'10px':'0'};">
+      <div class="lb-summary-stat"><div class="num">📄 ${docsCount}</div><div class="label">Documento(s)</div></div>
+      <div class="lb-summary-stat"><div class="num">✍️ ${bankCount}</div><div class="label">Preguntas creadas</div></div>
+      <div class="lb-summary-stat"><div class="num">⭐ ${savedCount}</div><div class="label">Preguntas guardadas</div></div>
+    </div>
+    ${overallLastText ? `<div style="font-size:12px; color:var(--muted); text-align:center;">Última actividad: ${overallLastText}</div>` : ''}
+  </div>` : '';
+
+  const motivationalHtml = hasContent ? `
+  <div class="qcard" style="margin-top:2px; text-align:center; padding:22px 18px;">
+    <div style="font-weight:700; font-size:14.5px; margin-bottom:6px;">Tu academia sigue creciendo.</div>
+    <div style="font-size:13px; color:var(--muted);">Continúa añadiendo material y crea entrenamientos cada vez más personalizados.</div>
+  </div>` : `
+  <div class="qcard" style="margin-top:2px; text-align:center; padding:22px 18px;">
+    <div style="font-weight:700; font-size:14.5px; margin-bottom:6px;">💡 Continúa construyendo tu academia</div>
+    <div style="font-size:13px; color:var(--muted);">Crea tu primera categoría personalizada o añade nuevos documentos para ampliar tu biblioteca de estudio.</div>
+  </div>`;
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">🎓 Mi Academia</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Tu espacio personal: guarda tus documentos, crea tus propios test y repasa las preguntas que has ido guardando. Nada de esto se mezcla con el contenido oficial de WEREF.</div>
-  <div class="menu-list">
-    <button class="menu-item" data-action="mydocs-home">
-      <div><div class="title">📄 Documentos</div><div class="desc">Reglamentos, circulares, apuntes y PDFs privados${docsCount>0 ? ` · ${docsCount} documento(s)` : ''}</div></div>
-      <div class="arrow">›</div>
-    </button>
-    <button class="menu-item" data-action="mybank">
-      <div><div class="title">📁 Mis propios test</div><div class="desc">Crea tus categorías y preguntas para generar tests con tu propio contenido${bankCount>0 ? ` · ${bankCount} pregunta(s)` : ''}</div></div>
-      <div class="arrow">›</div>
-    </button>
-    <button class="menu-item" data-action="open-law" data-law="saved">
-      <div><div class="title">📚 Preguntas guardadas</div><div class="desc">Las preguntas que has marcado para repasar más tarde${savedCount>0 ? ` · ${savedCount} guardada(s)` : ''}</div></div>
-      <div class="arrow">›</div>
-    </button>
-  </div>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu espacio personal para organizar documentos, crear tus propios test y guardar las preguntas que quieras repasar. Todo este contenido es completamente privado y nunca se mezcla con el contenido oficial de WEREF.</div>
+
+  ${summaryHtml}
+
+  <button class="qcard academia-module-card" style="border-left:4px solid ${DOC_COLOR}; margin-bottom:14px; text-align:left; cursor:pointer; width:100%;" data-action="mydocs-home">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+      <div style="font-size:26px;">📄</div>
+      <div style="font-weight:700; font-size:16px;">Documentos</div>
+    </div>
+    <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Guarda reglamentos, circulares, apuntes y cualquier material de estudio.</div>
+    <div style="font-size:12px; color:${DOC_COLOR}; font-weight:700;">📂 ${docsCount>0 ? docsCount+' documento(s) almacenado(s)' : 'Todavía no has subido ningún documento'}</div>
+    ${docsLastTs ? `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Último documento añadido ${formatRelativeTime(docsLastTs)}.</div>` : ''}
+    <div style="text-align:right; font-size:12px; color:${DOC_COLOR}; font-weight:700; margin-top:8px;">Entrar →</div>
+  </button>
+
+  <button class="qcard academia-module-card" style="border-left:4px solid ${BANK_COLOR}; margin-bottom:14px; text-align:left; cursor:pointer; width:100%;" data-action="mybank">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+      <div style="font-size:26px;">✍️</div>
+      <div style="font-weight:700; font-size:16px;">Mis propios test</div>
+    </div>
+    <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Crea categorías, añade preguntas y genera test completamente personalizados.</div>
+    <div style="font-size:12px; color:${BANK_COLOR}; font-weight:700;">📝 ${bankCount>0 ? bankCount+' pregunta(s) creada(s)' : 'Todavía no has creado ninguna pregunta'}</div>
+    ${bankLastTs ? `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Última pregunta creada ${formatRelativeTime(bankLastTs)}.</div>` : ''}
+    <div style="text-align:right; font-size:12px; color:${BANK_COLOR}; font-weight:700; margin-top:8px;">Entrar →</div>
+  </button>
+
+  <button class="qcard academia-module-card" style="border-left:4px solid ${SAVED_BORDER}; margin-bottom:16px; text-align:left; cursor:pointer; width:100%;" data-action="open-law" data-law="saved">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+      <div style="font-size:26px;">⭐</div>
+      <div style="font-weight:700; font-size:16px;">Preguntas guardadas</div>
+    </div>
+    <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Accede rápidamente a todas las preguntas que has marcado para repasar más adelante.</div>
+    <div style="font-size:12px; color:${SAVED_COLOR}; font-weight:700;">📌 ${savedCount>0 ? savedCount+' pregunta(s) pendiente(s)' : 'Todavía no has guardado ninguna pregunta'}</div>
+    ${savedLastTs ? `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Última pregunta guardada ${formatRelativeTime(savedLastTs)}.</div>` : ''}
+    <div style="text-align:right; font-size:12px; color:${SAVED_COLOR}; font-weight:700; margin-top:8px;">Entrar →</div>
+  </button>
+
+  ${motivationalHtml}
   `;
 }
 
@@ -3611,7 +3684,7 @@ function onAction(e){
   else if(action==='toggle-saved'){
     const qid = el.dataset.qid;
     if(STATE.storage.saved[qid]) delete STATE.storage.saved[qid];
-    else STATE.storage.saved[qid] = true;
+    else STATE.storage.saved[qid] = Date.now();
     saveSaved();
     render();
   }
