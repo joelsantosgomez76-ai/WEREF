@@ -2215,7 +2215,7 @@ function homeView(){
   const points = computePoints();
   const rank = currentRank(points);
   const next = nextRankInfo(points);
-  const academiaTotal = (STATE.storage.myBank||[]).length + (STATE.storage.myDocs||[]).length + Object.keys(STATE.storage.saved).length;
+  const academiaTotal = Object.keys(STATE.storage.saved).length;
   const rp = recentPerformance(20);
   let recentPerfHtml;
   if(!rp){
