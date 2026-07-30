@@ -369,7 +369,9 @@ textarea{resize:vertical; min-height:64px;}
 .mockup-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:12px;}
 .mockup-cell{aspect-ratio:1; border-radius:6px; background:var(--line);}
 .mockup-cell.on{background:var(--accent);}
-.mockup-mini{background:var(--chalk-card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden;}
+.mockup-item{display:flex; flex-direction:column; height:100%;}
+.mockup-mini{background:var(--chalk-card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; flex:1; display:flex; flex-direction:column;}
+.mockup-mini .app-mockup-body{flex:1; display:flex; flex-direction:column; justify-content:center;}
 .mockup-mini .app-mockup-body{padding:14px;}
 .mockup-mini-label{text-align:center; font-size:12.5px; font-weight:700; color:var(--pitch); margin-top:10px;}
 .mockup-lb-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; margin-bottom:4px; font-size:11.5px; background:#fff; border:1px solid var(--line);}
