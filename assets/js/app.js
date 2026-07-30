@@ -1880,7 +1880,7 @@ function streakCalendarView(){
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Racha de estudio</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Cada día que respondes al menos una pregunta se marca aquí. Añade también tus fechas importantes: exámenes, pruebas físicas o reuniones.</div>
+  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Convierte el calendario en tu centro de planificación. Registra automáticamente los días en los que estudias y añade las fechas más importantes de tu preparación, como exámenes, pruebas físicas o reuniones, para tener toda tu planificación en un mismo lugar.</div>
 
   <div class="result-hero" style="margin-bottom:18px;">
     <div style="font-size:26px;">🔥</div>
