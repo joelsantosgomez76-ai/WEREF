@@ -351,6 +351,78 @@ textarea{resize:vertical; min-height:64px;}
 .landing-cta h2{color:#fff; margin-bottom:10px;}
 .landing-cta p{color:#F6D3D6; font-size:14px; margin-bottom:20px;}
 .landing-footer{text-align:center; padding:24px 20px 40px; color:var(--muted); font-size:12px;}
+
+.landing-hero-social-proof{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:24px; font-size:13px; color:var(--muted); flex-wrap:wrap;}
+.landing-hero-social-proof .stars{color:var(--yellow); letter-spacing:2px; font-size:15px;}
+.landing-hero-mockup{max-width:760px; margin:40px auto 0;}
+
+.app-mockup{background:var(--chalk-card); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 46px rgba(20,20,22,0.16); overflow:hidden;}
+.app-mockup-bar{background:var(--pitch); padding:10px 14px; display:flex; gap:6px;}
+.app-mockup-dot{width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,0.25);}
+.app-mockup-body{padding:22px; background:var(--chalk);}
+.mockup-row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+.mockup-tile{flex:1; min-width:88px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:var(--shadow);}
+.mockup-tile .mockup-num{font-family:'JetBrains Mono'; font-weight:700; font-size:18px; color:var(--pitch);}
+.mockup-tile .mockup-lbl{font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:0.03em; margin-top:2px;}
+.mockup-bar-track{height:6px; background:var(--line); border-radius:4px; overflow:hidden;}
+.mockup-bar-fill{height:100%; background:var(--accent); border-radius:4px;}
+.mockup-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:12px;}
+.mockup-cell{aspect-ratio:1; border-radius:6px; background:var(--line);}
+.mockup-cell.on{background:var(--accent);}
+.mockup-mini{background:var(--chalk-card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden;}
+.mockup-mini .app-mockup-body{padding:14px;}
+.mockup-mini-label{text-align:center; font-size:12.5px; font-weight:700; color:var(--pitch); margin-top:10px;}
+.mockup-lb-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; margin-bottom:4px; font-size:11.5px; background:#fff; border:1px solid var(--line);}
+.mockup-lb-row.gold{background:linear-gradient(135deg,#FFF6DE,#FFE9AE); border-color:transparent;}
+.mockup-lb-row.silver{background:linear-gradient(135deg,#F4F4F3,#E2E2E0); border-color:transparent;}
+.mockup-lb-row.bronze{background:linear-gradient(135deg,#FBE9DB,#F1CDAC); border-color:transparent;}
+.mockup-lb-row.me{background:rgba(255,106,43,0.1); border-color:var(--yellow); font-weight:700;}
+.mockup-chart{display:flex; align-items:flex-end; gap:8px; height:70px; margin-bottom:8px;}
+.mockup-chart-bar{flex:1; border-radius:4px 4px 0 0;}
+.mockup-module-card{border-left:3px solid var(--accent); background:#fff; border-radius:8px; padding:10px 12px; margin-bottom:8px; box-shadow:var(--shadow); font-size:11.5px; font-weight:700;}
+
+.feature-card{transition:transform .12s ease, box-shadow .12s ease;}
+.feature-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(20,20,22,0.14);}
+.feature-card .icon-circle{width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:12px; background:#F5E6E8;}
+
+.landing-quiz-section{max-width:680px; margin:0 auto 60px; padding:0 20px;}
+.landing-quiz-card{background:linear-gradient(160deg,var(--pitch),var(--pitch-dark)); color:#fff; border-radius:20px; padding:34px 26px; text-align:center; box-shadow:0 20px 50px rgba(20,20,22,0.25);}
+.landing-quiz-card .quiz-rule{font-family:'JetBrains Mono'; font-size:11px; letter-spacing:0.2em; color:rgba(255,255,255,0.3); margin-bottom:14px;}
+.landing-quiz-card h2{color:#fff; margin-bottom:8px; font-size:22px;}
+.landing-quiz-card p{color:rgba(255,255,255,0.75); font-size:14px; margin:0 0 4px;}
+.landing-quiz-card .quiz-meta{font-size:12.5px; color:rgba(255,255,255,0.55); margin:16px 0 24px;}
+.landing-quiz-card .btn{padding:13px 30px; font-size:15px;}
+.quiz-play-inner{text-align:left;}
+.quiz-play-inner .qcount{font-family:'JetBrains Mono'; font-size:12px; color:rgba(255,255,255,0.55); margin-bottom:14px; text-align:center;}
+.quiz-play-inner .qtext{font-size:16px; font-weight:600; margin-bottom:18px; text-align:center;}
+.quiz-play-inner .option{background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.18); color:#fff;}
+.quiz-play-inner .option .letter{color:var(--accent);}
+.quiz-play-inner button.option:hover:not(:disabled){background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.32);}
+.quiz-result-score{font-family:'Oswald'; font-size:48px; font-weight:700; color:var(--accent); margin:6px 0;}
+
+.landing-steps{display:flex; flex-direction:column; align-items:center; gap:0; max-width:420px; margin:0 auto;}
+.landing-step{display:flex; align-items:center; gap:14px; background:var(--chalk-card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; width:100%; box-shadow:var(--shadow);}
+.landing-step .num{font-family:'Oswald'; font-weight:700; font-size:20px; color:var(--accent); flex-shrink:0;}
+.landing-step-arrow{font-size:18px; color:var(--line); margin:6px 0;}
+
+.landing-checklist{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:14px; max-width:760px; margin:0 auto;}
+.landing-check-item{display:flex; align-items:center; gap:10px; background:var(--chalk-card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; font-size:14px; font-weight:600; box-shadow:var(--shadow);}
+.landing-check-item .tick{color:var(--green-ok); font-size:18px; flex-shrink:0;}
+
+.landing-split{display:flex; gap:40px; align-items:center; flex-wrap:wrap; max-width:1080px; margin:0 auto;}
+.landing-split-text{flex:1; min-width:260px;}
+.landing-split-text .big-icon{font-size:38px; margin-bottom:10px;}
+.landing-split-text h2{text-align:left; margin-bottom:14px;}
+.landing-split-text ul{list-style:none; padding:0; margin:0 0 22px;}
+.landing-split-text li{padding:6px 0; font-size:14.5px; color:var(--ink); display:flex; align-items:center; gap:8px;}
+.landing-split-text li::before{content:'→'; color:var(--accent); font-weight:700;}
+.landing-split-mockup{flex:1; min-width:260px;}
+.landing-split.reverse{flex-direction:row-reverse;}
+
+@media (max-width: 720px){
+  .landing-split{flex-direction:column !important;}
+  .mockup-grid{grid-template-columns:repeat(4,1fr);}
+}
 @media (max-width: 640px){
   .landing-nav{flex-wrap:wrap; gap:12px;}
   .landing-hero h1{font-size:28px;}
