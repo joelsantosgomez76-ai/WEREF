@@ -111,16 +111,26 @@ h1,h2,h3{font-family:'Oswald', sans-serif; margin:0; letter-spacing:0.01em;}
 .big-law-head .name{font-size:18px; font-weight:700;}
 .big-law-head .stat{font-size:12.5px; color:var(--muted); margin-top:2px;}
 
-.menu-list{display:flex; flex-direction:column; gap:8px;}
+.menu-list{display:flex; flex-direction:column; gap:10px;}
 .menu-item{
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  background:var(--chalk-card); border:1px solid var(--line); border-radius:12px;
-  padding:15px 16px; cursor:pointer; box-shadow:var(--shadow); text-align:left;
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  background:var(--chalk-card); border:1px solid var(--line); border-radius:14px;
+  padding:18px; cursor:pointer; box-shadow:var(--shadow); text-align:left;
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
-.menu-item:hover{border-color:var(--pitch);}
+.menu-item:hover{border-color:var(--pitch); transform:translateY(-2px); box-shadow:0 6px 18px rgba(20,20,22,0.14);}
+.menu-item:active{transform:translateY(0); box-shadow:var(--shadow);}
 .menu-item .title{font-weight:700; font-size:14.5px;}
-.menu-item .desc{font-size:12.5px; color:var(--muted); margin-top:2px;}
+.menu-item .desc{font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.4;}
 .menu-item .arrow{color:var(--pitch); font-size:18px; flex-shrink:0;}
+.menu-item-icon{font-size:22px; line-height:1; flex-shrink:0;}
+.menu-item-tag{font-family:'JetBrains Mono'; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:3px 8px; border-radius:8px; white-space:nowrap;}
+.menu-item-arrow-circle{
+  width:30px; height:30px; border-radius:50%; background:var(--chalk); border:1.5px solid var(--line);
+  display:flex; align-items:center; justify-content:center; color:var(--pitch); font-size:16px; flex-shrink:0;
+  transition:background .12s ease, color .12s ease, border-color .12s ease;
+}
+.menu-item:hover .menu-item-arrow-circle{background:var(--pitch); color:#fff; border-color:var(--pitch);}
 
 /* ---------- buttons ---------- */
 .btn{
