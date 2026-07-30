@@ -2297,6 +2297,7 @@ function lawMenuView(){
     <div class="empty-state">Todavía no has guardado ninguna pregunta. Pulsa "📚 Guardar en Mi Lista" durante un test para añadirla aquí.</div>
     `;
   }
+  const scopeOf = isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isSaved?' de tu lista':' de esta regla';
   return `
   <button class="backbtn" data-action="${backAction}">${backLabel}</button>
   <div class="big-law-head">
@@ -2304,20 +2305,44 @@ function lawMenuView(){
   </div>
   <div class="menu-list">
     <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="short">
-      <div><div class="title">Test rápido</div><div class="desc">10 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isSaved?' de tu lista':' de esta regla'}</div></div>
-      <div class="arrow">›</div>
+      <div class="menu-item-icon">⚡</div>
+      <div style="flex:1; min-width:0;">
+        <div class="title" style="font-size:16px;">Test rápido</div>
+        <div style="font-size:12.5px; color:var(--ink); font-weight:600; margin-top:3px;">Empieza a practicar en segundos.</div>
+        <div class="desc">Responde 10 preguntas aleatorias${scopeOf} sin necesidad de configurar ninguna opción.</div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; flex-shrink:0;">
+        <span class="menu-item-tag" style="background:#FFF1E8; color:var(--accent-dark);">Más utilizado</span>
+        <span class="menu-item-arrow-circle">›</span>
+      </div>
     </button>
     <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="study25">
-      <div><div class="title">Modo estudio</div><div class="desc">25 preguntas aleatorias${isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isSaved?' de tu lista':' de esta regla'}, con la solución al momento de responder</div></div>
-      <div class="arrow">›</div>
+      <div class="menu-item-icon">📚</div>
+      <div style="flex:1; min-width:0;">
+        <div class="title" style="font-size:16px;">Modo estudio</div>
+        <div style="font-size:12.5px; color:var(--ink); font-weight:600; margin-top:3px;">Aprende mientras practicas.</div>
+        <div class="desc">Realiza un test de 25 preguntas aleatorias${scopeOf}, con la explicación y la respuesta correcta después de cada una.</div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; flex-shrink:0;">
+        <span class="menu-item-tag" style="background:#EAF7EF; color:var(--green-ok);">Recomendado</span>
+        <span class="menu-item-arrow-circle">›</span>
+      </div>
     </button>
     ${isSaved ? `<button class="menu-item" data-action="saved-browse">
       <div><div class="title">Ver tus guardadas</div><div class="desc">Repásalas de una en una, con la respuesta y explicación</div></div>
       <div class="arrow">›</div>
     </button>` : ''}
     <button class="menu-item" data-action="train-config-scoped" data-law="${law}">
-      <div><div class="title">Crear test personalizado</div><div class="desc">Elige cuántas preguntas, si quieres cronómetro, y modo estudio o examen</div></div>
-      <div class="arrow">›</div>
+      <div class="menu-item-icon">⚙️</div>
+      <div style="flex:1; min-width:0;">
+        <div class="title" style="font-size:16px;">Test personalizado</div>
+        <div style="font-size:12.5px; color:var(--ink); font-weight:600; margin-top:3px;">Crea un entrenamiento a tu medida.</div>
+        <div class="desc">Elige el número de preguntas, activa el cronómetro y selecciona el modo Estudio o Examen para adaptar la sesión a tus necesidades.</div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; flex-shrink:0;">
+        <span class="menu-item-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Personalizable</span>
+        <span class="menu-item-arrow-circle">›</span>
+      </div>
     </button>
     ${flaggedCount>0 ? `<button class="menu-item" data-action="review-flagged" data-law="${law}">
       <div><div class="title">Revisar marcadas <span class="badge">${flaggedCount}</span></div><div class="desc">Preguntas que marcaste como posiblemente desactualizadas</div></div>
