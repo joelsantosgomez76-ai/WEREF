@@ -1653,6 +1653,7 @@ function myDocsView(){
       ${STATE.myDocsUploading ? 'Subiendo...' : '+ Subir PDF'}
       <input type="file" id="mydocs-upload-input" accept="application/pdf" style="display:none;" ${STATE.myDocsUploading?'disabled':''}>
     </label>
+    <span style="font-size:12px; color:var(--muted);">o arrastra un PDF aquí</span>
   </div>
   ${STATE.myDocsCreatingFolder ? `
   <div class="qcard" style="margin-bottom:14px;">
@@ -1683,9 +1684,11 @@ function myDocsView(){
     <button class="backbtn" data-action="academia">&larr; Mi Academia</button>
     <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
     <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Resultados de "${esc(STATE.myDocsSearch)}" en todas las carpetas.</div>
+    <div id="mydocs-dropzone" class="mydocs-dropzone">
     ${uploadControls}
     ${matchFolders.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:14px;">${folderRows}</div>` : ''}
     ${docRows || `<div class="empty-state">Nada coincide con esa búsqueda.</div>`}
+    </div>
     `;
   }
 
@@ -1747,11 +1750,13 @@ function myDocsView(){
   <div style="margin-bottom:10px; font-size:13px;">${breadcrumbHtml}</div>
   <div style="margin-bottom:14px;">${sortControls}</div>
 
+  <div id="mydocs-dropzone" class="mydocs-dropzone">
   ${uploadControls}
 
   ${subfolders.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:14px;">${folderRows}</div>` : ''}
 
   ${docRows || `<div class="empty-state">${subfolders.length===0 && docs.length===0 ? 'Esta carpeta está vacía. Crea una subcarpeta o sube tu primer PDF.' : 'Ningún documento coincide con esa búsqueda.'}</div>`}
+  </div>
   `;
 }
 
@@ -3348,6 +3353,17 @@ function bindEvents(){
   if(mydocsSearch){ mydocsSearch.addEventListener('input', (e)=>{ STATE.myDocsSearch = e.target.value; render(); }); }
   const mydocsUploadInput = document.getElementById('mydocs-upload-input');
   if(mydocsUploadInput){ mydocsUploadInput.addEventListener('change', (e)=>{ if(e.target.files[0]) uploadMyDoc(e.target.files[0]); }); }
+  const mydocsDropzone = document.getElementById('mydocs-dropzone');
+  if(mydocsDropzone){
+    mydocsDropzone.addEventListener('dragover', (e)=>{ e.preventDefault(); mydocsDropzone.classList.add('drag-over'); });
+    mydocsDropzone.addEventListener('dragleave', (e)=>{ if(!mydocsDropzone.contains(e.relatedTarget)) mydocsDropzone.classList.remove('drag-over'); });
+    mydocsDropzone.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      mydocsDropzone.classList.remove('drag-over');
+      const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+      files.reduce((p, file) => p.then(()=>uploadMyDoc(file)), Promise.resolve());
+    });
+  }
   if(STATE.myDocsMovingId){
     const moveSelect = document.getElementById('mydocs-move-select-'+STATE.myDocsMovingId);
     if(moveSelect){ moveSelect.addEventListener('change', (e)=>{ moveMyDoc(STATE.myDocsMovingId, e.target.value || null); }); }
