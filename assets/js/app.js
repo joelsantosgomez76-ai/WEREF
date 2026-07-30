@@ -2333,7 +2333,7 @@ function lawMenuView(){
       <div class="arrow">›</div>
     </button>` : ''}
     <button class="menu-item" data-action="train-config-scoped" data-law="${law}">
-      <div class="menu-item-icon">⚙️</div>
+      <div class="menu-item-icon">🎛️</div>
       <div style="flex:1; min-width:0;">
         <div class="title" style="font-size:16px;">Test personalizado</div>
         <div style="font-size:12.5px; color:var(--ink); font-weight:600; margin-top:3px;">Crea un entrenamiento a tu medida.</div>
