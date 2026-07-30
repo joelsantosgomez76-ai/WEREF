@@ -160,6 +160,7 @@ let STATE = {
   leaderboard: [],
   leaderboardMode: 'hearts',
   myStanding: null,
+  leagueSummary: null,
   confirmDeleteId: null,
   confirmResetLawId: null,
 };
@@ -417,6 +418,24 @@ async function loadMyLeaderboardStanding(mode){
     STATE.myStanding = Object.assign({}, mine, { rank: myRank, nextAbove });
     render();
   }catch(e){}
+}
+
+async function loadLeagueSummary(){
+  const modes = ['hearts','suddendeath','timeattack'];
+  const results = {};
+  for(const mode of modes){
+    try{
+      const { data: mine } = await supabaseClient.from('leaderboard_scores').select('score').eq('mode', mode).eq('user_id', CURRENT_USER_ID).maybeSingle();
+      if(mine){
+        const { count } = await supabaseClient.from('leaderboard_scores').select('user_id', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
+        results[mode] = (count||0) + 1;
+      } else {
+        results[mode] = null;
+      }
+    }catch(e){ results[mode] = null; }
+  }
+  STATE.leagueSummary = results;
+  render();
 }
 
 function recordTestResult(quiz){
@@ -937,56 +956,118 @@ function viewFor(v){
 }
 
 function dailyChallengeView(){
-  const record = STATE.storage.heartsRecord || 0;
-  const sdRecord = STATE.storage.suddenDeathRecord || 0;
-  const taRecord = STATE.storage.timeAttackRecord || 0;
+  const heartsR = STATE.storage.heartsRecord || 0;
+  const sdR = STATE.storage.suddenDeathRecord || 0;
+  const taR = STATE.storage.timeAttackRecord || 0;
+  const totalRecord = formatScore(heartsR + sdR + taR);
+
+  const summary = STATE.leagueSummary;
+  let rankLabel = '...', modeLabel = '...';
+  if(summary){
+    const ranked = [
+      { label:'❤️ Corazones', rank: summary.hearts },
+      { label:'💀 M. Súbita', rank: summary.suddendeath },
+      { label:'⏱️ Contrarreloj', rank: summary.timeattack }
+    ].filter(e => e.rank !== null && e.rank !== undefined);
+    if(ranked.length>0){
+      ranked.sort((a,b)=>a.rank-b.rank);
+      rankLabel = '#'+ranked[0].rank;
+      modeLabel = ranked[0].label;
+    } else {
+      rankLabel = 'Sin clasificar';
+      modeLabel = '—';
+    }
+  }
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">WEREF League</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Desafíos rápidos para poner a prueba tu nivel. Iremos añadiendo más modos aquí.</div>
-
-  <button class="btn btn-secondary" style="width:100%; margin-bottom:16px;" data-action="leaderboard">🏆 Ver clasificación (Top 25)</button>
-
-  <div class="qcard" style="margin-bottom:16px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-      <div>
-        <div style="font-weight:700; font-size:15px;">❤️ Modo Corazones</div>
-        <div style="font-size:12.5px; color:var(--muted); margin-top:2px;">Tu resultado: aciertos conseguidos antes de perder tus 3 vidas. No hace falta acabar el mazo, solo superar tu marca anterior.</div>
-      </div>
-      <div style="text-align:center; flex-shrink:0;">
-        <div class="mono" style="font-weight:700; font-size:22px; color:var(--pitch);">${record}</div>
-        <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">Récord</div>
-      </div>
+  <div class="app-header league-hero">
+    <div class="eyebrow">Zona competitiva</div>
+    <h2>WEREF League</h2>
+    <div class="sub">Compite, supera tus récords y escala posiciones en la clasificación global.</div>
+    <div class="league-summary-row">
+      <div class="league-stat"><div class="num">${totalRecord}</div><div class="label">Récord total</div></div>
+      <div class="league-stat"><div class="num">${rankLabel}</div><div class="label">Tu posición</div></div>
+      <div class="league-stat"><div class="num">${modeLabel}</div><div class="label">Mejor modo</div></div>
     </div>
-    <button class="btn btn-primary" style="width:100%;" data-action="start-hearts">Jugar Modo Corazones</button>
   </div>
 
-  <div class="qcard" style="margin-bottom:16px;">
+  <button class="qcard league-lb-card" data-action="leaderboard">
+    <div style="font-size:30px; flex-shrink:0;">🏆</div>
+    <div style="flex:1; min-width:0;">
+      <div style="font-weight:700; font-size:16px;">Clasificación Global</div>
+      <div style="font-size:12.5px; color:var(--muted); margin-top:2px;">Consulta el Top 25 y descubre en qué posición te encuentras.</div>
+    </div>
+    <div class="arrow">›</div>
+  </button>
+
+  <div class="qcard league-mode-card" style="border-left:4px solid var(--red); margin-bottom:16px;">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-      <div>
-        <div style="font-weight:700; font-size:15px;">💀 Muerte Súbita</div>
-        <div style="font-size:12.5px; color:var(--muted); margin-top:2px;">Una sola vida. Falla una vez y quedas eliminado en el acto. ¿A cuántas llegas?</div>
+      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+        <div style="font-size:28px; flex-shrink:0;">❤️</div>
+        <div>
+          <div style="font-weight:700; font-size:16px;">Modo Corazones</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:2px;">Consigue aciertos antes de perder tus 3 vidas.</div>
+        </div>
       </div>
-      <div style="text-align:center; flex-shrink:0;">
-        <div class="mono" style="font-weight:700; font-size:22px; color:var(--pitch);">${sdRecord}</div>
-        <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">Récord</div>
+      <div style="text-align:right; flex-shrink:0;">
+        <div style="font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">🔥 Récord personal</div>
+        <div class="mono" style="font-weight:700; font-size:24px; color:var(--red);">${heartsR}</div>
       </div>
     </div>
-    <button class="btn" style="width:100%; background:var(--ink); color:#fff;" data-action="start-suddendeath">Jugar Muerte Súbita</button>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+      <span class="league-fact">❤️ 3 vidas</span>
+      <span class="league-fact">🎯 Sin límite de tiempo</span>
+      <span class="league-fact">🏆 Récord: ${heartsR}</span>
+    </div>
+    <div style="font-size:12px; color:var(--muted); font-style:italic; margin-bottom:12px;">¿Serás capaz de superar tu récord?</div>
+    <button class="btn btn-primary" style="width:100%; background:var(--red);" data-action="start-hearts">▶️ Jugar ahora</button>
   </div>
 
-  <div class="qcard" style="margin-bottom:16px;">
+  <div class="qcard league-mode-card" style="border-left:4px solid var(--pitch); margin-bottom:16px;">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-      <div>
-        <div style="font-weight:700; font-size:15px;">⏱ Contrarreloj</div>
-        <div style="font-size:12.5px; color:var(--muted); margin-top:2px;">60 segundos en el reloj. Sin vidas, pero cada fallo resta 0,5 puntos — no vale ir a lo loco.</div>
+      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+        <div style="font-size:28px; flex-shrink:0;">💀</div>
+        <div>
+          <div style="font-weight:700; font-size:16px;">Muerte Súbita</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:2px;">Una sola vida. Falla una vez y quedas eliminado.</div>
+        </div>
       </div>
-      <div style="text-align:center; flex-shrink:0;">
-        <div class="mono" style="font-weight:700; font-size:22px; color:var(--pitch);">${formatScore(taRecord)}</div>
-        <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">Récord</div>
+      <div style="text-align:right; flex-shrink:0;">
+        <div style="font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">🔥 Récord personal</div>
+        <div class="mono" style="font-weight:700; font-size:24px; color:var(--pitch);">${sdR}</div>
       </div>
     </div>
-    <button class="btn" style="width:100%; background:var(--accent); color:#fff;" data-action="start-timeattack">Jugar Contrarreloj</button>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+      <span class="league-fact">☠️ Una única vida</span>
+      <span class="league-fact">⚡ Cada fallo termina la partida</span>
+      <span class="league-fact">🏆 Récord: ${sdR}</span>
+    </div>
+    <div style="font-size:12px; color:var(--muted); font-style:italic; margin-bottom:12px;">Solo los mejores llegan al Top 25.</div>
+    <button class="btn" style="width:100%; background:var(--pitch); color:#fff;" data-action="start-suddendeath">▶️ Jugar ahora</button>
+  </div>
+
+  <div class="qcard league-mode-card" style="border-left:4px solid var(--accent); margin-bottom:16px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+        <div style="font-size:28px; flex-shrink:0;">⏱️</div>
+        <div>
+          <div style="font-weight:700; font-size:16px;">Contrarreloj</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:2px;">60 segundos en el reloj. Sin vidas, pero cada fallo resta.</div>
+        </div>
+      </div>
+      <div style="text-align:right; flex-shrink:0;">
+        <div style="font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">🔥 Récord personal</div>
+        <div class="mono" style="font-weight:700; font-size:24px; color:var(--accent-dark);">${formatScore(taR)}</div>
+      </div>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+      <span class="league-fact">⏱️ 60 segundos</span>
+      <span class="league-fact">❌ Cada fallo resta 0,5 puntos</span>
+      <span class="league-fact">🏆 Récord: ${formatScore(taR)}</span>
+    </div>
+    <div style="font-size:12px; color:var(--muted); font-style:italic; margin-bottom:12px;">Cada punto cuenta para la clasificación.</div>
+    <button class="btn" style="width:100%; background:var(--accent); color:#fff;" data-action="start-timeattack">▶️ Jugar ahora</button>
   </div>
   `;
 }
@@ -3331,7 +3412,7 @@ function onAction(e){
   else if(action==='calendar-cancel-event'){ STATE.calendarAddingEvent = false; render(); }
   else if(action==='calendar-save-event'){ calendarSaveEvent(); }
   else if(action==='calendar-delete-event'){ calendarDeleteEvent(el.dataset.id); }
-  else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; render(); }
+  else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; STATE.leagueSummary=null; render(); loadLeagueSummary(); }
   else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeaderboard(STATE.leaderboardMode||'hearts'); render(); }
   else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
   else if(action==='academia'){ STATE.view='academia'; render(); }
