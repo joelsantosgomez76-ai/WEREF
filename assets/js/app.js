@@ -148,7 +148,6 @@ let STATE = {
   calendarAddingEvent: false,
   profileData: null,
   profileSaving: false,
-  profilePasswordSaving: false,
   myDocsSortBy: 'name',
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
@@ -909,7 +908,6 @@ function viewFor(v){
   if(v==='achievements') return achievementsView();
   if(v==='profile') return profileView();
   if(v==='profileEdit') return profileEditView();
-  if(v==='profileChangePassword') return profileChangePasswordView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
   return homeView();
@@ -1984,10 +1982,6 @@ function profileView(){
       <div><div class="title">Editar perfil</div><div class="desc">Nombre, apellidos, país, fecha de nacimiento, ciudad y código postal</div></div>
       <div class="arrow">›</div>
     </button>
-    <button class="menu-item" data-action="profile-change-password">
-      <div><div class="title">Cambiar contraseña</div><div class="desc">Actualiza la contraseña de tu cuenta</div></div>
-      <div class="arrow">›</div>
-    </button>
     <button class="menu-item" data-action="logout">
       <div><div class="title" style="color:var(--red);">Cerrar sesión</div></div>
       <div class="arrow">›</div>
@@ -2050,51 +2044,6 @@ async function saveProfileEdit(){
     STATE.toast = 'No se pudieron guardar los cambios. Inténtalo de nuevo.';
   }
   STATE.profileSaving = false;
-  render();
-}
-
-function profileChangePasswordView(){
-  return `
-  <button class="backbtn" data-action="profile">&larr; Configuración de cuenta</button>
-  <h2 style="margin-bottom:4px;">Cambiar contraseña</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${typeof PASSWORD_POLICY_MESSAGE!=='undefined' ? esc(PASSWORD_POLICY_MESSAGE) : 'Elige una contraseña segura.'}</div>
-  <div class="qcard">
-    <label>Nueva contraseña</label>
-    <input type="password" id="profile-new-password" maxlength="128" autocomplete="new-password">
-    <label>Confirmar nueva contraseña</label>
-    <input type="password" id="profile-new-password-confirm" maxlength="128" autocomplete="new-password">
-    <div style="margin-top:16px; display:flex; gap:10px;">
-      <button class="btn btn-primary" data-action="profile-save-password" ${STATE.profilePasswordSaving?'disabled':''}>${STATE.profilePasswordSaving?'Guardando...':'Guardar nueva contraseña'}</button>
-      <button class="btn btn-ghost" data-action="profile">Cancelar</button>
-    </div>
-  </div>
-  `;
-}
-
-async function saveNewPassword(){
-  const pass = document.getElementById('profile-new-password').value;
-  const confirm = document.getElementById('profile-new-password-confirm').value;
-  if(typeof isStrongPassword==='function' && !isStrongPassword(pass)){
-    STATE.toast = typeof PASSWORD_POLICY_MESSAGE!=='undefined' ? PASSWORD_POLICY_MESSAGE : 'Contraseña demasiado débil.';
-    render();
-    return;
-  }
-  if(pass !== confirm){
-    STATE.toast = 'Las contraseñas no coinciden.';
-    render();
-    return;
-  }
-  STATE.profilePasswordSaving = true;
-  render();
-  try{
-    const { error } = await supabaseClient.auth.updateUser({ password: pass });
-    if(error) throw error;
-    STATE.toast = 'Contraseña actualizada.';
-    STATE.view = 'profile';
-  }catch(e){
-    STATE.toast = 'No se pudo cambiar la contraseña. Inténtalo de nuevo.';
-  }
-  STATE.profilePasswordSaving = false;
   render();
 }
 
@@ -3334,8 +3283,6 @@ function onAction(e){
   else if(action==='profile'){ STATE.view='profile'; STATE.profileData=null; render(); loadProfileData(); }
   else if(action==='profile-edit'){ STATE.view='profileEdit'; render(); }
   else if(action==='profile-save-edit'){ saveProfileEdit(); }
-  else if(action==='profile-change-password'){ STATE.view='profileChangePassword'; render(); }
-  else if(action==='profile-save-password'){ saveNewPassword(); }
   else if(action==='streak-calendar'){ STATE.calendarYear = null; STATE.view='streakCalendar'; render(); }
   else if(action==='recent-performance'){ STATE.view='recentPerformance'; render(); }
   else if(action==='calendar-year'){
