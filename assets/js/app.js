@@ -123,7 +123,7 @@ let STATE = {
   editingId: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, statsResetAt:null, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
+  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
   toast: null,
   reviewDetailIdx: null,
   savedBrowseIdx: 0,
@@ -161,7 +161,7 @@ let STATE = {
   leaderboardMode: 'hearts',
   myStanding: null,
   confirmDeleteId: null,
-  confirmResetStats: false,
+  confirmResetLawId: null,
 };
 let TIMER_HANDLE = null;
 
@@ -265,7 +265,6 @@ async function loadStorage(){
   try{ const v = await storageGet('edits'); STATE.storage.edits = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.edits = {}; }
   try{ const v = await storageGet('reviewed'); STATE.storage.reviewed = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.reviewed = {}; }
   try{ const v = await storageGet('deleted'); STATE.storage.deleted = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.deleted = {}; }
-  try{ const v = await storageGet('statsResetAt'); STATE.storage.statsResetAt = v ? JSON.parse(v) : null; }catch(e){ STATE.storage.statsResetAt = null; }
   try{ const v = await storageGet('testHistory'); STATE.storage.testHistory = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.testHistory = []; }
   try{ const v = await storageGet('maxStreak'); STATE.storage.maxStreak = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.maxStreak = 0; }
   try{ const v = await storageGet('unlockedBadges'); STATE.storage.unlockedBadges = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.unlockedBadges = {}; }
@@ -350,7 +349,6 @@ function calendarDeleteEvent(id){
 async function saveMyDocsFolders(){ await storageSet('myDocsFolders', JSON.stringify(STATE.storage.myDocsFolders)); }
 async function saveMyDocs(){ await storageSet('myDocs', JSON.stringify(STATE.storage.myDocs)); }
 async function saveDeleted(){ await storageSet('deleted', JSON.stringify(STATE.storage.deleted)); }
-async function saveStatsResetAt(){ await storageSet('statsResetAt', JSON.stringify(STATE.storage.statsResetAt)); }
 async function saveTestHistory(){ await storageSet('testHistory', JSON.stringify(STATE.storage.testHistory)); }
 async function saveGamification(){
   await storageSet('maxStreak', JSON.stringify(STATE.storage.maxStreak));
@@ -705,14 +703,18 @@ function recentPerformanceByRule(n){
   }
   return results;
 }
-async function resetStats(){
-  const correctCount = Object.values(STATE.storage.progress || {}).filter(p=>p.correct).length;
+async function resetLawProgress(law){
+  const qids = new Set(questionsForLaw(law).map(q=>q.id));
+  let correctCount = 0;
+  Object.keys(STATE.storage.progress).forEach(qid=>{
+    if(qids.has(qid)){
+      if(STATE.storage.progress[qid].correct) correctCount++;
+      delete STATE.storage.progress[qid];
+    }
+  });
   STATE.storage.pointsCorrectOffset = (STATE.storage.pointsCorrectOffset||0) + correctCount;
   await savePointsCorrectOffset();
-  STATE.storage.progress = {};
   await saveProgress();
-  STATE.storage.statsResetAt = new Date().toISOString();
-  await saveStatsResetAt();
 }
 
 function lawStats(law){
@@ -812,17 +814,18 @@ function render(){
     </div>`;
     document.body.appendChild(modal);
     modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
-  } else if(STATE.confirmResetStats){
+  } else if(STATE.confirmResetLawId!==null){
+    const lawLabel = 'Regla '+STATE.confirmResetLawId+' · '+esc(LAW_NAMES[STATE.confirmResetLawId]);
     const modal = document.createElement('div');
     modal.id = 'confirm-modal';
     modal.className = 'modal-backdrop';
     modal.innerHTML = `<div class="modal-card">
-      <h3 style="margin-bottom:12px;">¿Reiniciar todas las estadísticas?</h3>
-      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px;">Se borrará el progreso general (aciertos y fallos de todas las preguntas en todas las reglas). Tus puntos de experiencia, tu rango, tu racha de estudio y tus insignias no se ven afectados.</p>
+      <h3 style="margin-bottom:12px;">¿Reiniciar el progreso de esta regla?</h3>
+      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px;">${lawLabel}: se borrará el progreso (aciertos y fallos) solo de esta regla. Tus puntos de experiencia, tu rango, tu racha de estudio y tus insignias no se ven afectados, y el resto de reglas no se tocan.</p>
       <p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">Esta acción no se puede deshacer.</p>
       <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button class="btn btn-ghost" data-action="cancel-reset-stats">Cancelar</button>
-        <button class="btn" style="background:var(--red); color:#fff;" data-action="confirm-reset-stats">Sí, reiniciar</button>
+        <button class="btn btn-ghost" data-action="cancel-reset-law">Cancelar</button>
+        <button class="btn" style="background:var(--red); color:#fff;" data-action="confirm-reset-law">Sí, reiniciar</button>
       </div>
     </div>`;
     document.body.appendChild(modal);
@@ -2349,6 +2352,12 @@ function lawMenuView(){
       <div class="arrow">›</div>
     </button>` : ''}
   </div>
+  ${(!isHard && !isFailed && !isGlossary && !isSaved && s.attempted>0) ? `
+  <div style="margin-top:20px;">
+    <button class="btn btn-ghost" style="color:var(--red); border-color:#F0C4C4; font-size:12.5px; padding:8px 14px;" data-action="reset-law-progress" data-law="${law}">Reiniciar progreso de esta regla</button>
+    <div style="font-size:12px; color:var(--muted); margin-top:8px;">Borra tus aciertos/fallos solo de esta regla. No afecta a las demás ni a tus puntos, rango, racha o insignias.</div>
+  </div>
+  ` : ''}
   `;
 }
 
@@ -3085,17 +3094,6 @@ function saveNewQuestion(){
   render();
 }
 
-function formatDate(iso){
-  if(!iso) return null;
-  const d = new Date(iso);
-  const dd = String(d.getDate()).padStart(2,'0');
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const yyyy = d.getFullYear();
-  const hh = String(d.getHours()).padStart(2,'0');
-  const mi = String(d.getMinutes()).padStart(2,'0');
-  return `${dd}/${mm}/${yyyy} a las ${hh}:${mi}`;
-}
-
 function statsView(){
   let rows='';
   for(let i=1;i<=17;i++){
@@ -3119,14 +3117,6 @@ function statsView(){
     <button class="btn btn-secondary" data-action="flagged-list">Ver y corregir marcadas</button>
     <button class="btn btn-ghost" data-action="review-flagged">Practicarlas como test</button>
   </div>` : ''}
-  <div class="section-title">Zona de riesgo</div>
-  <div class="qcard">
-    <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">
-      ${STATE.storage.statsResetAt ? 'Último reinicio: '+formatDate(STATE.storage.statsResetAt) : 'Todavía no has reiniciado las estadísticas nunca.'}
-    </div>
-    <button class="btn btn-ghost" style="color:var(--red); border-color:#F0C4C4;" data-action="reset-stats">Reiniciar estadísticas</button>
-    <div style="font-size:12px; color:var(--muted); margin-top:8px;">Esto borra el progreso general (aciertos/fallos de todas las preguntas). No afecta a tus puntos, rango, racha ni insignias.</div>
-  </div>
   `;
 }
 
@@ -3502,13 +3492,15 @@ function onAction(e){
     render();
   }
   else if(action==='export-excel'){ exportExcel(); }
-  else if(action==='reset-stats'){ STATE.confirmResetStats = true; render(); }
-  else if(action==='confirm-reset-stats'){
-    resetStats();
-    STATE.confirmResetStats = false;
-    STATE.toast = 'Estadísticas reiniciadas.';
-    render();
+  else if(action==='reset-law-progress'){ STATE.confirmResetLawId = parseInt(el.dataset.law,10); render(); }
+  else if(action==='confirm-reset-law'){
+    const law = STATE.confirmResetLawId;
+    STATE.confirmResetLawId = null;
+    resetLawProgress(law).then(()=>{
+      STATE.toast = 'Progreso de la regla reiniciado.';
+      render();
+    });
   }
-  else if(action==='cancel-reset-stats'){ STATE.confirmResetStats = false; render(); }
+  else if(action==='cancel-reset-law'){ STATE.confirmResetLawId = null; render(); }
 }
 
