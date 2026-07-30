@@ -74,6 +74,13 @@ h1,h2,h3{font-family:'Oswald', sans-serif; margin:0; letter-spacing:0.01em;}
 .ring svg{position:absolute; inset:0;}
 .ring .pct{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:15px; color:#fff;}
 .ring-label{font-size:10px; color:#F6C6CB; text-transform:uppercase; letter-spacing:0.08em;}
+.header-logout-btn{
+  position:absolute; top:12px; right:14px; z-index:2;
+  background:none; border:none; cursor:pointer; padding:6px;
+  color:rgba(255,255,255,0.4); transition:color .12s ease;
+}
+.header-logout-btn:hover{color:#fff;}
+.header-logout-btn svg{width:17px; height:17px; display:block;}
 
 .backbtn{
   background:none;border:none;color:var(--muted);
