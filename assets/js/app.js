@@ -180,6 +180,7 @@ function markTimeoutFailed(quiz, qid){
   if(!q) return;
   STATE.storage.progress[qid] = { correct:false, ts: Date.now() };
   saveProgress();
+  markDayActive();
   if(!quiz.timedOut) quiz.timedOut = {};
   quiz.timedOut[qid] = true;
   checkAndUnlockBadges();
@@ -279,6 +280,14 @@ async function loadStorage(){
   try{ const v = await storageGet('myDocsFolders'); STATE.storage.myDocsFolders = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocsFolders = []; }
   try{ const v = await storageGet('myDocs'); STATE.storage.myDocs = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocs = []; }
   try{ const v = await storageGet('calendarEvents'); STATE.storage.calendarEvents = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.calendarEvents = []; }
+  let activeDaysWasNew = false;
+  try{ const v = await storageGet('activeDays'); if(v){ STATE.storage.activeDays = JSON.parse(v); } else { STATE.storage.activeDays = {}; activeDaysWasNew = true; } }catch(e){ STATE.storage.activeDays = {}; activeDaysWasNew = true; }
+  try{ const v = await storageGet('pointsCorrectOffset'); STATE.storage.pointsCorrectOffset = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.pointsCorrectOffset = 0; }
+  if(activeDaysWasNew && Object.keys(STATE.storage.progress).length>0){
+    // Primera vez que existe esta clave: recuperamos el historial de racha a partir de las marcas de tiempo ya guardadas en "progress", para no resetear la racha de nadie con este cambio.
+    Object.values(STATE.storage.progress).forEach(p=>{ if(p && p.ts) STATE.storage.activeDays[dayKey(p.ts)] = true; });
+    saveActiveDays();
+  }
   {
     // Compatibilidad con la versión anterior (categoría como texto libre sin lista propia):
     // si alguna pregunta tiene una categoría que ya no está en la lista, la recuperamos
@@ -296,6 +305,15 @@ async function loadStorage(){
   render();
 }
 async function saveProgress(){ await storageSet('progress', JSON.stringify(STATE.storage.progress)); }
+async function saveActiveDays(){ await storageSet('activeDays', JSON.stringify(STATE.storage.activeDays)); }
+async function savePointsCorrectOffset(){ await storageSet('pointsCorrectOffset', JSON.stringify(STATE.storage.pointsCorrectOffset)); }
+function markDayActive(){
+  const key = dayKey(Date.now());
+  if(!STATE.storage.activeDays[key]){
+    STATE.storage.activeDays[key] = true;
+    saveActiveDays();
+  }
+}
 async function saveUserQuestions(){ await storageSet('userQuestions', JSON.stringify(STATE.storage.userQuestions)); }
 async function saveFlags(){ await storageSet('flags', JSON.stringify(STATE.storage.flags)); }
 async function saveSaved(){ await storageSet('saved', JSON.stringify(STATE.storage.saved)); }
@@ -479,8 +497,7 @@ function dayKey(ts){
 }
 
 function activeDaysSet(){
-  const timestamps = Object.values(STATE.storage.progress || {}).map(p=>p.ts).filter(Boolean);
-  return new Set(timestamps.map(dayKey));
+  return new Set(Object.keys(STATE.storage.activeDays || {}));
 }
 
 const PROFILE_COUNTRIES = ['Alemania','Andorra','Argelia','Argentina','Australia','Austria','Bélgica','Bolivia','Brasil','Canadá','Chile','China','Colombia','Corea del Sur','Costa Rica','Cuba','Dinamarca','Ecuador','Egipto','El Salvador','España','Estados Unidos','Filipinas','Finlandia','Francia','Grecia','Guatemala','Guinea Ecuatorial','Holanda (Países Bajos)','Honduras','India','Indonesia','Irlanda','Israel','Italia','Japón','Marruecos','México','Nicaragua','Noruega','Nueva Zelanda','Panamá','Paraguay','Perú','Polonia','Portugal','Puerto Rico','Reino Unido','República Dominicana','Rumanía','Rusia','Suecia','Suiza','Turquía','Ucrania','Uruguay','Venezuela','Otro país'];
@@ -538,7 +555,7 @@ function computeStreak(){
 /* ---------------- GAMIFICACIÓN: puntos, rangos e insignias ---------------- */
 function computePoints(){
   const progress = STATE.storage.progress || {};
-  const correctCount = Object.values(progress).filter(p=>p.correct).length;
+  const correctCount = Object.values(progress).filter(p=>p.correct).length + (STATE.storage.pointsCorrectOffset||0);
   const testHistory = STATE.storage.testHistory || [];
   const testsCompleted = testHistory.length;
   const perfectTests = testHistory.filter(h=>h.total>=10 && h.pct===100).length;
@@ -689,6 +706,9 @@ function recentPerformanceByRule(n){
   return results;
 }
 async function resetStats(){
+  const correctCount = Object.values(STATE.storage.progress || {}).filter(p=>p.correct).length;
+  STATE.storage.pointsCorrectOffset = (STATE.storage.pointsCorrectOffset||0) + correctCount;
+  await savePointsCorrectOffset();
   STATE.storage.progress = {};
   await saveProgress();
   STATE.storage.statsResetAt = new Date().toISOString();
@@ -798,7 +818,7 @@ function render(){
     modal.className = 'modal-backdrop';
     modal.innerHTML = `<div class="modal-card">
       <h3 style="margin-bottom:12px;">¿Reiniciar todas las estadísticas?</h3>
-      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px;">Se borrará el progreso de aciertos y fallos de todas las preguntas en todas las reglas. Las preguntas, ediciones, marcadas y "revisadas" no se ven afectadas.</p>
+      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px;">Se borrará el progreso general (aciertos y fallos de todas las preguntas en todas las reglas). Tus puntos de experiencia, tu rango, tu racha de estudio y tus insignias no se ven afectados.</p>
       <p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">Esta acción no se puede deshacer.</p>
       <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button class="btn btn-ghost" data-action="cancel-reset-stats">Cancelar</button>
@@ -2507,6 +2527,7 @@ function selectAnswer(letter){
   const correct = letter === q.correct;
   STATE.storage.progress[q.id] = { correct, ts: Date.now() };
   saveProgress();
+  markDayActive();
   checkAndUnlockBadges();
   if(quiz.instantFeedback){
     quiz.selected = letter;
@@ -3079,7 +3100,7 @@ function statsView(){
       ${STATE.storage.statsResetAt ? 'Último reinicio: '+formatDate(STATE.storage.statsResetAt) : 'Todavía no has reiniciado las estadísticas nunca.'}
     </div>
     <button class="btn btn-ghost" style="color:var(--red); border-color:#F0C4C4;" data-action="reset-stats">Reiniciar estadísticas</button>
-    <div style="font-size:12px; color:var(--muted); margin-top:8px;">Esto borra el progreso de aciertos/fallos de todas las preguntas. No afecta a las preguntas añadidas, editadas, marcadas ni a "revisadas" en Base de datos.</div>
+    <div style="font-size:12px; color:var(--muted); margin-top:8px;">Esto borra el progreso general (aciertos/fallos de todas las preguntas). No afecta a tus puntos, rango, racha ni insignias.</div>
   </div>
   `;
 }
