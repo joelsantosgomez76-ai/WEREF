@@ -2138,6 +2138,7 @@ function homeView(){
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
+    <button class="btn btn-ghost" data-action="logout">Cerrar sesión</button>
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
     ${progressHtml}
@@ -2994,14 +2995,6 @@ function statsView(){
     <button class="btn btn-secondary" data-action="flagged-list">Ver y corregir marcadas</button>
     <button class="btn btn-ghost" data-action="review-flagged">Practicarlas como test</button>
   </div>` : ''}
-  <div class="footer-note">Guardando en la nube, asociado a tu cuenta${typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL ? ' ('+esc(CURRENT_USER_EMAIL)+')' : ''}.</div>
-
-  <div class="section-title">Mi cuenta</div>
-  <div class="qcard" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-    <div style="font-size:13.5px; color:var(--muted);">${typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL ? esc(CURRENT_USER_EMAIL) : ''}</div>
-    <button class="btn btn-ghost" data-action="logout">Cerrar sesión</button>
-  </div>
-
   <div class="section-title">Zona de riesgo</div>
   <div class="qcard">
     <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">
