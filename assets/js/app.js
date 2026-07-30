@@ -146,6 +146,9 @@ let STATE = {
   myDocsMovingId: null,
   myDocsMovingFolderId: null,
   calendarAddingEvent: false,
+  profileData: null,
+  profileSaving: false,
+  profilePasswordSaving: false,
   myDocsSortBy: 'name',
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
@@ -480,6 +483,8 @@ function activeDaysSet(){
   const timestamps = Object.values(STATE.storage.progress || {}).map(p=>p.ts).filter(Boolean);
   return new Set(timestamps.map(dayKey));
 }
+
+const PROFILE_COUNTRIES = ['Alemania','Andorra','Argelia','Argentina','Australia','Austria','Bélgica','Bolivia','Brasil','Canadá','Chile','China','Colombia','Corea del Sur','Costa Rica','Cuba','Dinamarca','Ecuador','Egipto','El Salvador','España','Estados Unidos','Filipinas','Finlandia','Francia','Grecia','Guatemala','Guinea Ecuatorial','Holanda (Países Bajos)','Honduras','India','Indonesia','Irlanda','Israel','Italia','Japón','Marruecos','México','Nicaragua','Noruega','Nueva Zelanda','Panamá','Paraguay','Perú','Polonia','Portugal','Puerto Rico','Reino Unido','República Dominicana','Rumanía','Rusia','Suecia','Suiza','Turquía','Ucrania','Uruguay','Venezuela','Otro país'];
 
 const CALENDAR_EVENT_TYPES = {
   exam: { label: 'Examen teórico', icon: '📝', color: '#D62828', bg: '#FBE0E0' },
@@ -902,6 +907,9 @@ function viewFor(v){
   if(v==='myDocsPreview') return myDocsPreviewView();
   if(v==='academia') return academiaView();
   if(v==='achievements') return achievementsView();
+  if(v==='profile') return profileView();
+  if(v==='profileEdit') return profileEditView();
+  if(v==='profileChangePassword') return profileChangePasswordView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
   return homeView();
@@ -1935,8 +1943,13 @@ function achievementsView(){
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Tu progreso arbitral</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Puntos por preguntas acertadas, tests completados y racha de estudio.</div>
+  <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+    <div>
+      <h2 style="margin-bottom:4px;">Tu progreso arbitral</h2>
+      <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Puntos por preguntas acertadas, tests completados y racha de estudio.</div>
+    </div>
+    <button class="btn btn-ghost" style="padding:8px 14px; font-size:12.5px;" data-action="profile">⚙️ Configuración de cuenta</button>
+  </div>
 
   <div class="result-hero" style="margin-bottom:16px;">
     <div class="big" style="color:var(--pitch); font-size:34px;">${rank.name}</div>
@@ -1949,6 +1962,140 @@ function achievementsView(){
   <div class="section-title">Insignias (${Object.keys(unlocked).length}/${BADGES.length})</div>
   ${badgeCards}
   `;
+}
+
+async function loadProfileData(){
+  try{
+    const { data } = await supabaseClient.auth.getUser();
+    STATE.profileData = (data && data.user && data.user.user_metadata) || {};
+  }catch(e){
+    STATE.profileData = {};
+  }
+  render();
+}
+
+function profileView(){
+  return `
+  <button class="backbtn" data-action="achievements">&larr; Tu progreso arbitral</button>
+  <h2 style="margin-bottom:4px;">⚙️ Configuración de cuenta</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">${typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL ? esc(CURRENT_USER_EMAIL) : ''}</div>
+  <div class="menu-list">
+    <button class="menu-item" data-action="profile-edit">
+      <div><div class="title">Editar perfil</div><div class="desc">Nombre, apellidos, país, fecha de nacimiento, ciudad y código postal</div></div>
+      <div class="arrow">›</div>
+    </button>
+    <button class="menu-item" data-action="profile-change-password">
+      <div><div class="title">Cambiar contraseña</div><div class="desc">Actualiza la contraseña de tu cuenta</div></div>
+      <div class="arrow">›</div>
+    </button>
+    <button class="menu-item" data-action="logout">
+      <div><div class="title" style="color:var(--red);">Cerrar sesión</div></div>
+      <div class="arrow">›</div>
+    </button>
+  </div>
+  `;
+}
+
+function profileEditView(){
+  if(!STATE.profileData){
+    return `<button class="backbtn" data-action="profile">&larr; Configuración de cuenta</button><div class="empty-state">Cargando tus datos...</div>`;
+  }
+  const p = STATE.profileData;
+  return `
+  <button class="backbtn" data-action="profile">&larr; Configuración de cuenta</button>
+  <h2 style="margin-bottom:4px;">Editar perfil</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu nombre de usuario no se puede cambiar. El resto de datos, sí.</div>
+  <div class="qcard">
+    <label>Nombre</label>
+    <input type="text" id="profile-name" maxlength="100" value="${esc(p.full_name||'')}">
+    <label>Apellidos</label>
+    <input type="text" id="profile-lastname" maxlength="100" value="${esc(p.last_name||'')}">
+    <label>País</label>
+    <select id="profile-country">
+      <option value="">Selecciona tu país</option>
+      ${PROFILE_COUNTRIES.map(c=>`<option value="${esc(c)}" ${p.country===c?'selected':''}>${esc(c)}</option>`).join('')}
+    </select>
+    <label>Fecha de nacimiento</label>
+    <input type="date" id="profile-birthdate" value="${esc(p.birthdate||'')}">
+    <label>Ciudad</label>
+    <input type="text" id="profile-city" maxlength="100" value="${esc(p.city||'')}">
+    <label>Código postal</label>
+    <input type="text" id="profile-postcode" maxlength="12" inputmode="numeric" value="${esc(p.postcode||'')}">
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button class="btn btn-primary" data-action="profile-save-edit" ${STATE.profileSaving?'disabled':''}>${STATE.profileSaving?'Guardando...':'Guardar cambios'}</button>
+      <button class="btn btn-ghost" data-action="profile">Cancelar</button>
+    </div>
+  </div>
+  `;
+}
+
+async function saveProfileEdit(){
+  const updated = {
+    full_name: document.getElementById('profile-name').value.trim(),
+    last_name: document.getElementById('profile-lastname').value.trim(),
+    country: document.getElementById('profile-country').value,
+    birthdate: document.getElementById('profile-birthdate').value,
+    city: document.getElementById('profile-city').value.trim(),
+    postcode: document.getElementById('profile-postcode').value.trim()
+  };
+  STATE.profileSaving = true;
+  render();
+  try{
+    const { error } = await supabaseClient.auth.updateUser({ data: updated });
+    if(error) throw error;
+    STATE.profileData = Object.assign({}, STATE.profileData, updated);
+    STATE.toast = 'Perfil actualizado.';
+    STATE.view = 'profile';
+  }catch(e){
+    STATE.toast = 'No se pudieron guardar los cambios. Inténtalo de nuevo.';
+  }
+  STATE.profileSaving = false;
+  render();
+}
+
+function profileChangePasswordView(){
+  return `
+  <button class="backbtn" data-action="profile">&larr; Configuración de cuenta</button>
+  <h2 style="margin-bottom:4px;">Cambiar contraseña</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${typeof PASSWORD_POLICY_MESSAGE!=='undefined' ? esc(PASSWORD_POLICY_MESSAGE) : 'Elige una contraseña segura.'}</div>
+  <div class="qcard">
+    <label>Nueva contraseña</label>
+    <input type="password" id="profile-new-password" maxlength="128" autocomplete="new-password">
+    <label>Confirmar nueva contraseña</label>
+    <input type="password" id="profile-new-password-confirm" maxlength="128" autocomplete="new-password">
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button class="btn btn-primary" data-action="profile-save-password" ${STATE.profilePasswordSaving?'disabled':''}>${STATE.profilePasswordSaving?'Guardando...':'Guardar nueva contraseña'}</button>
+      <button class="btn btn-ghost" data-action="profile">Cancelar</button>
+    </div>
+  </div>
+  `;
+}
+
+async function saveNewPassword(){
+  const pass = document.getElementById('profile-new-password').value;
+  const confirm = document.getElementById('profile-new-password-confirm').value;
+  if(typeof isStrongPassword==='function' && !isStrongPassword(pass)){
+    STATE.toast = typeof PASSWORD_POLICY_MESSAGE!=='undefined' ? PASSWORD_POLICY_MESSAGE : 'Contraseña demasiado débil.';
+    render();
+    return;
+  }
+  if(pass !== confirm){
+    STATE.toast = 'Las contraseñas no coinciden.';
+    render();
+    return;
+  }
+  STATE.profilePasswordSaving = true;
+  render();
+  try{
+    const { error } = await supabaseClient.auth.updateUser({ password: pass });
+    if(error) throw error;
+    STATE.toast = 'Contraseña actualizada.';
+    STATE.view = 'profile';
+  }catch(e){
+    STATE.toast = 'No se pudo cambiar la contraseña. Inténtalo de nuevo.';
+  }
+  STATE.profilePasswordSaving = false;
+  render();
 }
 
 function academiaView(){
@@ -3184,6 +3331,11 @@ function onAction(e){
   else if(action==='report-question'){ reportQuestion(el.dataset.qid); }
   else if(action==='dismiss-reports'){ if(!isDevUser()) return; dismissReports(el.dataset.qid); }
   else if(action==='achievements'){ STATE.view='achievements'; render(); }
+  else if(action==='profile'){ STATE.view='profile'; STATE.profileData=null; render(); loadProfileData(); }
+  else if(action==='profile-edit'){ STATE.view='profileEdit'; render(); }
+  else if(action==='profile-save-edit'){ saveProfileEdit(); }
+  else if(action==='profile-change-password'){ STATE.view='profileChangePassword'; render(); }
+  else if(action==='profile-save-password'){ saveNewPassword(); }
   else if(action==='streak-calendar'){ STATE.calendarYear = null; STATE.view='streakCalendar'; render(); }
   else if(action==='recent-performance'){ STATE.view='recentPerformance'; render(); }
   else if(action==='calendar-year'){
