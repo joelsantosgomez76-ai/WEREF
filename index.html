@@ -126,21 +126,37 @@
       <h2>⚽ ¿Aprobarías hoy el examen arbitral?</h2>
       <p>Responde 5 preguntas reales del reglamento IFAB.</p>
       <div class="quiz-meta">⏱️ Duración: 1 minuto · Sin registro</div>
+
+      <div class="tabs quiz-mode-picker">
+        <button type="button" class="tab active" id="quiz-mode-study" data-mode="study">🎯 Modo Estudio</button>
+        <button type="button" class="tab" id="quiz-mode-exam" data-mode="exam">📝 Modo Examen</button>
+      </div>
+      <div class="quiz-mode-desc" id="quiz-mode-desc">Así se personaliza un test en WEREF de verdad: te decimos si aciertas justo después de cada pregunta, con la respuesta correcta.</div>
+
       <button type="button" class="btn btn-yellow" id="quiz-start-btn">Comenzar test</button>
     </div>
 
     <div id="quiz-play" class="quiz-play-inner" style="display:none;">
-      <div class="qcount" id="quiz-progress"></div>
+      <div class="quiz-topbar-landing">
+        <span id="quiz-progress"></span>
+        <span class="score" id="quiz-live-score"></span>
+      </div>
       <div id="quiz-tag" style="font-family:'JetBrains Mono'; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.45); text-align:center; margin-bottom:6px;"></div>
       <div class="qtext" id="quiz-question-text"></div>
       <div id="quiz-options"></div>
+      <div id="quiz-feedback"></div>
+      <div id="quiz-next-wrap" style="display:none; text-align:right; margin-top:16px;">
+        <button type="button" class="btn btn-yellow" id="quiz-next-btn">Siguiente</button>
+      </div>
     </div>
 
     <div id="quiz-result" style="display:none;">
-      <p>Has obtenido</p>
-      <div class="quiz-result-score" id="quiz-score">0/5</div>
+      <div class="result-hero" style="margin-bottom:20px;">
+        <div class="big" id="quiz-score-pct">0%</div>
+        <div class="label" id="quiz-score-label"></div>
+      </div>
       <p id="quiz-result-msg" style="margin-bottom:20px;"></p>
-      <p style="font-size:13.5px; color:rgba(255,255,255,0.75); margin-bottom:22px;">Regístrate gratis y empieza a entrenar con más de 1.000 preguntas, estadísticas personalizadas y modos de práctica diseñados para ayudarte a mejorar.</p>
+      <p style="font-size:13.5px; color:rgba(255,255,255,0.75); margin-bottom:22px;">Regístrate gratis y empieza a entrenar con más de 2.000 preguntas, estadísticas personalizadas y modos de práctica diseñados para ayudarte a mejorar.</p>
       <button type="button" class="btn btn-yellow" id="quiz-register-btn">🎯 Quiero seguir mejorando</button>
     </div>
 
@@ -730,14 +746,33 @@ const TEASER_QUESTIONS = [
 let quizIdx = 0;
 let quizScore = 0;
 let quizAnswered = false;
+let quizMode = 'study';
+let quizAnswers = [];
 const quizLetters = ['a','b','c','d'];
+
+const QUIZ_MODE_DESC = {
+  study: 'Así se personaliza un test en WEREF de verdad: te decimos si aciertas justo después de cada pregunta, con la respuesta correcta.',
+  exam: 'Respondes las 5 preguntas seguidas, sin pistas, y ves tu resultado solo al final — igual que en modo examen dentro de la app.'
+};
+
+function setQuizMode(m){
+  quizMode = m;
+  document.getElementById('quiz-mode-study').classList.toggle('active', m === 'study');
+  document.getElementById('quiz-mode-exam').classList.toggle('active', m === 'exam');
+  document.getElementById('quiz-mode-desc').textContent = QUIZ_MODE_DESC[m];
+}
+document.getElementById('quiz-mode-study').addEventListener('click', ()=>setQuizMode('study'));
+document.getElementById('quiz-mode-exam').addEventListener('click', ()=>setQuizMode('exam'));
 
 function renderQuizQuestion(){
   const q = TEASER_QUESTIONS[quizIdx];
   quizAnswered = false;
   document.getElementById('quiz-progress').textContent = 'Pregunta ' + (quizIdx+1) + ' de ' + TEASER_QUESTIONS.length;
+  document.getElementById('quiz-live-score').textContent = quizMode === 'study' ? ('Aciertos: ' + quizScore) : (quizMode === 'exam' ? 'Modo examen' : '');
   document.getElementById('quiz-tag').textContent = q.tag || '';
   document.getElementById('quiz-question-text').textContent = q.question;
+  document.getElementById('quiz-feedback').innerHTML = '';
+  document.getElementById('quiz-next-wrap').style.display = 'none';
   const optsWrap = document.getElementById('quiz-options');
   optsWrap.innerHTML = q.options.map((opt,i)=>
     '<button type="button" class="option" data-i="' + i + '"><span class="letter">' + quizLetters[i] + ')</span>' + opt + '</button>'
@@ -750,24 +785,51 @@ function onQuizAnswer(e){
   quizAnswered = true;
   const i = parseInt(e.currentTarget.dataset.i, 10);
   const q = TEASER_QUESTIONS[quizIdx];
+  const isCorrect = i === q.correct;
+  quizAnswers[quizIdx] = i;
   const buttons = document.querySelectorAll('#quiz-options .option');
-  buttons.forEach((b, bi)=>{
-    b.disabled = true;
-    if(bi === q.correct) b.classList.add('correct');
-    else if(bi === i) b.classList.add('incorrect');
-  });
-  if(i === q.correct) quizScore++;
-  setTimeout(()=>{
-    quizIdx++;
-    if(quizIdx < TEASER_QUESTIONS.length) renderQuizQuestion();
-    else showQuizResult();
-  }, 900);
+
+  if(quizMode === 'study'){
+    buttons.forEach((b, bi)=>{
+      b.disabled = true;
+      if(bi === q.correct) b.classList.add('correct');
+      else if(bi === i) b.classList.add('incorrect');
+    });
+    if(isCorrect) quizScore++;
+    document.getElementById('quiz-live-score').textContent = 'Aciertos: ' + quizScore;
+    document.getElementById('quiz-feedback').innerHTML =
+      '<div class="card-feedback ' + (isCorrect ? 'ok' : 'bad') + '">' +
+        '<div class="ref-card ' + (isCorrect ? 'yellow' : 'red') + '"></div>' +
+        '<div class="msg">' + (isCorrect ? '¡Correcto!' : 'Incorrecto.') +
+          (isCorrect ? '' : '<small>La respuesta correcta era la ' + quizLetters[q.correct] + ').</small>') +
+        '</div>' +
+      '</div>';
+  } else {
+    buttons.forEach((b, bi)=>{
+      b.disabled = true;
+      if(bi === i) b.classList.add('selected');
+    });
+  }
+  document.getElementById('quiz-next-wrap').style.display = 'block';
 }
 
+document.getElementById('quiz-next-btn').addEventListener('click', ()=>{
+  quizIdx++;
+  if(quizIdx < TEASER_QUESTIONS.length) renderQuizQuestion();
+  else showQuizResult();
+});
+
 function showQuizResult(){
+  if(quizMode === 'exam'){
+    quizScore = quizAnswers.reduce((acc, ans, idx) => acc + (ans === TEASER_QUESTIONS[idx].correct ? 1 : 0), 0);
+  }
   document.getElementById('quiz-play').style.display = 'none';
   document.getElementById('quiz-result').style.display = 'block';
-  document.getElementById('quiz-score').textContent = quizScore + '/' + TEASER_QUESTIONS.length;
+  const pct = Math.round(quizScore / TEASER_QUESTIONS.length * 100);
+  const pctEl = document.getElementById('quiz-score-pct');
+  pctEl.textContent = pct + '%';
+  pctEl.style.color = pct >= 85 ? '#1E8F5E' : pct >= 60 ? '#5B4300' : '#D62828';
+  document.getElementById('quiz-score-label').textContent = quizScore + ' de ' + TEASER_QUESTIONS.length + ' respuestas correctas';
   const msg = quizScore >= 4
     ? '🎯 ¡Muy bien! Estás muy cerca de dominar el reglamento.'
     : quizScore >= 2
@@ -781,6 +843,7 @@ document.getElementById('quiz-start-btn').addEventListener('click', ()=>{
   document.getElementById('quiz-play').style.display = 'block';
   quizIdx = 0;
   quizScore = 0;
+  quizAnswers = [];
   renderQuizQuestion();
 });
 
