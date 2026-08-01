@@ -54,9 +54,9 @@
     <span class="stars">★★★★★</span> Basado en el reglamento oficial IFAB · Más de 1.000 preguntas
   </div>
   <div class="landing-stats">
-    <div class="landing-stat"><div class="num">1.042</div><div class="lbl">Preguntas</div></div>
-    <div class="landing-stat"><div class="num">17</div><div class="lbl">Reglas IFAB</div></div>
-    <div class="landing-stat"><div class="num">100%</div><div class="lbl">Gratis</div></div>
+    <div class="landing-stat"><div class="num" id="stat-questions" data-target="2000" data-suffix="+">0</div><div class="lbl">Preguntas</div></div>
+    <div class="landing-stat"><div class="num" id="stat-rules" data-target="17">0</div><div class="lbl">Reglas IFAB</div></div>
+    <div class="landing-stat"><div class="num" id="stat-free" data-target="100" data-suffix="%">0</div><div class="lbl">Gratis</div></div>
   </div>
 
   <div class="landing-hero-mockup">
@@ -671,6 +671,26 @@ els.form.addEventListener('submit', async (e)=>{
   const session = await getCurrentSession();
   if(session){ window.location.href = 'app.html'; }
 })();
+
+/* ---------------- Contador animado de las estadísticas del hero ---------------- */
+function formatEsNumber(n){
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function animateStatCount(el){
+  const target = parseInt(el.dataset.target, 10);
+  const suffix = el.dataset.suffix || '';
+  const duration = 1200;
+  const start = performance.now();
+  function tick(now){
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(target * eased);
+    el.textContent = formatEsNumber(current) + suffix;
+    if(progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+document.querySelectorAll('.landing-stat .num[data-target]').forEach(animateStatCount);
 
 /* ---------------- Mini-test anónimo (landing) ----------------
    5 preguntas reales del banco de WEREF, elegidas por el propio usuario para este teaser. */
