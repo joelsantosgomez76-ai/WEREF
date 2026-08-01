@@ -427,6 +427,7 @@ textarea{resize:vertical; min-height:64px;}
 .quiz-play-inner .option.selected{border-color:var(--accent); background:rgba(255,106,43,0.18);}
 .quiz-play-inner .option.correct{border-color:var(--green-ok); background:rgba(30,143,94,0.35); color:#fff;}
 .quiz-play-inner .option.incorrect{border-color:var(--red); background:rgba(214,40,40,0.35); color:#fff;}
+.quiz-play-inner .card-feedback .msg{color:var(--ink);}
 .quiz-mode-picker{justify-content:center; margin:18px 0 10px;}
 .quiz-mode-desc{font-size:12px; color:rgba(255,255,255,0.55); margin-bottom:22px; max-width:420px; margin-left:auto; margin-right:auto;}
 
