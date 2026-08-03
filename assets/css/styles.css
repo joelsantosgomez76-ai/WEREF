@@ -364,6 +364,7 @@ textarea{resize:vertical; min-height:64px;}
 .mockup-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:12px;}
 .mockup-cell{aspect-ratio:1; border-radius:6px; background:var(--line);}
 .mockup-cell.on{background:var(--accent);}
+.mockup-gallery-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px;}
 .mockup-item{display:flex; flex-direction:column; height:100%;}
 .mockup-mini{background:var(--chalk-card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; flex:1; display:flex; flex-direction:column;}
 .mockup-mini .app-mockup-body{flex:1; display:flex; flex-direction:column; justify-content:center;}
