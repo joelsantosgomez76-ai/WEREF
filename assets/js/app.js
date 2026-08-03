@@ -83,10 +83,13 @@ async function deleteSuggestion(id){
 async function loadAdminStats(page){
   if(!isDevUser()) return;
   if(page) STATE.adminUsersPage = page;
-  STATE.adminStats = null;
-  render();
+  if(!STATE.adminStats){ STATE.adminStats = null; render(); } // solo muestra el esqueleto de carga si aún no hay nada que ver
   try{
-    const { data, error } = await supabaseClient.functions.invoke('admin-stats', { body: { page: STATE.adminUsersPage } });
+    const { data, error } = await supabaseClient.functions.invoke('admin-stats', { body: {
+      page: STATE.adminUsersPage,
+      search: STATE.adminUsersFilter.search,
+      status: STATE.adminUsersFilter.status
+    } });
     if(error || !data || data.error){ STATE.adminStats = false; render(); return; }
     STATE.adminStats = data;
     STATE.adminUsersPage = data.usersPage || 1;
@@ -197,6 +200,7 @@ let STATE = {
   suggestions: [],
   adminStats: null,
   adminUsersPage: 1,
+  adminUsersFilter: { search: '', status: 'all' },
   confirmDeleteUserId: null,
   leaderboard: [],
   leaderboardMode: 'hearts',
@@ -207,6 +211,7 @@ let STATE = {
   confirmResetLawId: null,
 };
 let TIMER_HANDLE = null;
+let ADMIN_USERS_SEARCH_DEBOUNCE = null;
 
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
@@ -3402,11 +3407,20 @@ function adminDashboardView(){
     ${s.totalUsers === 0 ? '<div class="empty-state">Todavía no hay usuarios registrados.</div>' : `<div class="admin-chart">${chartHtml}</div>`}
   </div>
 
-  <div class="section-title">Todos los usuarios (${s.totalUsers})</div>
+  <div class="section-title">Todos los usuarios (${s.usersFilteredTotal})</div>
+  <div class="qcard" style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
+    <input type="text" id="admin-users-search" placeholder="Buscar por usuario o correo..." value="${esc(STATE.adminUsersFilter.search)}" maxlength="100" style="flex:2; min-width:200px;">
+    <select id="admin-users-status" style="flex:1; min-width:140px;">
+      <option value="all" ${STATE.adminUsersFilter.status==='all'?'selected':''}>Todos los estados</option>
+      <option value="active" ${STATE.adminUsersFilter.status==='active'?'selected':''}>Activos</option>
+      <option value="inactive" ${STATE.adminUsersFilter.status==='inactive'?'selected':''}>Inactivos</option>
+      <option value="blocked" ${STATE.adminUsersFilter.status==='blocked'?'selected':''}>Bloqueados</option>
+    </select>
+  </div>
   <div class="qcard" style="overflow-x:auto;">
     <table class="stat-table">
       <tr><th>Usuario</th><th>Correo</th><th>Registro</th><th>Estado</th><th></th></tr>
-      ${rowsHtml || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Sin datos</td></tr>'}
+      ${rowsHtml || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Ningún usuario coincide con este filtro.</td></tr>'}
     </table>
   </div>
   ${s.usersTotalPages > 1 ? `
@@ -3679,6 +3693,17 @@ function bindEvents(){
   if(dbReviewStatus){ dbReviewStatus.addEventListener('change', (e)=>{ STATE.dbFilter.reviewStatus = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dailyGoalSelect = document.getElementById('daily-goal-select');
   if(dailyGoalSelect){ dailyGoalSelect.addEventListener('change', (e)=>{ STATE.storage.dailyGoal = parseInt(e.target.value,10); saveDailyGoal(); render(); }); }
+
+  const adminUsersSearch = document.getElementById('admin-users-search');
+  if(adminUsersSearch){
+    adminUsersSearch.addEventListener('input', (e)=>{
+      const value = e.target.value;
+      clearTimeout(ADMIN_USERS_SEARCH_DEBOUNCE);
+      ADMIN_USERS_SEARCH_DEBOUNCE = setTimeout(()=>{ STATE.adminUsersFilter.search = value; loadAdminStats(1); }, 400);
+    });
+  }
+  const adminUsersStatus = document.getElementById('admin-users-status');
+  if(adminUsersStatus){ adminUsersStatus.addEventListener('change', (e)=>{ STATE.adminUsersFilter.status = e.target.value; loadAdminStats(1); }); }
 }
 
 function onAction(e){
