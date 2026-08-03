@@ -131,20 +131,25 @@ Deno.serve(async (req: Request) => {
       chart.push({ date: key, count: dailyCounts[key] || 0 });
     }
 
-    const lastTenRaw = allUsers
+    const sortedUsers = allUsers
       .slice()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 10);
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    const lastTenIds = lastTenRaw.map((u) => u.id);
+    const usersPageSize = 15;
+    const usersTotalPages = Math.max(1, Math.ceil(sortedUsers.length / usersPageSize));
+    const usersPage = Math.min(Math.max(1, parseInt(body.page, 10) || 1), usersTotalPages);
+    const pageStart = (usersPage - 1) * usersPageSize;
+    const usersPageRaw = sortedUsers.slice(pageStart, pageStart + usersPageSize);
+
+    const pageIds = usersPageRaw.map((u) => u.id);
     const { data: unameRows } = await adminClient
       .from("usernames")
       .select("user_id, username")
-      .in("user_id", lastTenIds.length ? lastTenIds : ["00000000-0000-0000-0000-000000000000"]);
+      .in("user_id", pageIds.length ? pageIds : ["00000000-0000-0000-0000-000000000000"]);
     const unameMap: Record<string, string> = {};
     (unameRows || []).forEach((r: any) => { unameMap[r.user_id] = r.username; });
 
-    const lastTen = lastTenRaw.map((u) => ({
+    const users = usersPageRaw.map((u) => ({
       id: u.id,
       username: unameMap[u.id] || null,
       email: u.email,
@@ -162,7 +167,10 @@ Deno.serve(async (req: Request) => {
         inactive: Math.max(0, allUsers.length - active - blocked),
         blocked,
         chart,
-        lastTen,
+        users,
+        usersPage,
+        usersPageSize,
+        usersTotalPages,
       }),
       { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
     );
