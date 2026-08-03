@@ -2663,6 +2663,11 @@ function lawMenuView(){
     <div style="font-size:12px; color:var(--muted); margin-top:8px;">Borra tus aciertos/fallos solo de esta regla. No afecta a las demás ni a tus puntos, rango, racha o insignias.</div>
   </div>
   ` : ''}
+  ${(isDevUser() && !isFailed && !isSaved) ? `
+  <div style="margin-top:20px;">
+    <button class="btn btn-ghost" data-action="db-view-law-questions" data-law="${law}">📋 Ver preguntas de esta regla en Base de datos</button>
+  </div>
+  ` : ''}
   `;
 }
 
@@ -3767,6 +3772,15 @@ function onAction(e){
   else if(action==='save-question'){ saveNewQuestion(); }
   else if(action==='stats'){ STATE.view='stats'; render(); }
   else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.view='database'; loadQuestionReports(); render(); }
+  else if(action==='db-view-law-questions'){
+    if(!isDevUser()) return;
+    STATE.dbFilter.law = String(law);
+    STATE.dbFilter.page = 1;
+    STATE.editingId = null;
+    STATE.view = 'database';
+    loadQuestionReports();
+    render();
+  }
   else if(action==='report-question'){ reportQuestion(el.dataset.qid); }
   else if(action==='dismiss-reports'){ if(!isDevUser()) return; dismissReports(el.dataset.qid); }
   else if(action==='achievements'){ STATE.view='achievements'; render(); }
