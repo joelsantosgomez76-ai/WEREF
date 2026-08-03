@@ -80,6 +80,21 @@ async function deleteSuggestion(id){
   render();
 }
 
+async function loadAdminStats(){
+  if(!isDevUser()) return;
+  STATE.adminStats = null;
+  render();
+  try{
+    const { data, error } = await supabaseClient.functions.invoke('admin-stats');
+    if(error || !data || data.error){ STATE.adminStats = false; render(); return; }
+    STATE.adminStats = data;
+    render();
+  }catch(e){
+    STATE.adminStats = false;
+    render();
+  }
+}
+
 const LAW_NAMES = {
   1:"El Terreno de Juego", 2:"El Balón", 3:"Los Jugadores", 4:"El Equipamiento de los Jugadores",
   5:"El Árbitro", 6:"Los Otros Miembros del Equipo Arbitral", 7:"La Duración del Partido",
@@ -159,6 +174,7 @@ let STATE = {
   reports: {},
   reportsLoaded: false,
   suggestions: [],
+  adminStats: null,
   leaderboard: [],
   leaderboardMode: 'hearts',
   myStanding: null,
@@ -970,6 +986,7 @@ function viewFor(v){
   if(v==='suggestForm') return suggestFormView();
   if(v==='suggestionsAdmin') return suggestionsAdminView();
   if(v==='database') return databaseView();
+  if(v==='adminDashboard') return adminDashboardView();
   if(v==='dailyChallenge') return dailyChallengeView();
   if(v==='leaderboard') return leaderboardView();
   if(v==='myBank') return myBankCategoriesView();
@@ -2451,6 +2468,7 @@ function homeView(){
   <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
+    ${isDevUser() ? `<button class="btn btn-ghost" data-action="admin-dashboard">📊 Panel de administración</button>` : ''}
     ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
   </div>
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
@@ -3241,6 +3259,75 @@ function databaseView(){
   `;
 }
 
+function adminDashboardView(){
+  const s = STATE.adminStats;
+
+  if(s === null){
+    return `
+    <button class="backbtn" data-action="home">&larr; Inicio</button>
+    <h2 style="margin-bottom:4px;">Panel de administración</h2>
+    <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Estadísticas generales de la plataforma.</div>
+    <div class="empty-state">Cargando estadísticas...</div>
+    `;
+  }
+
+  if(s === false){
+    return `
+    <button class="backbtn" data-action="home">&larr; Inicio</button>
+    <h2 style="margin-bottom:4px;">Panel de administración</h2>
+    <div class="empty-state">No se pudieron cargar las estadísticas. <button class="btn btn-ghost" data-action="admin-dashboard-retry">Reintentar</button></div>
+    `;
+  }
+
+  const statCards = [
+    { label: 'Total usuarios', value: s.totalUsers },
+    { label: 'Registrados hoy', value: s.registeredToday },
+    { label: 'Esta semana', value: s.registeredWeek },
+    { label: 'Este mes', value: s.registeredMonth },
+    { label: 'Activos (30 días)', value: s.active },
+    { label: 'Inactivos', value: s.inactive },
+    { label: 'Bloqueados', value: s.blocked },
+  ];
+  const statsHtml = statCards.map(c => `<div class="lb-summary-stat"><div class="num">${c.value}</div><div class="label">${esc(c.label)}</div></div>`).join('');
+
+  const maxCount = Math.max(1, ...s.chart.map(d => d.count));
+  const chartHtml = s.chart.map(d => {
+    const h = Math.max(3, Math.round(d.count / maxCount * 100));
+    const label = formatEventDate(d.date);
+    return `<div class="admin-chart-bar" style="height:${h}%;" title="${label}: ${d.count} registro${d.count===1?'':'s'}"></div>`;
+  }).join('');
+
+  const rowsHtml = s.lastTen.map(u => `
+    <tr>
+      <td>${esc(u.name || '—')}</td>
+      <td>${esc(u.email)}</td>
+      <td class="mono">${formatEventDate(u.created_at.slice(0,10))}</td>
+      <td>${u.blocked ? '<span class="badge" style="background:var(--red); color:#fff;">Bloqueado</span>' : '<span class="badge" style="background:var(--green-ok); color:#fff;">Activo</span>'}</td>
+    </tr>
+  `).join('');
+
+  return `
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
+  <h2 style="margin-bottom:4px;">Panel de administración</h2>
+  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Estadísticas generales de la plataforma.</div>
+
+  <div class="lb-summary-row">${statsHtml}</div>
+
+  <div class="section-title">Registros de los últimos 30 días</div>
+  <div class="qcard" style="margin-bottom:20px;">
+    ${s.totalUsers === 0 ? '<div class="empty-state">Todavía no hay usuarios registrados.</div>' : `<div class="admin-chart">${chartHtml}</div>`}
+  </div>
+
+  <div class="section-title">Últimos 10 usuarios registrados</div>
+  <div class="qcard" style="overflow-x:auto;">
+    <table class="stat-table">
+      <tr><th>Nombre</th><th>Correo</th><th>Registro</th><th>Estado</th></tr>
+      ${rowsHtml || '<tr><td colspan="4" style="text-align:center; color:var(--muted);">Sin datos</td></tr>'}
+    </table>
+  </div>
+  `;
+}
+
 function addQuestionView(){
   const isGlossaryContext = STATE.lawId === 'glossary';
   const lawSel = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${STATE.lawId===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('');
@@ -3712,6 +3799,8 @@ function onAction(e){
   else if(action==='open-suggest'){ STATE.view = 'suggestForm'; render(); }
   else if(action==='send-suggestion'){ sendSuggestion(); }
   else if(action==='suggestions-admin'){ if(!isDevUser()) return; STATE.view = 'suggestionsAdmin'; loadSuggestions(); render(); }
+  else if(action==='admin-dashboard'){ if(!isDevUser()) return; STATE.view = 'adminDashboard'; loadAdminStats(); render(); }
+  else if(action==='admin-dashboard-retry'){ if(!isDevUser()) return; loadAdminStats(); }
   else if(action==='suggestion-status'){ if(!isDevUser()) return; setSuggestionStatus(el.dataset.id, el.dataset.status); }
   else if(action==='suggestion-delete'){ if(!isDevUser()) return; deleteSuggestion(el.dataset.id); }
   else if(action==='toggle-saved'){
