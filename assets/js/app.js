@@ -188,7 +188,7 @@ let STATE = {
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
-  dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, page: 1 },
+  dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, page: 1 },
   reportedIds: {},
   reports: {},
   reportsLoaded: false,
@@ -846,6 +846,36 @@ function lawSubLine(s){
 }
 
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function normalizeQuestionText(text){
+  return (text||'')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // quita acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ') // quita puntuación
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function questionDedupeKey(q){
+  // Varias preguntas legítimas y distintas comparten un mismo enunciado genérico
+  // (p.ej. "¿Cuál de estas afirmaciones no es correcta?") pero difieren en las
+  // opciones de respuesta; por eso el texto solo no basta para considerarlas duplicadas.
+  const qKey = normalizeQuestionText(q.question);
+  const optKey = (q.options||[]).map(o => normalizeQuestionText(o)).sort().join('|');
+  return qKey ? qKey + '::' + optKey : '';
+}
+
+function duplicateQuestionIds(){
+  const groups = {};
+  allQuestions().forEach(q => {
+    const key = questionDedupeKey(q);
+    if(!key) return;
+    (groups[key] = groups[key] || []).push(q.id);
+  });
+  const dupIds = new Set();
+  Object.values(groups).forEach(ids => { if(ids.length > 1) ids.forEach(id => dupIds.add(id)); });
+  return dupIds;
+}
 function scopeLabel(q){
   if(q.domain==='glossary') return 'Glosario IFAB';
   return 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
@@ -3186,6 +3216,10 @@ function filteredDbList(){
     list = list.filter(q => (STATE.reports[q.id]||0) > 0);
     list = list.slice().sort((a,b) => (STATE.reports[b.id]||0) - (STATE.reports[a.id]||0));
   }
+  if(f.duplicatesOnly){
+    const dupIds = duplicateQuestionIds();
+    list = list.filter(q => dupIds.has(q.id));
+  }
   return list;
 }
 
@@ -3201,6 +3235,7 @@ function databaseView(){
 
   const numberMap = {};
   allQuestions().forEach((q,i) => { numberMap[q.id] = i+1; });
+  const dupIds = duplicateQuestionIds();
 
   const lawOptions = `<option value="all">Todas (todo el banco)</option>` +
     `<optgroup label="Reglas IFAB">` +
@@ -3222,6 +3257,7 @@ function databaseView(){
         ${q.source==='user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Tu pregunta</span>' : ''}
         ${isReviewed ? ' <span class="badge" style="background:var(--green-ok); color:#fff;">Revisada</span>' : ''}
         ${reportCount>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">🚩 Reportada x${reportCount}</span>` : ''}
+        ${dupIds.has(q.id) ? ' <span class="badge" style="background:#B87333; color:#fff;">Duplicada</span>' : ''}
       </div>
       <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
       ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
@@ -3237,6 +3273,7 @@ function databaseView(){
 
   const reviewedCount = allQuestions().filter(q => STATE.storage.reviewed[q.id]).length;
   const reportedCount = Object.keys(STATE.reports).length;
+  const dupTotal = dupIds.size;
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
@@ -3282,6 +3319,9 @@ function databaseView(){
     </label>
     <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:8px;">
       <input type="checkbox" id="db-reported-only" style="width:auto;" ${f.reportedOnly?'checked':''}> Mostrar solo las reportadas por usuarios (${reportedCount})
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:8px;">
+      <input type="checkbox" id="db-duplicates-only" style="width:auto;" ${f.duplicatesOnly?'checked':''}> Mostrar solo las duplicadas (${dupTotal})
     </label>
   </div>
 
@@ -3416,6 +3456,13 @@ function saveNewQuestion(){
   const difficulty = document.getElementById('f-hard').checked ? 'hard' : 'normal';
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
 
+  const dedupeKey = questionDedupeKey({ question, options: [a,b,c,d] });
+  if(allQuestions().some(q => questionDedupeKey(q) === dedupeKey)){
+    STATE.toast = 'Ya existe una pregunta con este mismo enunciado y estas mismas opciones en la base de datos.';
+    render();
+    return;
+  }
+
   if(domain==='glossary'){
     const q = { domain:'glossary', rule:null, num: 'U'+(STATE.storage.glossaryQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user' };
     STATE.storage.glossaryQuestions.push(q);
@@ -3502,7 +3549,8 @@ function importExcelFile(file){
       const wb = XLSX.read(e.target.result, {type:'array'});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
-      let updated = 0, added = 0, skipped = 0;
+      let updated = 0, added = 0, skipped = 0, duplicates = 0;
+      const seenKeys = new Set(allQuestions().map(q => questionDedupeKey(q)));
       rows.forEach(row => {
         const id = String(row['ID']||'').trim();
         const ambito = String(row['Ámbito']||'').trim();
@@ -3529,6 +3577,9 @@ function importExcelFile(file){
           STATE.storage.edits[id] = edit;
           updated++;
         } else {
+          const dedupeKey = questionDedupeKey({ question, options:[a,b,c,d] });
+          if(seenKeys.has(dedupeKey)){ duplicates++; return; }
+          seenKeys.add(dedupeKey);
           if(isGlossary){
             STATE.storage.glossaryQuestions.push({ domain:'glossary', rule:null, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user' });
           } else {
@@ -3538,7 +3589,7 @@ function importExcelFile(file){
         }
       });
       saveEdits(); saveUserQuestions(); saveGlossaryQuestions();
-      STATE.toast = `Importado: ${added} añadidas, ${updated} actualizadas, ${skipped} omitidas por datos incompletos.`;
+      STATE.toast = `Importado: ${added} añadidas, ${updated} actualizadas, ${duplicates} omitidas por estar duplicadas, ${skipped} omitidas por datos incompletos.`;
       STATE.dbFilter.page = 1;
       render();
     }catch(err){
@@ -3613,6 +3664,8 @@ function bindEvents(){
   if(dbFlaggedOnly){ dbFlaggedOnly.addEventListener('change', (e)=>{ STATE.dbFilter.flaggedOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
   const dbReportedOnly = document.getElementById('db-reported-only');
   if(dbReportedOnly){ dbReportedOnly.addEventListener('change', (e)=>{ STATE.dbFilter.reportedOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
+  const dbDuplicatesOnly = document.getElementById('db-duplicates-only');
+  if(dbDuplicatesOnly){ dbDuplicatesOnly.addEventListener('change', (e)=>{ STATE.dbFilter.duplicatesOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
   const dbReviewStatus = document.getElementById('db-review-status');
   if(dbReviewStatus){ dbReviewStatus.addEventListener('change', (e)=>{ STATE.dbFilter.reviewStatus = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dailyGoalSelect = document.getElementById('daily-goal-select');
