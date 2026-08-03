@@ -16,7 +16,8 @@ async function doRegister(email, password, metadata, captchaToken){
 }
 
 async function isUsernameTaken(username){
-  const { data } = await supabaseClient.from('usernames').select('username').eq('username', username).maybeSingle();
+  const escaped = username.replace(/[%_\\]/g, '\\$&');
+  const { data } = await supabaseClient.from('usernames').select('username').ilike('username', escaped).maybeSingle();
   return !!data;
 }
 
