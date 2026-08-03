@@ -95,6 +95,25 @@ async function loadAdminStats(){
   }
 }
 
+async function deleteAdminUser(userId){
+  if(!isDevUser() || !userId) return;
+  STATE.confirmDeleteUserId = null;
+  try{
+    const { data, error } = await supabaseClient.functions.invoke('admin-stats', { body: { action: 'delete', userId } });
+    if(error || !data || data.error){
+      STATE.toast = (data && data.error) ? data.error : 'No se pudo eliminar la cuenta.';
+      render();
+      return;
+    }
+    STATE.toast = 'Cuenta eliminada.';
+    render();
+    loadAdminStats();
+  }catch(e){
+    STATE.toast = 'No se pudo eliminar la cuenta.';
+    render();
+  }
+}
+
 const LAW_NAMES = {
   1:"El Terreno de Juego", 2:"El Balón", 3:"Los Jugadores", 4:"El Equipamiento de los Jugadores",
   5:"El Árbitro", 6:"Los Otros Miembros del Equipo Arbitral", 7:"La Duración del Partido",
@@ -175,6 +194,7 @@ let STATE = {
   reportsLoaded: false,
   suggestions: [],
   adminStats: null,
+  confirmDeleteUserId: null,
   leaderboard: [],
   leaderboardMode: 'hearts',
   myStanding: null,
@@ -966,6 +986,23 @@ function render(){
       <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button class="btn btn-ghost" data-action="mydocs-cancel-delete-folder">Cancelar</button>
         ${hasChildren ? '' : `<button class="btn" style="background:var(--red); color:#fff;" data-action="mydocs-confirm-delete-folder">Sí, eliminar</button>`}
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  } else if(STATE.confirmDeleteUserId){
+    const targetUser = (STATE.adminStats && STATE.adminStats.lastTen) ? STATE.adminStats.lastTen.find(x=>x.id===STATE.confirmDeleteUserId) : null;
+    const label = targetUser ? (targetUser.username ? targetUser.username+' · '+targetUser.email : targetUser.email) : '';
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<div class="modal-card">
+      <h3 style="margin-bottom:12px;">¿Eliminar esta cuenta de usuario?</h3>
+      <p style="font-size:13.5px; color:var(--ink); background:#F7F7F1; padding:10px 12px; border-radius:8px; margin-bottom:10px; word-break:break-word;">${esc(label)}</p>
+      <p style="font-size:12.5px; color:var(--red); margin-bottom:16px;">Esta acción es permanente: se eliminará el acceso de este usuario y todos sus datos asociados. No se puede deshacer.</p>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-ghost" data-action="admin-cancel-delete-user">Cancelar</button>
+        <button class="btn" style="background:var(--red); color:#fff;" data-action="admin-confirm-delete-user">Sí, eliminar cuenta</button>
       </div>
     </div>`;
     document.body.appendChild(modal);
@@ -3297,14 +3334,18 @@ function adminDashboardView(){
     return `<div class="admin-chart-bar" style="height:${h}%;" title="${label}: ${d.count} registro${d.count===1?'':'s'}"></div>`;
   }).join('');
 
-  const rowsHtml = s.lastTen.map(u => `
+  const rowsHtml = s.lastTen.map(u => {
+    const isSelf = typeof CURRENT_USER_EMAIL !== 'undefined' && u.email === CURRENT_USER_EMAIL;
+    return `
     <tr>
-      <td>${esc(u.name || '—')}</td>
+      <td>${u.username ? esc(u.username) : '<span style="color:var(--muted);">—</span>'}</td>
       <td>${esc(u.email)}</td>
       <td class="mono">${formatEventDate(u.created_at.slice(0,10))}</td>
       <td>${u.blocked ? '<span class="badge" style="background:var(--red); color:#fff;">Bloqueado</span>' : '<span class="badge" style="background:var(--green-ok); color:#fff;">Activo</span>'}</td>
+      <td>${isSelf ? '' : `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--red); border-color:#F0C4C4;" data-action="admin-delete-user" data-uid="${u.id}">Eliminar</button>`}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
@@ -3321,8 +3362,8 @@ function adminDashboardView(){
   <div class="section-title">Últimos 10 usuarios registrados</div>
   <div class="qcard" style="overflow-x:auto;">
     <table class="stat-table">
-      <tr><th>Nombre</th><th>Correo</th><th>Registro</th><th>Estado</th></tr>
-      ${rowsHtml || '<tr><td colspan="4" style="text-align:center; color:var(--muted);">Sin datos</td></tr>'}
+      <tr><th>Usuario</th><th>Correo</th><th>Registro</th><th>Estado</th><th></th></tr>
+      ${rowsHtml || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Sin datos</td></tr>'}
     </table>
   </div>
   `;
@@ -3801,6 +3842,9 @@ function onAction(e){
   else if(action==='suggestions-admin'){ if(!isDevUser()) return; STATE.view = 'suggestionsAdmin'; loadSuggestions(); render(); }
   else if(action==='admin-dashboard'){ if(!isDevUser()) return; STATE.view = 'adminDashboard'; loadAdminStats(); render(); }
   else if(action==='admin-dashboard-retry'){ if(!isDevUser()) return; loadAdminStats(); }
+  else if(action==='admin-delete-user'){ if(!isDevUser()) return; STATE.confirmDeleteUserId = el.dataset.uid; render(); }
+  else if(action==='admin-cancel-delete-user'){ STATE.confirmDeleteUserId = null; render(); }
+  else if(action==='admin-confirm-delete-user'){ if(!isDevUser()) return; deleteAdminUser(STATE.confirmDeleteUserId); }
   else if(action==='suggestion-status'){ if(!isDevUser()) return; setSuggestionStatus(el.dataset.id, el.dataset.status); }
   else if(action==='suggestion-delete'){ if(!isDevUser()) return; deleteSuggestion(el.dataset.id); }
   else if(action==='toggle-saved'){
