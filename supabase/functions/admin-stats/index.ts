@@ -49,6 +49,39 @@ Deno.serve(async (req: Request) => {
     // Cliente admin real, con permisos para listar todos los usuarios.
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+    let body: any = {};
+    try { body = await req.json(); } catch (_) { /* sin body -> estadísticas por defecto */ }
+
+    if (body && body.action === "delete") {
+      const targetId = body.userId;
+      if (!targetId) {
+        return new Response(JSON.stringify({ error: "Falta userId" }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      const { data: targetData, error: targetErr } = await adminClient.auth.admin.getUserById(targetId);
+      if (targetErr || !targetData?.user) {
+        return new Response(JSON.stringify({ error: "Usuario no encontrado" }), {
+          status: 404,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      if (targetData.user.email === ADMIN_EMAIL) {
+        return new Response(JSON.stringify({ error: "No puedes eliminar tu propia cuenta de administrador" }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      const { error: delErr } = await adminClient.auth.admin.deleteUser(targetId);
+      if (delErr) throw delErr;
+      await adminClient.from("usernames").delete().eq("user_id", targetId); // limpieza best-effort si no hay cascade
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
     let allUsers: any[] = [];
     let page = 1;
     const perPage = 200;
@@ -98,16 +131,26 @@ Deno.serve(async (req: Request) => {
       chart.push({ date: key, count: dailyCounts[key] || 0 });
     }
 
-    const lastTen = allUsers
+    const lastTenRaw = allUsers
       .slice()
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 10)
-      .map((u) => ({
-        name: u.user_metadata?.full_name || u.user_metadata?.username || null,
-        email: u.email,
-        created_at: u.created_at,
-        blocked: !!u.banned_until && new Date(u.banned_until) > now,
-      }));
+      .slice(0, 10);
+
+    const lastTenIds = lastTenRaw.map((u) => u.id);
+    const { data: unameRows } = await adminClient
+      .from("usernames")
+      .select("user_id, username")
+      .in("user_id", lastTenIds.length ? lastTenIds : ["00000000-0000-0000-0000-000000000000"]);
+    const unameMap: Record<string, string> = {};
+    (unameRows || []).forEach((r: any) => { unameMap[r.user_id] = r.username; });
+
+    const lastTen = lastTenRaw.map((u) => ({
+      id: u.id,
+      username: unameMap[u.id] || null,
+      email: u.email,
+      created_at: u.created_at,
+      blocked: !!u.banned_until && new Date(u.banned_until) > now,
+    }));
 
     return new Response(
       JSON.stringify({
