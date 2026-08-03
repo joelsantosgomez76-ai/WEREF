@@ -131,31 +131,46 @@ Deno.serve(async (req: Request) => {
       chart.push({ date: key, count: dailyCounts[key] || 0 });
     }
 
-    const sortedUsers = allUsers
+    // Se trae el mapa completo de usernames (tabla acotada al nº de usuarios) para poder
+    // buscar y ordenar por él sin depender de qué página se esté mostrando.
+    const { data: allUnameRows } = await adminClient.from("usernames").select("user_id, username");
+    const unameMap: Record<string, string> = {};
+    (allUnameRows || []).forEach((r: any) => { unameMap[r.user_id] = r.username; });
+
+    let sortedUsers = allUsers
       .slice()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .map((u) => ({
+        id: u.id,
+        username: unameMap[u.id] || null,
+        email: u.email,
+        created_at: u.created_at,
+        blocked: !!u.banned_until && new Date(u.banned_until) > now,
+        _lastSignInAt: u.last_sign_in_at,
+      }));
+
+    const search = String(body.search || "").trim().toLowerCase();
+    if (search) {
+      sortedUsers = sortedUsers.filter((u) =>
+        (u.username && u.username.toLowerCase().includes(search)) ||
+        (u.email && u.email.toLowerCase().includes(search))
+      );
+    }
+
+    const statusFilter = String(body.status || "all");
+    if (statusFilter === "blocked") {
+      sortedUsers = sortedUsers.filter((u) => u.blocked);
+    } else if (statusFilter === "active") {
+      sortedUsers = sortedUsers.filter((u) => !u.blocked && u._lastSignInAt && new Date(u._lastSignInAt) >= thirtyDaysAgo);
+    } else if (statusFilter === "inactive") {
+      sortedUsers = sortedUsers.filter((u) => !u.blocked && !(u._lastSignInAt && new Date(u._lastSignInAt) >= thirtyDaysAgo));
+    }
 
     const usersPageSize = 15;
     const usersTotalPages = Math.max(1, Math.ceil(sortedUsers.length / usersPageSize));
     const usersPage = Math.min(Math.max(1, parseInt(body.page, 10) || 1), usersTotalPages);
     const pageStart = (usersPage - 1) * usersPageSize;
-    const usersPageRaw = sortedUsers.slice(pageStart, pageStart + usersPageSize);
-
-    const pageIds = usersPageRaw.map((u) => u.id);
-    const { data: unameRows } = await adminClient
-      .from("usernames")
-      .select("user_id, username")
-      .in("user_id", pageIds.length ? pageIds : ["00000000-0000-0000-0000-000000000000"]);
-    const unameMap: Record<string, string> = {};
-    (unameRows || []).forEach((r: any) => { unameMap[r.user_id] = r.username; });
-
-    const users = usersPageRaw.map((u) => ({
-      id: u.id,
-      username: unameMap[u.id] || null,
-      email: u.email,
-      created_at: u.created_at,
-      blocked: !!u.banned_until && new Date(u.banned_until) > now,
-    }));
+    const users = sortedUsers.slice(pageStart, pageStart + usersPageSize).map(({ _lastSignInAt, ...u }) => u);
 
     return new Response(
       JSON.stringify({
@@ -168,6 +183,7 @@ Deno.serve(async (req: Request) => {
         blocked,
         chart,
         users,
+        usersFilteredTotal: sortedUsers.length,
         usersPage,
         usersPageSize,
         usersTotalPages,
