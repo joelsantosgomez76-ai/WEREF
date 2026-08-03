@@ -80,14 +80,16 @@ async function deleteSuggestion(id){
   render();
 }
 
-async function loadAdminStats(){
+async function loadAdminStats(page){
   if(!isDevUser()) return;
+  if(page) STATE.adminUsersPage = page;
   STATE.adminStats = null;
   render();
   try{
-    const { data, error } = await supabaseClient.functions.invoke('admin-stats');
+    const { data, error } = await supabaseClient.functions.invoke('admin-stats', { body: { page: STATE.adminUsersPage } });
     if(error || !data || data.error){ STATE.adminStats = false; render(); return; }
     STATE.adminStats = data;
+    STATE.adminUsersPage = data.usersPage || 1;
     render();
   }catch(e){
     STATE.adminStats = false;
@@ -107,7 +109,7 @@ async function deleteAdminUser(userId){
     }
     STATE.toast = 'Cuenta eliminada.';
     render();
-    loadAdminStats();
+    loadAdminStats(STATE.adminUsersPage);
   }catch(e){
     STATE.toast = 'No se pudo eliminar la cuenta.';
     render();
@@ -194,6 +196,7 @@ let STATE = {
   reportsLoaded: false,
   suggestions: [],
   adminStats: null,
+  adminUsersPage: 1,
   confirmDeleteUserId: null,
   leaderboard: [],
   leaderboardMode: 'hearts',
@@ -1021,7 +1024,7 @@ function render(){
     document.body.appendChild(modal);
     modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
   } else if(STATE.confirmDeleteUserId){
-    const targetUser = (STATE.adminStats && STATE.adminStats.lastTen) ? STATE.adminStats.lastTen.find(x=>x.id===STATE.confirmDeleteUserId) : null;
+    const targetUser = (STATE.adminStats && STATE.adminStats.users) ? STATE.adminStats.users.find(x=>x.id===STATE.confirmDeleteUserId) : null;
     const label = targetUser ? (targetUser.username ? targetUser.username+' · '+targetUser.email : targetUser.email) : '';
     const modal = document.createElement('div');
     modal.id = 'confirm-modal';
@@ -3374,7 +3377,7 @@ function adminDashboardView(){
     return `<div class="admin-chart-bar" style="height:${h}%;" title="${label}: ${d.count} registro${d.count===1?'':'s'}"></div>`;
   }).join('');
 
-  const rowsHtml = s.lastTen.map(u => {
+  const rowsHtml = s.users.map(u => {
     const isSelf = typeof CURRENT_USER_EMAIL !== 'undefined' && u.email === CURRENT_USER_EMAIL;
     return `
     <tr>
@@ -3399,13 +3402,19 @@ function adminDashboardView(){
     ${s.totalUsers === 0 ? '<div class="empty-state">Todavía no hay usuarios registrados.</div>' : `<div class="admin-chart">${chartHtml}</div>`}
   </div>
 
-  <div class="section-title">Últimos 10 usuarios registrados</div>
+  <div class="section-title">Todos los usuarios (${s.totalUsers})</div>
   <div class="qcard" style="overflow-x:auto;">
     <table class="stat-table">
       <tr><th>Usuario</th><th>Correo</th><th>Registro</th><th>Estado</th><th></th></tr>
       ${rowsHtml || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Sin datos</td></tr>'}
     </table>
   </div>
+  ${s.usersTotalPages > 1 ? `
+  <div style="display:flex; justify-content:center; align-items:center; gap:14px; margin-top:16px;">
+    <button class="btn btn-ghost" data-action="admin-users-prev-page" ${s.usersPage<=1?'disabled':''}>&larr; Anterior</button>
+    <span class="mono" style="font-size:13px; color:var(--muted);">Página ${s.usersPage} / ${s.usersTotalPages}</span>
+    <button class="btn btn-ghost" data-action="admin-users-next-page" ${s.usersPage>=s.usersTotalPages?'disabled':''}>Siguiente &rarr;</button>
+  </div>` : ''}
   `;
 }
 
@@ -3893,7 +3902,9 @@ function onAction(e){
   else if(action==='open-suggest'){ STATE.view = 'suggestForm'; render(); }
   else if(action==='send-suggestion'){ sendSuggestion(); }
   else if(action==='suggestions-admin'){ if(!isDevUser()) return; STATE.view = 'suggestionsAdmin'; loadSuggestions(); render(); }
-  else if(action==='admin-dashboard'){ if(!isDevUser()) return; STATE.view = 'adminDashboard'; loadAdminStats(); render(); }
+  else if(action==='admin-dashboard'){ if(!isDevUser()) return; STATE.view = 'adminDashboard'; loadAdminStats(1); render(); }
+  else if(action==='admin-users-prev-page'){ if(!isDevUser() || STATE.adminUsersPage<=1) return; loadAdminStats(STATE.adminUsersPage-1); }
+  else if(action==='admin-users-next-page'){ if(!isDevUser() || !STATE.adminStats || STATE.adminUsersPage>=STATE.adminStats.usersTotalPages) return; loadAdminStats(STATE.adminUsersPage+1); }
   else if(action==='admin-dashboard-retry'){ if(!isDevUser()) return; loadAdminStats(); }
   else if(action==='admin-delete-user'){ if(!isDevUser()) return; STATE.confirmDeleteUserId = el.dataset.uid; render(); }
   else if(action==='admin-cancel-delete-user'){ STATE.confirmDeleteUserId = null; render(); }
