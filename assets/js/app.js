@@ -2715,6 +2715,7 @@ function lawMenuView(){
   <div class="big-law-head">
     ${headHtml}
   </div>
+  ${isFailed ? `<div style="background:rgba(91,67,0,0.1); border:1px solid rgba(91,67,0,0.18); border-radius:12px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:var(--ink); line-height:1.5;">Todas las preguntas que falles se añadirán automáticamente a la Sala de Repaso. Solo desaparecerán cuando las aciertes 3 veces consecutivas; si vuelves a fallar una, el contador empezará de nuevo.</div>` : ''}
   <div class="menu-list">
     <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="short">
       <div class="menu-item-icon">⚡</div>
