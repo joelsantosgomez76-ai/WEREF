@@ -884,6 +884,18 @@ function duplicateQuestionIds(){
   Object.values(groups).forEach(ids => { if(ids.length > 1) ids.forEach(id => dupIds.add(id)); });
   return dupIds;
 }
+
+function questionCountsByLaw(){
+  const counts = {};
+  for(let i=1;i<=17;i++) counts[i] = 0;
+  let glossary = 0;
+  allQuestions().forEach(q => {
+    if(q.domain === 'glossary') glossary++;
+    else if(q.rule) counts[q.rule] = (counts[q.rule]||0) + 1;
+  });
+  return { counts, glossary };
+}
+
 function scopeLabel(q){
   if(q.domain==='glossary') return 'Glosario IFAB';
   return 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
@@ -3288,10 +3300,23 @@ function databaseView(){
   const reportedCount = Object.keys(STATE.reports).length;
   const dupTotal = dupIds.size;
 
+  const LOW_COUNT_THRESHOLD = 30;
+  const { counts: lawCounts, glossary: glossaryCount } = questionCountsByLaw();
+  const lawCountChipsHtml = Array.from({length:17},(_,i)=>i+1).map(i => {
+    const n = lawCounts[i] || 0;
+    const low = n < LOW_COUNT_THRESHOLD;
+    return `<button class="btn btn-ghost" style="padding:6px 10px; font-size:12.5px; ${f.law===String(i)?'background:var(--pitch); color:#fff;':(low?'color:var(--red); border-color:#F0C4C4;':'')}" data-action="db-view-law-questions" data-law="${i}">R${i}: ${n}</button>`;
+  }).join('') + `<button class="btn btn-ghost" style="padding:6px 10px; font-size:12.5px; ${f.law==='glossary'?'background:var(--pitch); color:#fff;':(glossaryCount<LOW_COUNT_THRESHOLD?'color:var(--red); border-color:#F0C4C4;':'')}" data-action="db-view-law-questions" data-law="glossary">Glosario: ${glossaryCount}</button>`;
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">Base de datos</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${allQuestions().length} preguntas en total · ${reviewedCount} revisadas · ${reportedCount} con reportes de usuarios · ${list.length} coinciden con el filtro</div>
+
+  <div class="section-title">Preguntas por regla <span style="text-transform:none; font-weight:400; letter-spacing:normal;">(en rojo, menos de ${LOW_COUNT_THRESHOLD})</span></div>
+  <div class="qcard" style="margin-bottom:14px; display:flex; flex-wrap:wrap; gap:6px;">
+    ${lawCountChipsHtml}
+  </div>
 
   <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
     <button class="btn btn-primary" data-action="add-from-db">+ Añadir pregunta nueva</button>
