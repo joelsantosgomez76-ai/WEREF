@@ -2871,8 +2871,12 @@ function quizView(){
     ${(isLifeMode(quiz.mode) && quiz.hearts<=0) ? `<div style="margin-top:10px; padding:10px 12px; background:#FDECEC; border-radius:8px; font-size:13.5px; font-weight:700; color:var(--red);">${quiz.mode==='suddendeath' ? '💀 ¡Eliminado! Un fallo y se acabó.' : '💔 ¡Te has quedado sin corazones! Aquí termina el reto.'}</div>` : ''}
     ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
   }
-  const reportBtn = `<button class="flag-btn" data-action="report-question" data-qid="${q.id}">${STATE.reportedIds[q.id] ? '✓ Error reportado, ¡gracias!' : '🚩 Reportar un error en esta pregunta'}</button>`;
-  const savedBtn = `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">${STATE.storage.saved[q.id] ? '✓ Guardada en tu Lista' : '📚 Guardar en Mi Lista'}</button>`;
+  const reportBtn = STATE.reportedIds[q.id]
+    ? `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Ya has avisado de un posible error en esta pregunta. Nuestro equipo la revisará.">✓ Error reportado, ¡gracias!</button>`
+    : `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Avisa si crees que esta pregunta tiene un error o está desactualizada, para que la revisemos.">🚩 Reportar un error en esta pregunta</button>`;
+  const savedBtn = STATE.storage.saved[q.id]
+    ? `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Quítala de tu lista personal si ya no quieres tenerla guardada.">✓ Guardada en tu Lista</button>`
+    : `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="La pregunta se añadirá a tu lista personal en Mi Academia, para repasarla más tarde.">📚 Guardar en Mi Lista</button>`;
   const actionLinksRow = `<div style="display:flex; gap:16px; flex-wrap:wrap;">${savedBtn}${reportBtn}</div>`;
 
   let topbar;
@@ -3142,7 +3146,7 @@ function savedBrowseView(){
     ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
     ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
     <div style="margin-top:12px;">
-      <button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}">Quitar de Guardadas</button>
+      <button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Elimina esta pregunta de tu lista personal guardada.">Quitar de Guardadas</button>
     </div>
   </div>
   <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
