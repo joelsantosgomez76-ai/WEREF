@@ -371,6 +371,13 @@ textarea{resize:vertical; min-height:64px;}
 .landing-cta p{color:#F6D3D6; font-size:14px; margin-bottom:20px;}
 .landing-footer{text-align:center; padding:24px 20px 40px; color:var(--muted); font-size:12px;}
 
+.cookie-banner{position:fixed; left:0; right:0; bottom:0; z-index:60; background:var(--chalk-card); border-top:1px solid var(--line); box-shadow:0 -4px 20px rgba(20,20,22,0.1); padding:16px 24px; display:flex; align-items:center; justify-content:center; gap:20px; flex-wrap:wrap;}
+.cookie-banner-text{font-size:13px; color:var(--ink); max-width:600px; line-height:1.5;}
+.cookie-banner-text a{color:var(--pitch); text-decoration:underline;}
+.cookie-banner-actions{display:flex; gap:10px; flex-shrink:0;}
+.cookie-banner .btn{padding:9px 18px; font-size:13px;}
+@media (max-width:640px){ .cookie-banner{flex-direction:column; text-align:center; padding:16px;} }
+
 .landing-hero-social-proof{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:24px; font-size:13px; color:var(--muted); flex-wrap:wrap;}
 .landing-hero-social-proof .stars{color:var(--yellow); letter-spacing:2px; font-size:15px;}
 .landing-hero-mockup{max-width:760px; margin:40px auto 0;}

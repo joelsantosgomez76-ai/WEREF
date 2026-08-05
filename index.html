@@ -2,6 +2,24 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<!-- Google Tag Manager: solo se carga si el usuario ha aceptado cookies no esenciales -->
+<script>
+(function(){
+  var GTM_ID = 'GTM-K68T9Z8S';
+  window.dataLayer = window.dataLayer || [];
+  window.loadGTM = function(){
+    if(window.__gtmLoaded) return;
+    window.__gtmLoaded = true;
+    dataLayer.push({'gtm.start': new Date().getTime(), event:'gtm.js'});
+    var f = document.getElementsByTagName('script')[0], j = document.createElement('script');
+    j.async = true;
+    j.src = 'https://www.googletagmanager.com/gtm.js?id=' + GTM_ID;
+    f.parentNode.insertBefore(j, f);
+  };
+  if(localStorage.getItem('werefCookieConsent') === 'all'){ window.loadGTM(); }
+})();
+</script>
+<!-- End Google Tag Manager -->
 <meta name="google-site-verification" content="8vQx5I-FfuwlzPyR9pSGhaBbo6pwOYY9zi8p5SRMpFc" />
 <title>WEREF · Formación Arbitral Online — Aprende las Reglas de Juego IFAB</title>
 <meta name="description" content="Responde 5 preguntas reales del examen arbitral en 1 minuto, sin registro. Más de 2.000 preguntas sobre las 17 Reglas de Juego IFAB, estadísticas, WEREF League y tu propia academia personal. Gratis.">
@@ -821,6 +839,32 @@ document.getElementById('quiz-start-btn').addEventListener('click', ()=>{
 });
 
 document.getElementById('quiz-register-btn').addEventListener('click', ()=>openModal('register'));
+</script>
+
+<div id="cookie-banner" class="cookie-banner" style="display:none;">
+  <div class="cookie-banner-text">Usamos cookies necesarias para el funcionamiento de la web (verificación anti-spam al registrarte) y, solo si lo aceptas, cookies analíticas (Google Analytics) para entender cómo se usa WEREF y mejorarlo. <a href="politica-privacidad.html#cookies" target="_blank" rel="noopener">Más información</a>.</div>
+  <div class="cookie-banner-actions">
+    <button type="button" class="btn btn-ghost" id="cookie-reject-btn">Solo necesarias</button>
+    <button type="button" class="btn btn-primary" id="cookie-accept-btn">Aceptar todas</button>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY = 'werefCookieConsent';
+  if(localStorage.getItem(KEY)) return;
+  var banner = document.getElementById('cookie-banner');
+  if(!banner) return;
+  banner.style.display = 'flex';
+  document.getElementById('cookie-accept-btn').addEventListener('click', function(){
+    localStorage.setItem(KEY, 'all');
+    banner.style.display = 'none';
+    if(window.loadGTM) window.loadGTM();
+  });
+  document.getElementById('cookie-reject-btn').addEventListener('click', function(){
+    localStorage.setItem(KEY, 'essential');
+    banner.style.display = 'none';
+  });
+})();
 </script>
 </body>
 </html>
