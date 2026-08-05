@@ -119,6 +119,24 @@ async function deleteAdminUser(userId){
   }
 }
 
+async function toggleBlockAdminUser(userId, block){
+  if(!isDevUser() || !userId) return;
+  try{
+    const { data, error } = await supabaseClient.functions.invoke('admin-stats', { body: { action: block ? 'block' : 'unblock', userId } });
+    if(error || !data || data.error){
+      STATE.toast = (data && data.error) ? data.error : (block ? 'No se pudo bloquear la cuenta.' : 'No se pudo desbloquear la cuenta.');
+      render();
+      return;
+    }
+    STATE.toast = block ? 'Cuenta bloqueada.' : 'Cuenta desbloqueada.';
+    render();
+    loadAdminStats(STATE.adminUsersPage);
+  }catch(e){
+    STATE.toast = block ? 'No se pudo bloquear la cuenta.' : 'No se pudo desbloquear la cuenta.';
+    render();
+  }
+}
+
 const LAW_NAMES = {
   1:"El Terreno de Juego", 2:"El Balón", 3:"Los Jugadores", 4:"El Equipamiento de los Jugadores",
   5:"El Árbitro", 6:"Los Otros Miembros del Equipo Arbitral", 7:"La Duración del Partido",
@@ -3459,7 +3477,14 @@ function adminDashboardView(){
       <td>${esc(u.email)}</td>
       <td class="mono">${formatEventDate(u.created_at.slice(0,10))}</td>
       <td>${u.blocked ? '<span class="badge" style="background:var(--red); color:#fff;">Bloqueado</span>' : '<span class="badge" style="background:var(--green-ok); color:#fff;">Activo</span>'}</td>
-      <td>${isSelf ? '' : `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--red); border-color:#F0C4C4;" data-action="admin-delete-user" data-uid="${u.id}">Eliminar</button>`}</td>
+      <td>${isSelf ? '' : `
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          ${u.blocked
+            ? `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--green-ok); border-color:#BEE3CC;" data-action="admin-unblock-user" data-uid="${u.id}">Desbloquear</button>`
+            : `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--yellow-ink); border-color:#F0E4B4;" data-action="admin-block-user" data-uid="${u.id}">Bloquear</button>`}
+          <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--red); border-color:#F0C4C4;" data-action="admin-delete-user" data-uid="${u.id}">Eliminar</button>
+        </div>
+      `}</td>
     </tr>
   `;
   }).join('');
@@ -4012,6 +4037,8 @@ function onAction(e){
   else if(action==='admin-delete-user'){ if(!isDevUser()) return; STATE.confirmDeleteUserId = el.dataset.uid; render(); }
   else if(action==='admin-cancel-delete-user'){ STATE.confirmDeleteUserId = null; render(); }
   else if(action==='admin-confirm-delete-user'){ if(!isDevUser()) return; deleteAdminUser(STATE.confirmDeleteUserId); }
+  else if(action==='admin-block-user'){ if(!isDevUser()) return; toggleBlockAdminUser(el.dataset.uid, true); }
+  else if(action==='admin-unblock-user'){ if(!isDevUser()) return; toggleBlockAdminUser(el.dataset.uid, false); }
   else if(action==='suggestion-status'){ if(!isDevUser()) return; setSuggestionStatus(el.dataset.id, el.dataset.status); }
   else if(action==='suggestion-delete'){ if(!isDevUser()) return; deleteSuggestion(el.dataset.id); }
   else if(action==='toggle-saved'){

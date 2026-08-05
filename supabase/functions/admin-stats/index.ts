@@ -82,6 +82,37 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (body && (body.action === "block" || body.action === "unblock")) {
+      const targetId = body.userId;
+      if (!targetId) {
+        return new Response(JSON.stringify({ error: "Falta userId" }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      const { data: targetData, error: targetErr } = await adminClient.auth.admin.getUserById(targetId);
+      if (targetErr || !targetData?.user) {
+        return new Response(JSON.stringify({ error: "Usuario no encontrado" }), {
+          status: 404,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      if (targetData.user.email === ADMIN_EMAIL) {
+        return new Response(JSON.stringify({ error: "No puedes bloquear tu propia cuenta de administrador" }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      const { error: updErr } = await adminClient.auth.admin.updateUserById(targetId, {
+        ban_duration: body.action === "block" ? "876000h" : "none", // ~100 años (bloqueo indefinido) / "none" desbloquea
+      });
+      if (updErr) throw updErr;
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
     let allUsers: any[] = [];
     let page = 1;
     const perPage = 200;
