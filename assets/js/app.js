@@ -2675,11 +2675,6 @@ function lawMenuView(){
     <div style="font-size:12px; color:var(--muted); margin-top:8px;">Borra tus aciertos/fallos solo de esta regla. No afecta a las demás ni a tus puntos, rango, racha o insignias.</div>
   </div>
   ` : ''}
-  ${(isDevUser() && !isFailed && !isSaved) ? `
-  <div style="margin-top:20px;">
-    <button class="btn btn-ghost" data-action="db-view-law-questions" data-law="${law}">📋 Ver preguntas de esta regla en Base de datos</button>
-  </div>
-  ` : ''}
   `;
 }
 
