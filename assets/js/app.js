@@ -2930,9 +2930,12 @@ function quizView(){
       <span class="score">Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length}</span>
     </div>`;
   } else {
+    const scoreLabel = quiz.law==='failed'
+      ? `Aciertos seguidos: ${STATE.storage.failedStreaks[q.id]||0}/3`
+      : `Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length}`;
     topbar = `<div class="quiz-topbar">
       <span class="qcount">Pregunta ${quiz.idx+1} / ${total}</span>
-      <span class="score">Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length}</span>
+      <span class="score">${scoreLabel}</span>
     </div>`;
   }
 
@@ -2953,15 +2956,11 @@ function quizView(){
     `;
   }
 
-  const failedStreakTag = quiz.law==='failed'
-    ? ` <span class="badge" style="background:rgba(91,67,0,0.14); color:var(--yellow-ink);">${STATE.storage.failedStreaks[q.id]||0}/3 aciertos seguidos para superarla</span>`
-    : '';
-
   return `
   ${topbar}
   <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
   <div class="qcard">
-    <div class="qtag">${scopeLabel(q)}${failedStreakTag}</div>
+    <div class="qtag">${scopeLabel(q)}</div>
     <div class="qtext">${esc(q.question)}</div>
     ${optsHtml}
     ${feedback}
