@@ -429,7 +429,7 @@ textarea{resize:vertical; min-height:64px;}
   .saas-features-sub{margin-bottom:48px;}
 }
 
-.landing-quiz-section{max-width:680px; margin:0 auto 60px; padding:0 20px;}
+.landing-quiz-section{max-width:820px; margin:0 auto 60px; padding:0 20px;}
 .landing-quiz-card{background:var(--chalk-card); color:var(--ink); border:1px solid var(--line); border-radius:20px; padding:34px 26px; text-align:center; box-shadow:var(--shadow);}
 .landing-quiz-card .quiz-rule{font-family:'JetBrains Mono'; font-size:11px; letter-spacing:0.2em; color:var(--line); margin-bottom:14px;}
 .landing-quiz-card h2{margin-bottom:8px; font-size:22px;}
