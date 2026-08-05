@@ -2875,8 +2875,8 @@ function quizView(){
     ? `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Ya has avisado de un posible error en esta pregunta. Nuestro equipo la revisará.">✓ Error reportado, ¡gracias!</button>`
     : `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Avisa si crees que esta pregunta tiene un error o está desactualizada, para que la revisemos.">🚩 Reportar un error en esta pregunta</button>`;
   const savedBtn = STATE.storage.saved[q.id]
-    ? `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Quítala de tu lista personal si ya no quieres tenerla guardada.">✓ Guardada en tu Lista</button>`
-    : `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="La pregunta se añadirá a tu lista personal en Mi Academia, para repasarla más tarde.">📚 Guardar en Mi Lista</button>`;
+    ? `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Quítala de tu lista personal si ya no quieres tenerla guardada.">✓ Guardada en Mi Academia</button>`
+    : `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="La pregunta se añadirá a tu lista personal en Mi Academia, para repasarla más tarde.">🎓 Guardar en Mi Academia</button>`;
   const actionLinksRow = `<div style="display:flex; gap:16px; flex-wrap:wrap;">${savedBtn}${reportBtn}</div>`;
 
   let topbar;
