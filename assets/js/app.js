@@ -217,6 +217,34 @@ function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
   return arr;
 }
+
+// Devuelve una copia de la pregunta con las opciones en orden aleatorio y la
+// letra "correct" recalculada para seguir apuntando a la respuesta correcta.
+// No modifica la pregunta original (el banco/Base de datos debe conservar su
+// orden real) — cada intento de test genera su propio orden.
+function shuffledQuestionCopy(q){
+  const letters = ['a','b','c','d'];
+  const order = shuffle(Array.from({length:q.options.length}, (_,i)=>i));
+  const newOptions = order.map(i => q.options[i]);
+  const origCorrectIdx = letters.indexOf(q.correct);
+  const newCorrect = letters[order.indexOf(origCorrectIdx)];
+  return Object.assign({}, q, { options: newOptions, correct: newCorrect });
+}
+
+function buildQuizShuffleMap(qids){
+  const map = {};
+  qids.forEach(qid => {
+    const q = allQuestions().find(x=>x.id===qid);
+    if(q) map[qid] = shuffledQuestionCopy(q);
+  });
+  return map;
+}
+
+function quizQuestionById(qid, quiz){
+  quiz = quiz || STATE.quiz;
+  if(quiz && quiz.shuffled && quiz.shuffled[qid]) return quiz.shuffled[qid];
+  return allQuestions().find(x=>x.id===qid);
+}
 function formatTime(sec){
   sec = Math.max(0, sec);
   const m = Math.floor(sec/60), s = sec%60;
@@ -501,7 +529,7 @@ function recordTestResult(quiz){
   let wrongAnswered = 0;
   const byRule = {};
   quiz.qids.forEach(qid => {
-    const q = allQuestions().find(x=>x.id===qid);
+    const q = quizQuestionById(qid, quiz);
     if(!q) return;
     const sel = quiz.answers[qid];
     const isOk = sel === q.correct;
@@ -733,6 +761,7 @@ function startCountedQuiz(count){
   pool = shuffle(pool.slice()).slice(0, Math.max(1,count));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'short', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null };
+  STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
 }
@@ -747,6 +776,7 @@ function startHeartsMode(){
   pool = shuffle(pool.slice()).slice(0, Math.min(60, pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'hearts', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null, hearts:3, combo:0, bestCombo:0 };
+  STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
 }
@@ -756,6 +786,7 @@ function startSuddenDeathMode(){
   pool = shuffle(pool.slice()).slice(0, Math.min(60, pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'suddendeath', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null, hearts:1, combo:0, bestCombo:0 };
+  STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
 }
@@ -765,6 +796,7 @@ function startTimeAttackMode(){
   pool = shuffle(pool.slice()).slice(0, Math.min(150, pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'timeattack', law:null, answers:{}, instantFeedback:true, timerMode:'total', timeSec:60, remainingSec:60, showFeedback:false, selected:null, combo:0, bestCombo:0 };
+  STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
   startTimer();
@@ -1586,14 +1618,25 @@ function startMyBankTraining(opts){
     qids: pool.map(q=>q.id), idx:0, answers:{},
     instantFeedback: !!opts.instantFeedback, timerMode, timeSec, remainingSec, perQSeconds
   };
+  STATE.myBankQuiz.shuffled = {};
+  STATE.myBankQuiz.qids.forEach(qid => {
+    const q = (STATE.storage.myBank||[]).find(x=>x.id===qid);
+    if(q) STATE.myBankQuiz.shuffled[qid] = shuffledQuestionCopy(q);
+  });
   STATE.view = 'myBankQuiz';
   render();
   if(timerMode==='total' || timerMode==='perQuestion') myBankStartTimer();
 }
 
+function myBankQuestionById(qid, quiz){
+  quiz = quiz || STATE.myBankQuiz;
+  if(quiz && quiz.shuffled && quiz.shuffled[qid]) return quiz.shuffled[qid];
+  return (STATE.storage.myBank||[]).find(x=>x.id===qid);
+}
+
 function myBankCurrentQ(){
   const quiz = STATE.myBankQuiz;
-  return (STATE.storage.myBank||[]).find(q=>q.id===quiz.qids[quiz.idx]);
+  return myBankQuestionById(quiz.qids[quiz.idx], quiz);
 }
 
 function myBankSelectAnswer(letter){
@@ -1677,9 +1720,8 @@ function myBankQuizView(){
 function myBankResultView(){
   const quiz = STATE.myBankQuiz;
   const total = quiz.qids.length;
-  const bank = STATE.storage.myBank||[];
   const score = quiz.qids.filter(qid => {
-    const q = bank.find(x=>x.id===qid);
+    const q = myBankQuestionById(qid, quiz);
     return q && quiz.answers[qid] === q.correct;
   }).length;
   const answered = Object.keys(quiz.answers).length;
@@ -2692,6 +2734,7 @@ function startQuiz(law, mode){
     }) : pickQuestions(law, mode);
   if(qids.length===0){ STATE.toast="No hay preguntas disponibles para este modo."; render(); return; }
   STATE.quiz = { qids, idx:0, mode: mode||'short', law, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null };
+  STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
 }
@@ -2724,6 +2767,7 @@ function startTraining(opts){
     qids: pool.map(q=>q.id), idx:0, mode:'training', law: opts.scopeOverride || null,
     answers:{}, instantFeedback: !!opts.instantFeedback, timerMode, timeSec, remainingSec, perQSeconds
   };
+  STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
   if(timerMode==='total' || timerMode==='perQuestion') startTimer();
@@ -2743,7 +2787,7 @@ function goToQuestion(newIdx){
 
 function currentQ(){
   const qid = STATE.quiz.qids[STATE.quiz.idx];
-  return allQuestions().find(q=>q.id===qid);
+  return quizQuestionById(qid);
 }
 
 function questionDots(quiz){
@@ -2757,7 +2801,7 @@ function questionDots(quiz){
     if(isCurrent) cls += ' current';
     if(sel){
       if(quiz.instantFeedback){
-        const q = allQuestions().find(x=>x.id===qid);
+        const q = quizQuestionById(qid, quiz);
         cls += (sel===q.correct) ? ' ok' : ' bad';
       } else {
         cls += ' answered';
@@ -2830,12 +2874,12 @@ function quizView(){
   } else if(quiz.mode==='timeattack'){
     topbar = `<div class="quiz-topbar">
       <span class="qcount mono" id="timer-display" style="font-weight:700; font-size:16px;">⏱ ${formatTime(quiz.remainingSec)}</span>
-      <span class="score">Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=allQuestions().find(x=>x.id===id); return qq && quiz.answers[id]===qq.correct; }).length}</span>
+      <span class="score">Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length}</span>
     </div>`;
   } else {
     topbar = `<div class="quiz-topbar">
       <span class="qcount">Pregunta ${quiz.idx+1} / ${total}</span>
-      <span class="score">Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=allQuestions().find(x=>x.id===id); return qq && quiz.answers[id]===qq.correct; }).length}</span>
+      <span class="score">Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length}</span>
     </div>`;
   }
 
@@ -2932,7 +2976,7 @@ function resultView(){
   let score = 0;
   const byLaw = {};
   scopeQids.forEach(qid=>{
-    const q = allQuestions().find(x=>x.id===qid);
+    const q = quizQuestionById(qid, quiz);
     const sel = quiz.answers[qid];
     const ok = sel === q.correct;
     if(ok) score++;
@@ -2961,7 +3005,7 @@ function resultView(){
   </div>
   <div class="q-dots" style="margin-top:14px; margin-bottom:6px;">
     ${scopeQids.map((qid,i)=>{
-      const q = allQuestions().find(x=>x.id===qid);
+      const q = quizQuestionById(qid, quiz);
       const sel = quiz.answers[qid];
       const ok = sel === (q ? q.correct : null);
       const cls = sel ? (ok ? 'ok' : 'bad') : '';
@@ -2970,7 +3014,7 @@ function resultView(){
   </div>
   ${(STATE.reviewDetailIdx!==null && STATE.reviewDetailIdx!==undefined && scopeQids[STATE.reviewDetailIdx]) ? (function(){
     const qid = scopeQids[STATE.reviewDetailIdx];
-    const q = allQuestions().find(x=>x.id===qid);
+    const q = quizQuestionById(qid, quiz);
     const sel = quiz.answers[qid];
     const letters2 = ['a','b','c','d'];
     return `<div class="qcard" style="margin-bottom:14px;">
