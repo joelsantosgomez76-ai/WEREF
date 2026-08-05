@@ -180,7 +180,7 @@ let STATE = {
   editingId: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
+  storage: { progress:{}, failedStreaks:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
   toast: null,
   reviewDetailIdx: null,
   savedBrowseIdx: 0,
@@ -274,6 +274,7 @@ function markTimeoutFailed(quiz, qid){
   if(!q) return;
   STATE.storage.progress[qid] = { correct:false, ts: Date.now() };
   saveProgress();
+  updateFailedStreak(qid, false);
   markDayActive();
   if(!quiz.timedOut) quiz.timedOut = {};
   quiz.timedOut[qid] = true;
@@ -353,6 +354,8 @@ async function storageSet(key, value){
 
 async function loadStorage(){
   try{ const v = await storageGet('progress'); STATE.storage.progress = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.progress = {}; }
+  let failedStreaksWasNew = false;
+  try{ const v = await storageGet('failedStreaks'); if(v){ STATE.storage.failedStreaks = JSON.parse(v); } else { STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; } }catch(e){ STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; }
   try{ const v = await storageGet('userQuestions'); STATE.storage.userQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.userQuestions = []; }
   try{ const v = await storageGet('flags'); STATE.storage.flags = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.flags = {}; }
   try{ const v = await storageGet('saved'); STATE.storage.saved = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.saved = {}; }
@@ -381,6 +384,16 @@ async function loadStorage(){
     Object.values(STATE.storage.progress).forEach(p=>{ if(p && p.ts) STATE.storage.activeDays[dayKey(p.ts)] = true; });
     saveActiveDays();
   }
+  if(failedStreaksWasNew){
+    // Primera vez que existe esta clave: las preguntas ya falladas (según "progress") entran
+    // en la Sala de Repaso con 0 aciertos seguidos, para no perder el repaso pendiente de nadie.
+    Object.keys(STATE.storage.progress).forEach(qid=>{
+      if(STATE.storage.progress[qid] && STATE.storage.progress[qid].correct === false){
+        STATE.storage.failedStreaks[qid] = 0;
+      }
+    });
+    saveFailedStreaks();
+  }
   {
     // Compatibilidad con la versión anterior (categoría como texto libre sin lista propia):
     // si alguna pregunta tiene una categoría que ya no está en la lista, la recuperamos
@@ -398,6 +411,23 @@ async function loadStorage(){
   render();
 }
 async function saveProgress(){ await storageSet('progress', JSON.stringify(STATE.storage.progress)); }
+async function saveFailedStreaks(){ await storageSet('failedStreaks', JSON.stringify(STATE.storage.failedStreaks)); }
+
+// Cada pregunta que entra en la Sala de Repaso necesita 3 aciertos SEGUIDOS para salir de ahí
+// (un fallo en cualquier momento reinicia el contador a 0). Mientras tenga una entrada en
+// failedStreaks (0, 1 o 2) sigue perteneciendo al modo "Preguntas falladas"; al llegar a 3
+// se elimina la entrada y la pregunta "se gradúa".
+function updateFailedStreak(qid, correct){
+  if(!STATE.storage.failedStreaks) STATE.storage.failedStreaks = {};
+  if(!correct){
+    STATE.storage.failedStreaks[qid] = 0;
+  } else if(Object.prototype.hasOwnProperty.call(STATE.storage.failedStreaks, qid)){
+    const next = STATE.storage.failedStreaks[qid] + 1;
+    if(next >= 3) delete STATE.storage.failedStreaks[qid];
+    else STATE.storage.failedStreaks[qid] = next;
+  }
+  saveFailedStreaks();
+}
 async function saveActiveDays(){ await storageSet('activeDays', JSON.stringify(STATE.storage.activeDays)); }
 async function savePointsCorrectOffset(){ await storageSet('pointsCorrectOffset', JSON.stringify(STATE.storage.pointsCorrectOffset)); }
 function markDayActive(){
@@ -859,9 +889,11 @@ async function resetLawProgress(law){
       delete STATE.storage.progress[qid];
     }
   });
+  Object.keys(STATE.storage.failedStreaks||{}).forEach(qid=>{ if(qids.has(qid)) delete STATE.storage.failedStreaks[qid]; });
   STATE.storage.pointsCorrectOffset = (STATE.storage.pointsCorrectOffset||0) + correctCount;
   await savePointsCorrectOffset();
   await saveProgress();
+  await saveFailedStreaks();
 }
 
 function lawStats(law){
@@ -2758,8 +2790,7 @@ function startQuiz(law, mode){
 }
 
 function isFailedQuestion(q){
-  const p = STATE.storage.progress[q.id];
-  return !!(p && p.correct === false);
+  return !!(STATE.storage.failedStreaks && Object.prototype.hasOwnProperty.call(STATE.storage.failedStreaks, q.id));
 }
 
 function startTraining(opts){
@@ -2922,11 +2953,15 @@ function quizView(){
     `;
   }
 
+  const failedStreakTag = quiz.law==='failed'
+    ? ` <span class="badge" style="background:rgba(91,67,0,0.14); color:var(--yellow-ink);">${STATE.storage.failedStreaks[q.id]||0}/3 aciertos seguidos para superarla</span>`
+    : '';
+
   return `
   ${topbar}
   <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
   <div class="qcard">
-    <div class="qtag">${scopeLabel(q)}</div>
+    <div class="qtag">${scopeLabel(q)}${failedStreakTag}</div>
     <div class="qtext">${esc(q.question)}</div>
     ${optsHtml}
     ${feedback}
@@ -2944,6 +2979,7 @@ function selectAnswer(letter){
   const correct = letter === q.correct;
   STATE.storage.progress[q.id] = { correct, ts: Date.now() };
   saveProgress();
+  updateFailedStreak(q.id, correct);
   markDayActive();
   checkAndUnlockBadges();
   if(quiz.instantFeedback){
