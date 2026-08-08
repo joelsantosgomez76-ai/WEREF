@@ -169,18 +169,21 @@
   <div class="landing-quiz-card">
 
     <div id="quiz-intro">
-      <div class="quiz-rule">━━━━━━━━━━━━━━━━━━━━━━</div>
       <h2>¿Aprobarías hoy el examen arbitral?</h2>
-      <p>Responde 5 preguntas reales del reglamento IFAB.</p>
-      <div class="quiz-meta">⏱️ Duración: 1 minuto · Sin registro</div>
-
-      <div class="tabs quiz-mode-picker">
-        <button type="button" class="tab active" id="quiz-mode-study" data-mode="study">Modo Estudio</button>
-        <button type="button" class="tab" id="quiz-mode-exam" data-mode="exam">Modo Examen</button>
+      <p>Pon a prueba tus conocimientos con 5 preguntas oficiales inspiradas en las Reglas de Juego IFAB.</p>
+      <div class="quiz-meta">
+        <span class="quiz-meta-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1 minuto</span>
+        <span class="quiz-meta-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg> 5 preguntas</span>
+        <span class="quiz-meta-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg> Sin registro</span>
       </div>
-      <div class="quiz-mode-desc" id="quiz-mode-desc">Así se personaliza un test en WEREF de verdad: te decimos si aciertas justo después de cada pregunta, con la respuesta correcta.</div>
 
-      <button type="button" class="btn btn-yellow" id="quiz-start-btn">Comenzar test</button>
+      <div class="quiz-segmented" role="tablist">
+        <button type="button" class="quiz-seg-btn active" id="quiz-mode-study" data-mode="study">Estudio</button>
+        <button type="button" class="quiz-seg-btn" id="quiz-mode-exam" data-mode="exam">Examen</button>
+      </div>
+      <div class="quiz-mode-desc" id="quiz-mode-desc">Ve la respuesta correcta y su explicación tras cada pregunta.</div>
+
+      <button type="button" class="btn btn-yellow btn-quiz-cta" id="quiz-start-btn">Comenzar test</button>
     </div>
 
     <div id="quiz-play" class="quiz-play-inner" style="display:none;">
@@ -742,8 +745,8 @@ let quizAnswers = [];
 const quizLetters = ['a','b','c','d'];
 
 const QUIZ_MODE_DESC = {
-  study: 'Así se personaliza un test en WEREF de verdad: te decimos si aciertas justo después de cada pregunta, con la respuesta correcta.',
-  exam: 'Respondes las 5 preguntas seguidas, sin pistas, y ves tu resultado solo al final — igual que en modo examen dentro de la app.'
+  study: 'Ve la respuesta correcta y su explicación tras cada pregunta.',
+  exam: 'Responde las 5 preguntas y descubre tu puntuación al final.'
 };
 
 function setQuizMode(m){
