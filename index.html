@@ -206,7 +206,9 @@
         <div class="label" id="quiz-score-label"></div>
       </div>
       <p id="quiz-result-msg" style="margin-bottom:20px;"></p>
-      <p style="font-size:13.5px; color:rgba(255,255,255,0.75); margin-bottom:22px;">Regístrate gratis y empieza a entrenar con más de 2.000 preguntas, estadísticas personalizadas y modos de práctica diseñados para ayudarte a mejorar.</p>
+      <button type="button" class="btn btn-secondary" id="quiz-review-btn" style="margin-bottom:22px;">Revisar preguntas</button>
+      <div id="quiz-review" style="display:none; text-align:left; margin-bottom:22px;"></div>
+      <p style="font-size:13.5px; color:var(--muted); margin-bottom:22px;">Regístrate gratis y empieza a entrenar con más de 2.000 preguntas, estadísticas personalizadas y modos de práctica diseñados para ayudarte a mejorar.</p>
       <button type="button" class="btn btn-yellow" id="quiz-register-btn">Quiero seguir mejorando</button>
     </div>
 
@@ -830,7 +832,42 @@ function showQuizResult(){
     ? 'Vas por buen camino, pero hay margen de mejora.'
     : 'El examen puede ser más difícil de lo que parece.';
   document.getElementById('quiz-result-msg').textContent = msg;
+
+  document.getElementById('quiz-review').style.display = 'none';
+  document.getElementById('quiz-review').innerHTML = '';
+  document.getElementById('quiz-review-btn').textContent = 'Revisar preguntas';
 }
+
+function renderQuizReview(){
+  document.getElementById('quiz-review').innerHTML = TEASER_QUESTIONS.map((q, idx) => {
+    const userAns = quizAnswers[idx];
+    const optsHtml = q.options.map((opt, i) => {
+      let cls = 'option';
+      if(i === q.correct) cls += ' correct';
+      else if(i === userAns) cls += ' incorrect';
+      return '<div class="' + cls + '" style="cursor:default;"><span class="letter">' + quizLetters[i] + ')</span>' + opt + '</div>';
+    }).join('');
+    return '<div class="quiz-review-item">' +
+      '<div class="quiz-review-tag">' + (q.tag || '') + '</div>' +
+      '<div class="quiz-review-q">' + (idx + 1) + '. ' + q.question + '</div>' +
+      optsHtml +
+    '</div>';
+  }).join('');
+}
+
+document.getElementById('quiz-review-btn').addEventListener('click', ()=>{
+  const wrap = document.getElementById('quiz-review');
+  const btn = document.getElementById('quiz-review-btn');
+  const showing = wrap.style.display === 'block';
+  if(showing){
+    wrap.style.display = 'none';
+    btn.textContent = 'Revisar preguntas';
+  } else {
+    renderQuizReview();
+    wrap.style.display = 'block';
+    btn.textContent = 'Ocultar revisión';
+  }
+});
 
 document.getElementById('quiz-start-btn').addEventListener('click', ()=>{
   document.getElementById('quiz-intro').style.display = 'none';
