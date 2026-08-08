@@ -3897,7 +3897,12 @@ function onAction(e){
   else if(action==='finish-training'){ stopTimer(); recordTestResult(STATE.quiz); STATE.view='result'; render(); }
   else if(action==='quit-quiz'){ stopTimer(); STATE.view='home'; render(); }
   else if(action==='add'){ STATE.cameFromDb = false; STATE.lawId = law || STATE.lawId; STATE.view='add'; render(); }
-  else if(action==='add-from-db'){ STATE.cameFromDb = true; STATE.lawId = null; STATE.view='add'; render(); }
+  else if(action==='add-from-db'){
+    STATE.cameFromDb = true;
+    const currentLaw = STATE.dbFilter.law;
+    STATE.lawId = currentLaw==='glossary' ? 'glossary' : (/^\d+$/.test(currentLaw) ? parseInt(currentLaw,10) : null);
+    STATE.view='add'; render();
+  }
   else if(action==='save-question'){ saveNewQuestion(); }
   else if(action==='stats'){ STATE.view='stats'; render(); }
   else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.view='database'; loadQuestionReports(); render(); }
