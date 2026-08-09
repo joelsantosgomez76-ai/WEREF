@@ -211,7 +211,7 @@ let STATE = {
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
-  dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, page: 1 },
+  dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', page: 1 },
   reportedIds: {},
   reports: {},
   reportsLoaded: false,
@@ -3312,8 +3312,8 @@ function saveQuestionEdit(qid, alsoUnflag){
   const difficulty = document.getElementById('e-hard').checked ? 'hard' : 'normal';
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
   const edit = domain==='glossary'
-    ? { question, options:[a,b,c,d], correct, explanation, difficulty }
-    : { rule: selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty };
+    ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
+    : { rule: selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() };
   STATE.storage.edits[qid] = edit;
   saveEdits();
   if(alsoUnflag){ delete STATE.storage.flags[qid]; saveFlags(); }
@@ -3346,6 +3346,12 @@ function filteredDbList(){
     const dupIds = duplicateQuestionIds();
     list = list.filter(q => dupIds.has(q.id));
   }
+  if(f.dateFrom || f.dateTo){
+    const field = f.dateField === 'updated' ? 'updatedAt' : 'createdAt';
+    const fromTs = f.dateFrom ? new Date(f.dateFrom+'T00:00:00').getTime() : -Infinity;
+    const toTs = f.dateTo ? new Date(f.dateTo+'T23:59:59.999').getTime() : Infinity;
+    list = list.filter(q => q[field] && q[field] >= fromTs && q[field] <= toTs);
+  }
   return list;
 }
 
@@ -3374,16 +3380,22 @@ function databaseView(){
     if(STATE.editingId === q.id) return editFormHtml(q);
     const isReviewed = !!STATE.storage.reviewed[q.id];
     const reportCount = STATE.reports[q.id] || 0;
+    const dateInfoParts = [];
+    if(q.createdAt) dateInfoParts.push('Creada: '+new Date(q.createdAt).toLocaleDateString('es-ES'));
+    if(q.updatedAt) dateInfoParts.push('Modificada: '+new Date(q.updatedAt).toLocaleDateString('es-ES'));
     return `<div class="qcard" style="margin-bottom:10px; ${reportCount>0?'border-color:#F0C4C4;':(isReviewed?'border-color:#BEE3CC;':'')}">
-      <div class="qtag">
-        <span class="mono" style="color:var(--muted); font-weight:700;">#${numberMap[q.id]}</span> ·
-        ${scopeLabel(q)}
-        ${q.difficulty==='hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}
-        ${STATE.storage.flags[q.id] ? ' <span class="badge">Marcada</span>' : ''}
-        ${q.source==='user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Tu pregunta</span>' : ''}
-        ${isReviewed ? ' <span class="badge" style="background:var(--green-ok); color:#fff;">Revisada</span>' : ''}
-        ${reportCount>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">🚩 Reportada x${reportCount}</span>` : ''}
-        ${dupIds.has(q.id) ? ' <span class="badge" style="background:#B87333; color:#fff;">Duplicada</span>' : ''}
+      <div class="qtag" style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+        <div>
+          <span class="mono" style="color:var(--muted); font-weight:700;">#${numberMap[q.id]}</span> ·
+          ${scopeLabel(q)}
+          ${q.difficulty==='hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}
+          ${STATE.storage.flags[q.id] ? ' <span class="badge">Marcada</span>' : ''}
+          ${q.source==='user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Tu pregunta</span>' : ''}
+          ${isReviewed ? ' <span class="badge" style="background:var(--green-ok); color:#fff;">Revisada</span>' : ''}
+          ${reportCount>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">🚩 Reportada x${reportCount}</span>` : ''}
+          ${dupIds.has(q.id) ? ' <span class="badge" style="background:#B87333; color:#fff;">Duplicada</span>' : ''}
+        </div>
+        ${dateInfoParts.length ? `<div style="text-align:right; white-space:nowrap; flex-shrink:0;">${dateInfoParts.join('<br>')}</div>` : ''}
       </div>
       <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
       ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
@@ -3451,6 +3463,23 @@ function databaseView(){
           <option value="pending" ${f.reviewStatus==='pending'?'selected':''}>Pendientes</option>
           <option value="reviewed" ${f.reviewStatus==='reviewed'?'selected':''}>Revisadas</option>
         </select>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:140px;">
+        <label>Filtrar por fecha de</label>
+        <select id="db-date-field">
+          <option value="created" ${f.dateField==='created'?'selected':''}>Creación</option>
+          <option value="updated" ${f.dateField==='updated'?'selected':''}>Última modificación</option>
+        </select>
+      </div>
+      <div style="flex:1; min-width:130px;">
+        <label>Desde</label>
+        <input type="date" id="db-date-from" value="${esc(f.dateFrom)}">
+      </div>
+      <div style="flex:1; min-width:130px;">
+        <label>Hasta</label>
+        <input type="date" id="db-date-to" value="${esc(f.dateTo)}">
       </div>
     </div>
     <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:12px;">
@@ -3625,14 +3654,14 @@ function saveNewQuestion(){
   }
 
   if(domain==='glossary'){
-    const q = { domain:'glossary', rule:null, num: 'U'+(STATE.storage.glossaryQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user' };
+    const q = { domain:'glossary', rule:null, num: 'U'+(STATE.storage.glossaryQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() };
     STATE.storage.glossaryQuestions.push(q);
     saveGlossaryQuestions();
     STATE.toast='Pregunta guardada en el Glosario.';
     if(STATE.cameFromDb){ STATE.view='database'; }
     else { STATE.lawId = 'glossary'; STATE.view='law'; }
   } else {
-    const q = { domain:'law', rule: selectedNum, num: 'U'+(STATE.storage.userQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'U'+Math.random().toString(36).slice(2,9), source:'user' };
+    const q = { domain:'law', rule: selectedNum, num: 'U'+(STATE.storage.userQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'U'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() };
     STATE.storage.userQuestions.push(q);
     saveUserQuestions();
     STATE.toast='Pregunta guardada en la Regla '+selectedNum+'.';
@@ -3733,8 +3762,8 @@ function importExcelFile(file){
           const exists = allQuestions().find(q=>q.id===id);
           if(!exists){ skipped++; return; }
           const edit = isGlossary
-            ? { question, options:[a,b,c,d], correct, explanation, difficulty }
-            : { rule, question, options:[a,b,c,d], correct, explanation, difficulty };
+            ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
+            : { rule, question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() };
           STATE.storage.edits[id] = edit;
           updated++;
         } else {
@@ -3742,9 +3771,9 @@ function importExcelFile(file){
           if(seenKeys.has(dedupeKey)){ duplicates++; return; }
           seenKeys.add(dedupeKey);
           if(isGlossary){
-            STATE.storage.glossaryQuestions.push({ domain:'glossary', rule:null, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user' });
+            STATE.storage.glossaryQuestions.push({ domain:'glossary', rule:null, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() });
           } else {
-            STATE.storage.userQuestions.push({ domain:'law', rule, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'U'+Math.random().toString(36).slice(2,9), source:'user' });
+            STATE.storage.userQuestions.push({ domain:'law', rule, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'U'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() });
           }
           added++;
         }
@@ -3829,6 +3858,12 @@ function bindEvents(){
   if(dbDuplicatesOnly){ dbDuplicatesOnly.addEventListener('change', (e)=>{ STATE.dbFilter.duplicatesOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
   const dbReviewStatus = document.getElementById('db-review-status');
   if(dbReviewStatus){ dbReviewStatus.addEventListener('change', (e)=>{ STATE.dbFilter.reviewStatus = e.target.value; STATE.dbFilter.page = 1; render(); }); }
+  const dbDateField = document.getElementById('db-date-field');
+  if(dbDateField){ dbDateField.addEventListener('change', (e)=>{ STATE.dbFilter.dateField = e.target.value; STATE.dbFilter.page = 1; render(); }); }
+  const dbDateFrom = document.getElementById('db-date-from');
+  if(dbDateFrom){ dbDateFrom.addEventListener('change', (e)=>{ STATE.dbFilter.dateFrom = e.target.value; STATE.dbFilter.page = 1; render(); }); }
+  const dbDateTo = document.getElementById('db-date-to');
+  if(dbDateTo){ dbDateTo.addEventListener('change', (e)=>{ STATE.dbFilter.dateTo = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dailyGoalSelect = document.getElementById('daily-goal-select');
   if(dailyGoalSelect){ dailyGoalSelect.addEventListener('change', (e)=>{ STATE.storage.dailyGoal = parseInt(e.target.value,10); saveDailyGoal(); render(); }); }
 
