@@ -306,6 +306,9 @@
 <section class="landing-cta">
   <div class="cta-inner">
     <div class="cta-text">
+      <div class="cta-icon-badge" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
       <h2>¿Preparado para convertirte en un <span class="cta-highlight">mejor árbitro</span>?</h2>
       <p class="cta-sub">Empieza hoy. Solo tardarás un minuto.</p>
       <button type="button" class="btn btn-yellow cta-btn" id="cta-register-btn">
@@ -314,27 +317,35 @@
       </button>
       <div class="cta-benefits">
         <div class="cta-benefit">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
+          <span class="cta-benefit-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></span>
           <div><div class="cta-benefit-title">Acceso inmediato</div><div class="cta-benefit-desc">Sin tarjeta ni compromiso</div></div>
         </div>
         <div class="cta-benefit">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+          <span class="cta-benefit-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>
           <div><div class="cta-benefit-title">100% seguro</div><div class="cta-benefit-desc">Protegemos tus datos</div></div>
         </div>
         <div class="cta-benefit">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></svg>
+          <span class="cta-benefit-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></svg></span>
           <div><div class="cta-benefit-title">Mejora cada día</div><div class="cta-benefit-desc">Entrena, aprende y progresa</div></div>
         </div>
       </div>
     </div>
     <div class="cta-visual" aria-hidden="true">
-      <svg class="cta-whistle" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M6 30h14"/>
-        <rect x="20" y="16" width="46" height="28" rx="14"/>
-        <circle cx="43" cy="30" r="4"/>
-        <path d="M58 22v16"/>
-        <path d="M66 30h8"/>
-        <circle cx="82" cy="30" r="9"/>
+      <svg class="cta-visual-svg" viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <path class="cta-deco" d="M14 36c16 6 24 20 20 36" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 9"/>
+        <path class="cta-deco" d="m28 68 8 8-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle class="cta-deco" cx="24" cy="150" r="9" stroke="var(--yellow)" stroke-width="2"/>
+        <path class="cta-deco" d="M178 20 190 32M190 20 178 32" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <g class="cta-whistle" stroke="var(--yellow)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" transform="rotate(-14 110 100)">
+          <path d="M176 90c8-14 18-22 18-22"/>
+          <circle cx="196" cy="64" r="9"/>
+          <circle cx="166" cy="100" r="14"/>
+          <path d="M140 100h14"/>
+          <path d="M38 100h26"/>
+          <rect x="60" y="76" width="80" height="48" rx="24"/>
+          <circle cx="100" cy="100" r="7" fill="var(--yellow)" fill-opacity="0.16"/>
+          <path d="M120 84v32"/>
+        </g>
       </svg>
     </div>
   </div>
