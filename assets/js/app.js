@@ -3568,16 +3568,16 @@ function adminDashboardView(){
 
 function addQuestionView(){
   const isGlossaryContext = STATE.lawId === 'glossary';
-  const lawSel = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${STATE.lawId===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('');
+  const currentLawNum = typeof STATE.lawId === 'number' ? STATE.lawId : null;
+  const lawSel = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${currentLawNum===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('')
+    + `<option value="glossary" ${isGlossaryContext?'selected':''}>Glosario IFAB</option>`;
   const backAction = STATE.cameFromDb ? 'database' : (STATE.lawId!=null ? 'open-law' : 'home');
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${STATE.lawId!=null?STATE.lawId:''}">&larr; Volver</button>
-  <h2>Añadir pregunta${isGlossaryContext?' · Glosario IFAB':''}</h2>
+  <h2>Añadir pregunta</h2>
   <div class="qcard">
-    ${isGlossaryContext ? `<div style="font-size:13px; color:var(--muted); margin-bottom:6px;">Se añadirá al glosario de términos de las Reglas de Juego (IFAB).</div>` : `
-    <label>Regla</label>
+    <label>Ámbito</label>
     <select id="f-law">${lawSel}</select>
-    `}
     <label>Pregunta</label>
     <textarea id="f-question" placeholder="Escribe el enunciado..." maxlength="1000"></textarea>
     <label>Respuesta a)</label><input type="text" id="f-a" maxlength="300">
@@ -3591,7 +3591,6 @@ function addQuestionView(){
     <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px;">
       <input type="checkbox" id="f-hard" style="width:auto;"> Es una pregunta difícil (aparecerá también en "Sala VAR")
     </label>
-    <input type="hidden" id="f-domain" value="${isGlossaryContext?'glossary':'law'}">
     <div style="margin-top:18px; display:flex; gap:10px;">
       <button class="btn btn-primary" data-action="save-question">Guardar pregunta</button>
     </div>
@@ -3600,9 +3599,10 @@ function addQuestionView(){
 }
 
 function saveNewQuestion(){
-  const domain = document.getElementById('f-domain').value;
   const lawSelEl = document.getElementById('f-law');
-  const selectedNum = lawSelEl ? parseInt(lawSelEl.value,10) : null;
+  const lawSelVal = lawSelEl.value;
+  const domain = lawSelVal === 'glossary' ? 'glossary' : 'law';
+  const selectedNum = domain === 'law' ? parseInt(lawSelVal,10) : null;
   const question = document.getElementById('f-question').value.trim();
   const a = document.getElementById('f-a').value.trim();
   const b = document.getElementById('f-b').value.trim();
