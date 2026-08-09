@@ -759,7 +759,7 @@ const BADGES = [
   {id:'streak7', icon:'🔥', name:'Racha de Hierro', desc:'7 días seguidos estudiando', check:ctx=>ctx.maxStreak>=7},
   {id:'streak30', icon:'🔥', name:'Racha de Titanio', desc:'30 días seguidos estudiando', check:ctx=>ctx.maxStreak>=30},
   {id:'perfect_test', icon:'💯', name:'Partido Perfecto', desc:'100% en un test de 10 o más preguntas', check:ctx=>ctx.hasPerfectTest},
-  {id:'rule_master', icon:'📘', name:'Maestro de Regla', desc:'Una regla al 100% completada con 90% de acierto o más', check:ctx=>ctx.hasRuleMastered},
+  {id:'rule_master', icon:'📘', name:'Maestro de Regla', desc:'Una regla (o el Glosario) al 100% completada con 90% de acierto o más', check:ctx=>ctx.hasRuleMastered},
   {id:'full_book', icon:'🏆', name:'Reglamento Completo', desc:'Las 17 Reglas al 100% completadas', check:ctx=>ctx.allRulesComplete},
   {id:'clean_room', icon:'🧹', name:'Sala Limpia', desc:'Sala de Repaso vacía tras completar al menos 5 tests', check:ctx=>ctx.cleanRoom},
   {id:'points_300', icon:'🥉', name:'300 Puntos', desc:'Acumula 300 puntos', check:ctx=>ctx.points>=300},
@@ -775,6 +775,10 @@ function buildBadgeContext(){
   const hasPerfectTest = testHistory.some(h=>h.total>=10 && h.pct===100);
   let hasRuleMastered = false;
   for(let i=1;i<=17;i++){ const s=lawStats(i); if(s.total>0 && s.attempted===s.total && s.accuracyPct>=90){ hasRuleMastered=true; break; } }
+  if(!hasRuleMastered){
+    const gs = lawStats('glossary');
+    if(gs.total>0 && gs.attempted===gs.total && gs.accuracyPct>=90){ hasRuleMastered = true; }
+  }
   let allRulesComplete = true;
   for(let i=1;i<=17;i++){ const s=lawStats(i); if(s.total===0 || s.attempted<s.total){ allRulesComplete=false; break; } }
   const failedNow = allQuestions().filter(isFailedQuestion).length;
