@@ -900,14 +900,14 @@ function lawStats(law){
   const qs = questionsForLaw(law);
   let attempted=0, correct=0;
   qs.forEach(q=>{ const p = STATE.storage.progress[q.id]; if(p){ attempted++; if(p.correct) correct++; } });
-  const completionPct = qs.length ? Math.round(attempted/qs.length*100) : 0;
+  const completionPct = qs.length ? (attempted===qs.length ? 100 : Math.min(99, Math.round(attempted/qs.length*100))) : 0;
   const accuracyPct = attempted ? Math.round(correct/attempted*100) : 0;
   return { total: qs.length, attempted, correct, completionPct, accuracyPct };
 }
 function overallStats(){
   let total=0, attempted=0, correct=0;
   for(let i=1;i<=17;i++){ const s=lawStats(i); total+=s.total; attempted+=s.attempted; correct+=s.correct; }
-  const completionPct = total ? Math.round(attempted/total*100) : 0;
+  const completionPct = total ? (attempted===total ? 100 : Math.min(99, Math.round(attempted/total*100))) : 0;
   const accuracyPct = attempted ? Math.round(correct/attempted*100) : 0;
   return { total, attempted, correct, completionPct, accuracyPct };
 }
