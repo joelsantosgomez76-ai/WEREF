@@ -407,6 +407,15 @@ async function loadStorage(){
   }
   STATE.storage.userQuestions.forEach(q=>{ if(!q.id) q.id = 'U'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='law'; });
   STATE.storage.glossaryQuestions.forEach(q=>{ if(!q.id) q.id = 'G'+Math.random().toString(36).slice(2,9); q.source='user'; q.domain='glossary'; });
+  {
+    // Preguntas propias creadas antes de que existiera el campo de fecha: les asignamos
+    // como fecha de creación el 08/08/2026, ya que no tenemos el dato real.
+    const BACKFILL_CREATED_AT = 1786183200000;
+    let backfilled = false;
+    STATE.storage.userQuestions.forEach(q=>{ if(!q.createdAt){ q.createdAt = BACKFILL_CREATED_AT; backfilled = true; } });
+    STATE.storage.glossaryQuestions.forEach(q=>{ if(!q.createdAt){ q.createdAt = BACKFILL_CREATED_AT; backfilled = true; } });
+    if(backfilled){ saveUserQuestions(); saveGlossaryQuestions(); }
+  }
   checkAndUnlockBadges();
   render();
 }
