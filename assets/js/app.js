@@ -3380,9 +3380,10 @@ function databaseView(){
     if(STATE.editingId === q.id) return editFormHtml(q);
     const isReviewed = !!STATE.storage.reviewed[q.id];
     const reportCount = STATE.reports[q.id] || 0;
-    const dateInfoParts = [];
-    if(q.createdAt) dateInfoParts.push('Creada: '+new Date(q.createdAt).toLocaleDateString('es-ES'));
-    if(q.updatedAt) dateInfoParts.push('Modificada: '+new Date(q.updatedAt).toLocaleDateString('es-ES'));
+    const calSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px; height:11px; flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+    const dateChips = [];
+    if(q.createdAt) dateChips.push(`<span class="qdate-chip">${calSvg}Creada ${new Date(q.createdAt).toLocaleDateString('es-ES')}</span>`);
+    if(q.updatedAt) dateChips.push(`<span class="qdate-chip">${calSvg}Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}</span>`);
     return `<div class="qcard" style="margin-bottom:10px; ${reportCount>0?'border-color:#F0C4C4;':(isReviewed?'border-color:#BEE3CC;':'')}">
       <div class="qtag" style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
         <div>
@@ -3395,7 +3396,7 @@ function databaseView(){
           ${reportCount>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">🚩 Reportada x${reportCount}</span>` : ''}
           ${dupIds.has(q.id) ? ' <span class="badge" style="background:#B87333; color:#fff;">Duplicada</span>' : ''}
         </div>
-        ${dateInfoParts.length ? `<div style="text-align:right; white-space:nowrap; flex-shrink:0;">${dateInfoParts.join('<br>')}</div>` : ''}
+        ${dateChips.length ? `<div class="qdate-chips">${dateChips.join('')}</div>` : ''}
       </div>
       <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
       ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
@@ -3482,6 +3483,7 @@ function databaseView(){
         <input type="date" id="db-date-to" value="${esc(f.dateTo)}">
       </div>
     </div>
+    ${(f.dateFrom || f.dateTo) ? `<div style="font-size:12px; color:var(--muted); margin-top:8px;">La fecha solo se registra desde esta actualización: las preguntas que ya existían antes y nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>` : ''}
     <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:12px;">
       <input type="checkbox" id="db-flagged-only" style="width:auto;" ${f.flaggedOnly?'checked':''}> Mostrar solo las marcadas para revisar
     </label>
