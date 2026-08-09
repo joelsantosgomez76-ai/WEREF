@@ -352,6 +352,9 @@ textarea{resize:vertical; min-height:64px;}
 .landing-brand{display:flex; align-items:center; gap:10px; font-family:'Oswald'; font-weight:700; font-size:18px; color:var(--pitch);}
 .landing-brand .mark{width:30px; height:30px; flex-shrink:0;}
 .landing-nav-actions{display:flex; align-items:center; gap:10px;}
+.nav-social-link{display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px; color:var(--pitch); flex-shrink:0; transition:background .15s ease, color .15s ease;}
+.nav-social-link svg{width:20px; height:20px;}
+.nav-social-link:hover{background:rgba(22,24,29,0.06); color:var(--accent);}
 .landing-hero{
   max-width:1080px; margin:0 auto; padding:36px 20px 50px; text-align:center;
 }
