@@ -2374,21 +2374,53 @@ const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','A
 const WEEKDAY_LETTERS = ['L','M','X','J','V','S','D'];
 
 function recentPerformanceView(){
+  const ic = (n) => shellIcon(n);
   const rows = recentPerformanceByRule(25);
-  const items = rows.map(r => {
-    const label = r.total===0
-      ? '<span class="law-sub-muted">Sin datos aún</span>'
-      : `${accuracyBadge(r.pct)}`;
-    return `<button class="breakdown-row" data-action="open-law" data-law="${r.rule}" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;">
-      <span>Regla ${r.rule} · ${esc(LAW_NAMES[r.rule])}</span>
-      <span style="display:flex; align-items:center; gap:6px;">${label}</span>
-    </button>`;
-  }).join('');
+  const sort = STATE.perfSort || 'rule';
+  const tone = (p) => p === null ? 'none' : p >= 85 ? 'good' : p >= 60 ? 'mid' : 'bad';
+
+  const withData = rows.filter(r => r.total > 0);
+  const totalAnswers = withData.reduce((s, r) => s + r.total, 0);
+  const weighted = totalAnswers ? Math.round(withData.reduce((s, r) => s + r.pct * r.total, 0) / totalAnswers) : null;
+  const strongCount = withData.filter(r => r.pct >= 85).length;
+  const weakCount = withData.filter(r => r.pct < 60).length;
+
+  let list = rows.slice();
+  if(sort === 'best') list.sort((a, b) => (b.pct === null ? -1 : b.pct) - (a.pct === null ? -1 : a.pct));
+  else if(sort === 'worst') list.sort((a, b) => (a.pct === null ? 101 : a.pct) - (b.pct === null ? 101 : b.pct));
+
+  const tiles = list.map(r => `
+    <button class="pf-tile ${tone(r.pct)}" data-action="open-law" data-law="${r.rule}">
+      <div class="pf-tile-top"><span class="pf-n">R${r.rule}</span><span class="pf-pct">${r.pct === null ? '—' : r.pct + '%'}</span></div>
+      <div class="pf-name">${esc(LAW_NAMES[r.rule])}</div>
+      <div class="pf-bar"><i style="width:${r.pct === null ? 0 : r.pct}%"></i></div>
+      <div class="pf-meta">${r.total === 0 ? 'Sin datos aún' : r.total + (r.total === 1 ? ' respuesta analizada' : ' respuestas analizadas')}</div>
+    </button>`).join('');
+
+  const seg = (key, label) => `<button class="${sort === key ? 'active' : ''}" data-action="perf-sort" data-sort="${key}">${label}</button>`;
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Analiza tu rendimiento</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Comprueba en qué reglas obtienes mejores resultados y cuáles necesitas reforzar. Los porcentajes se calculan sobre tus últimas 25 respuestas por regla.</div>
-  <div class="qcard">${items}</div>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Analiza tu rendimiento</div>
+      <h1>Acierto reciente</h1>
+      <p>Comprueba en qué reglas obtienes mejores resultados y cuáles necesitas reforzar. Los porcentajes se calculan sobre tus últimas 25 respuestas por regla.</p>
+    </div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${weighted === null ? '—' : weighted + '%'}</b><span>Acierto medio</span></div>
+      <div class="lg-stat"><b>${strongCount}</b><span>Reglas dominadas</span></div>
+      <div class="lg-stat"><b>${weakCount}</b><span>A reforzar</span></div>
+    </div>
+  </section>
+
+  <div class="ac-bar">
+    <div class="st-legend" style="margin:0;"><span><i class="good"></i> 85% o más</span><span><i class="mid"></i> 60–84%</span><span><i class="bad"></i> menos de 60%</span><span><i class="none"></i> sin datos</span></div>
+    <div class="ac-seg">${seg('rule', 'Por regla')}${seg('best', 'Mejores primero')}${seg('worst', 'A reforzar primero')}</div>
+  </div>
+
+  ${withData.length === 0 ? `<div class="st-note" style="margin-bottom:14px;">Responde algunas preguntas y aquí verás cómo te va en cada regla.</div>` : ''}
+  <div class="pf-grid">${tiles}</div>
   `;
 }
 
@@ -4406,6 +4438,7 @@ function onAction(e){
   else if(action==='profile-save-edit'){ saveProfileEdit(); }
   else if(action==='streak-calendar'){ STATE.calendarYear = null; STATE.view='streakCalendar'; render(); }
   else if(action==='recent-performance'){ STATE.view='recentPerformance'; render(); }
+  else if(action==='perf-sort'){ STATE.perfSort = el.dataset.sort; render(); }
   else if(action==='calendar-year'){
     const current = STATE.calendarYear || new Date().getFullYear();
     const next = current + parseInt(el.dataset.delta,10);
