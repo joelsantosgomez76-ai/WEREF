@@ -3117,6 +3117,7 @@ function homeView(){
 }
 
 function lawMenuView(){
+  const ic = (n) => shellIcon(n);
   const law = STATE.lawId;
   const s = lawStats(law);
   const scopeIds = questionsForLaw(law).map(q=>q.id);
@@ -3126,103 +3127,96 @@ function lawMenuView(){
   const isGlossary = law === 'glossary';
   const isAssistants = law === 'assistants';
   const isSaved = law === 'saved';
-  const headHtml = isHard
-    ? `<div class="num" style="color:var(--red);"><span class="ref-card red" style="width:22px; height:30px; display:inline-block; vertical-align:middle;"></span></div>
-       <div><div class="name">Sala VAR <span class="hard-tag">Modo difícil</span></div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`
-    : isFailed
-    ? `<div class="num" style="color:var(--yellow-ink);"><span class="ref-card yellow" style="width:22px; height:30px; display:inline-block; vertical-align:middle;"></span></div>
-       <div><div class="name">Sala de Repaso <span class="hard-tag" style="background:rgba(91,67,0,0.14); color:var(--yellow-ink);">Preguntas falladas</span></div><div class="stat">${s.total>0 ? 'Tienes preguntas pendientes de repasar' : 'Nada pendiente'}</div></div>`
-    : isGlossary
-    ? `<div class="num">G</div>
-       <div><div class="name">Preguntas Glosario <span class="mono" style="font-size:11px; color:var(--muted); font-weight:500;">IFAB</span></div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`
-    : isAssistants
-    ? `<div class="num">A</div>
-       <div><div class="name">Árbitros Asistentes <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Sala especial</span></div><div class="stat">${s.total>0 ? s.completionPct+'% completado'+(s.attempted>0 ? ' · '+accuracyBadge(s.accuracyPct)+' acierto' : '') : 'Próximamente'}</div></div>`
-    : isSaved
-    ? `<div class="num">📚</div>
-       <div><div class="name">Preguntas Guardadas <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Guardadas por ti</span></div><div class="stat">${s.total>0 ? s.total+' pregunta(s) guardadas' : 'Nada guardado todavía'}</div></div>`
-    : `<div class="num">${law}</div>
-       <div><div class="name">${esc(LAW_NAMES[law])}</div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`;
-  const savedHero = isSaved ? acHero('Mi Academia · Privado', 'Preguntas guardadas', 'Todas las preguntas que has marcado para repasar más adelante.',
-    [[s.total, s.total === 1 ? 'Guardada' : 'Guardadas'], [s.completionPct + '%', 'Repasado'], [s.attempted>0 ? s.accuracyPct + '%' : '—', 'Acierto']]) : '';
+  const isRule = typeof law === 'number';
   const backAction = isSaved ? 'academia' : 'home';
   const backLabel = isSaved ? '&larr; Mi Academia' : '&larr; Todas las reglas';
+  const acc = s.attempted > 0 ? s.accuracyPct + '%' : '—';
+  const crown = isRule ? ((STATE.storage.crownLevels || {})[law] || 0) : 0;
+
+  let theme = '', eyebrow, title, desc, stats;
+  if(isHard){
+    theme = 'th-var'; eyebrow = 'Sala VAR · Modo difícil'; title = 'Sala VAR';
+    desc = 'Las preguntas más difíciles de toda la plataforma. ¿Estás a la altura?';
+    stats = [[s.completionPct + '%', 'Progreso'], [acc, 'Acierto'], [s.total, 'Preguntas']];
+  } else if(isFailed){
+    theme = 'th-failed'; eyebrow = 'Sala de Repaso · Preguntas falladas'; title = 'Sala de Repaso';
+    desc = s.total > 0 ? 'Tienes preguntas pendientes de repasar. ¡A por ellas!' : 'Nada pendiente. Sigue haciendo tests y aquí aparecerán las que falles.';
+    stats = [[s.total, 'Pendientes'], [acc, 'Acierto'], ['3', 'Aciertos para salir']];
+  } else if(isGlossary){
+    eyebrow = 'Glosario IFAB'; title = 'Preguntas Glosario';
+    desc = 'Términos y definiciones de las Reglas de Juego.';
+    stats = [[s.completionPct + '%', 'Progreso'], [acc, 'Acierto'], [s.total, 'Preguntas']];
+  } else if(isAssistants){
+    theme = 'th-assist'; eyebrow = 'Sala especial'; title = 'Árbitros Asistentes';
+    desc = s.total > 0 ? 'Preguntas específicas para árbitros asistentes.' : 'Estamos preparando las preguntas de Árbitros Asistentes.';
+    stats = [[s.completionPct + '%', 'Progreso'], [acc, 'Acierto'], [s.total, 'Preguntas']];
+  } else if(isSaved){
+    eyebrow = 'Mi Academia · Privado'; title = 'Preguntas guardadas';
+    desc = 'Todas las preguntas que has marcado para repasar más adelante.';
+    stats = [[s.total, s.total === 1 ? 'Guardada' : 'Guardadas'], [s.completionPct + '%', 'Repasado'], [acc, 'Acierto']];
+  } else {
+    eyebrow = 'Regla ' + law + ' · IFAB'; title = esc(LAW_NAMES[law]);
+    desc = s.total + ' preguntas de esta regla para practicar a tu ritmo.';
+    stats = [[s.completionPct + '%', 'Progreso'], [acc, 'Acierto'], [crown + '/4', 'Corona']];
+  }
+  const hero = acHero(eyebrow, title, desc, stats).replace('class="lg-hero ac-hero', 'class="lg-hero ac-hero ' + theme);
+
   if(isFailed && s.total===0){
     return `
     <button class="backbtn" data-action="${backAction}">${backLabel}</button>
-    <div class="big-law-head">${headHtml}</div>
-    <div class="empty-state">¡Nada pendiente! No tienes ninguna pregunta fallada ahora mismo. Sigue haciendo tests y, si fallas alguna, aparecerá aquí para que la repases.</div>
+    ${hero}
+    <div class="ac-empty">${ic('check')}<strong>¡Nada pendiente!</strong><span>No tienes ninguna pregunta fallada ahora mismo. Sigue haciendo tests y, si fallas alguna, aparecerá aquí para que la repases.</span></div>
     `;
   }
   if(isAssistants && s.total===0){
     return `
     <button class="backbtn" data-action="${backAction}">${backLabel}</button>
-    <div class="big-law-head">${headHtml}</div>
-    <div class="empty-state">Estamos preparando las preguntas de Árbitros Asistentes. En cuanto estén listas podrás practicar aquí.</div>
+    ${hero}
+    <div class="ac-empty">${ic('clock')}<strong>Próximamente</strong><span>En cuanto estén listas las preguntas de Árbitros Asistentes podrás practicar aquí.</span></div>
     `;
   }
   if(isSaved && s.total===0){
     return `
     <button class="backbtn" data-action="${backAction}">${backLabel}</button>
-    ${savedHero}
-    <div class="ac-empty">${shellIcon('star')}<strong>Todavía no has guardado ninguna pregunta</strong><span>Pulsa "Guardar en Mi Lista" durante un test para añadirla aquí.</span></div>
+    ${hero}
+    <div class="ac-empty">${ic('star')}<strong>Todavía no has guardado ninguna pregunta</strong><span>Pulsa "Guardar en Mi Lista" durante un test para añadirla aquí.</span></div>
     `;
   }
+
   const scopeOf = isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isAssistants?' de árbitros asistentes':isSaved?' de tu lista':' de esta regla';
+  const opt = (cls, icon, tag, title, sub, text, attrs) => `
+    <button class="ac-card lw-card ${cls}" ${attrs}>
+      <div class="ac-card-top">
+        <span class="ac-card-ic">${ic(icon)}</span>
+        <span class="lw-tag">${tag}</span>
+      </div>
+      <h3>${title}</h3>
+      <p><strong>${sub}</strong><br>${text}</p>
+      <div class="ac-card-go">Empezar ${ic('chevron')}</div>
+    </button>`;
+
   return `
   <button class="backbtn" data-action="${backAction}">${backLabel}</button>
-  ${isSaved ? savedHero : `<div class="big-law-head">${headHtml}</div>`}
-  ${isFailed ? `<div style="background:rgba(91,67,0,0.1); border:1px solid rgba(91,67,0,0.18); border-radius:12px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:var(--ink); line-height:1.5;">Todas las preguntas que falles se añadirán automáticamente a la Sala de Repaso. Solo desaparecerán cuando las aciertes 3 veces consecutivas; si vuelves a fallar una, el contador empezará de nuevo.</div>` : ''}
-  <div class="menu-list">
-    <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="short">
-      <div class="menu-item-icon">⚡</div>
-      <div style="flex:1; min-width:0;">
-        <div class="title" style="font-size:16px;">Test rápido</div>
-        <div style="font-size:12.5px; color:var(--ink); font-weight:600; margin-top:3px;">Empieza a practicar en segundos.</div>
-        <div class="desc">Responde 10 preguntas aleatorias${scopeOf} sin necesidad de configurar ninguna opción.</div>
-      </div>
-      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; flex-shrink:0;">
-        <span class="menu-item-tag" style="background:#FFF1E8; color:var(--accent-dark);">Más utilizado</span>
-        <span class="menu-item-arrow-circle">›</span>
-      </div>
-    </button>
-    <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="study25">
-      <div class="menu-item-icon">📚</div>
-      <div style="flex:1; min-width:0;">
-        <div class="title" style="font-size:16px;">Modo estudio</div>
-        <div style="font-size:12.5px; color:var(--ink); font-weight:600; margin-top:3px;">Aprende mientras practicas.</div>
-        <div class="desc">Realiza un test de 25 preguntas aleatorias${scopeOf}, con la explicación y la respuesta correcta después de cada una.</div>
-      </div>
-      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; flex-shrink:0;">
-        <span class="menu-item-tag" style="background:#EAF7EF; color:var(--green-ok);">Recomendado</span>
-        <span class="menu-item-arrow-circle">›</span>
-      </div>
-    </button>
-    ${isSaved ? `<button class="menu-item" data-action="saved-browse">
-      <div><div class="title">Ver tus guardadas</div><div class="desc">Repásalas de una en una, con la respuesta y explicación</div></div>
-      <div class="arrow">›</div>
-    </button>` : ''}
-    <button class="menu-item" data-action="train-config-scoped" data-law="${law}">
-      <div class="menu-item-icon">🎛️</div>
-      <div style="flex:1; min-width:0;">
-        <div class="title" style="font-size:16px;">Test personalizado</div>
-        <div style="font-size:12.5px; color:var(--ink); font-weight:600; margin-top:3px;">Crea un entrenamiento a tu medida.</div>
-        <div class="desc">Elige el número de preguntas, activa el cronómetro y selecciona el modo Estudio o Examen para adaptar la sesión a tus necesidades.</div>
-      </div>
-      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px; flex-shrink:0;">
-        <span class="menu-item-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Personalizable</span>
-        <span class="menu-item-arrow-circle">›</span>
-      </div>
-    </button>
-    ${flaggedCount>0 ? `<button class="menu-item" data-action="review-flagged" data-law="${law}">
-      <div><div class="title">Revisar marcadas <span class="badge">${flaggedCount}</span></div><div class="desc">Preguntas que marcaste como posiblemente desactualizadas</div></div>
-      <div class="arrow">›</div>
-    </button>` : ''}
+  ${hero}
+
+  ${isFailed ? `<div class="lw-note">${ic('repeat')}<div>Todas las preguntas que falles se añadirán automáticamente a la Sala de Repaso. Solo desaparecerán cuando las aciertes 3 veces consecutivas; si vuelves a fallar una, el contador empezará de nuevo.</div></div>` : ''}
+
+  <div class="lg-section-head"><h2>¿Cómo quieres practicar?</h2><span>Elige un modo para empezar</span></div>
+  <div class="ac-grid">
+    ${opt('lw-quick', 'zap', 'Más utilizado', 'Test rápido', 'Empieza a practicar en segundos.', `Responde 10 preguntas aleatorias${scopeOf} sin necesidad de configurar ninguna opción.`, `data-action="start-quiz" data-law="${law}" data-mode="short"`)}
+    ${opt('lw-study', 'book', 'Recomendado', 'Modo estudio', 'Aprende mientras practicas.', `Realiza un test de 25 preguntas aleatorias${scopeOf}, con la explicación y la respuesta correcta después de cada una.`, `data-action="start-quiz" data-law="${law}" data-mode="study25"`)}
+    ${opt('lw-custom', 'wand', 'Personalizable', 'Test personalizado', 'Crea un entrenamiento a tu medida.', 'Elige el número de preguntas, activa el cronómetro y selecciona el modo Estudio o Examen para adaptar la sesión.', `data-action="train-config-scoped" data-law="${law}"`)}
   </div>
+
+  ${(isSaved || flaggedCount>0) ? `<div class="lw-extras">
+    ${isSaved ? `<button class="lw-extra" data-action="saved-browse"><span class="lw-extra-ic">${ic('eye')}</span><span><strong>Ver tus guardadas</strong><small>Repásalas de una en una, con la respuesta y explicación</small></span><span class="ac-folder-go">${ic('chevron')}</span></button>` : ''}
+    ${flaggedCount>0 ? `<button class="lw-extra" data-action="review-flagged" data-law="${law}"><span class="lw-extra-ic">${ic('flag')}</span><span><strong>Revisar marcadas <em>${flaggedCount}</em></strong><small>Preguntas que marcaste como posiblemente desactualizadas</small></span><span class="ac-folder-go">${ic('chevron')}</span></button>` : ''}
+  </div>` : ''}
+
   ${(!isHard && !isFailed && !isGlossary && !isAssistants && !isSaved && s.attempted>0) ? `
-  <div style="margin-top:20px;">
-    <button class="btn btn-ghost" style="color:var(--red); border-color:#F0C4C4; font-size:12.5px; padding:8px 14px;" data-action="reset-law-progress" data-law="${law}">Reiniciar progreso de esta regla</button>
-    <div style="font-size:12px; color:var(--muted); margin-top:8px;">Borra tus aciertos/fallos solo de esta regla. No afecta a las demás ni a tus puntos, rango, racha o insignias.</div>
+  <div class="lw-reset">
+    <div><strong>Reiniciar progreso de esta regla</strong><small>Borra tus aciertos/fallos solo de esta regla. No afecta a las demás ni a tus puntos, rango, racha o insignias.</small></div>
+    <button class="btn btn-ghost btn-danger-soft" data-action="reset-law-progress" data-law="${law}">${ic('repeat')} Reiniciar</button>
   </div>
   ` : ''}
   `;
