@@ -2425,14 +2425,17 @@ function recentPerformanceView(){
 }
 
 function streakCalendarView(){
+  const ic = (n) => shellIcon(n);
   const days = activeDaysSet();
   const eventsByDay = calendarEventsByDay();
   const streak = computeStreak();
+  const bestStreak = Math.max(STATE.storage.maxStreak || 0, streak);
   const totalActiveDays = days.size;
   const now = new Date();
   const todayKey = dayKey(now.getTime());
   const year = STATE.calendarYear || now.getFullYear();
   const isCurrentYear = year === now.getFullYear();
+  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
   let months = '';
   for(let m=0; m<12; m++){
@@ -2441,7 +2444,7 @@ function streakCalendarView(){
     let startWeekday = firstOfMonth.getDay(); // 0=Sunday
     startWeekday = (startWeekday===0) ? 6 : startWeekday-1; // convert to Monday-first index 0-6
 
-    let cells = '';
+    let cells = WEEKDAY_LETTERS.map(l => `<div class="cal-wd">${l}</div>`).join('');
     for(let i=0;i<startWeekday;i++){ cells += `<div class="cal-cell empty"></div>`; }
     for(let d=1; d<=daysInMonth; d++){
       const key = year+'-'+(m+1)+'-'+d;
@@ -2461,27 +2464,37 @@ function streakCalendarView(){
       cells += `<div class="cal-cell ${isActive?'active':''} ${(isFuture && !hasEvent)?'future':''} ${isToday?'today':''} ${hasEvent?'has-event':''}" style="${cellStyle}" title="${esc(titleAttr)}">${d}</div>`;
     }
 
-    months += `<div class="cal-month">
+    const isCurMonth = isCurrentYear && now.getMonth() === m;
+    months += `<div class="cal-month ${isCurMonth ? 'current' : ''}">
       <div class="cal-month-name">${MONTH_NAMES[m]}</div>
       <div class="cal-grid">${cells}</div>
     </div>`;
   }
 
   const sortedEvents = (STATE.storage.calendarEvents||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const daysTo = (dateStr) => {
+    const [y,m,d] = dateStr.split('-').map(Number);
+    return Math.round((new Date(y, m-1, d).getTime() - todayMid) / 86400000);
+  };
+  const whenLabel = (n) => n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : n > 1 ? 'En ' + n + ' días' : n === -1 ? 'Ayer' : 'Hace ' + Math.abs(n) + ' días';
   const eventRows = sortedEvents.map(ev=>{
     const isPast = ev.date < todayKeyISO(now);
     const t = CALENDAR_EVENT_TYPES[ev.type] || CALENDAR_EVENT_TYPES.other;
-    return `<div class="breakdown-row" style="border-left:4px solid ${t.color}; padding-left:10px; ${isPast?'opacity:0.5;':''}">
-      <span style="display:flex; align-items:center; gap:8px;">
-        <span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:${t.bg}; font-size:13px; flex-shrink:0;">${t.icon}</span>
-        <span><strong>${esc(ev.title)}</strong><br><span class="mono" style="color:${t.color}; font-size:11px; font-weight:700;">${t.label} · ${formatEventDate(ev.date)}</span></span>
-      </span>
-      <button class="icon-btn" title="Eliminar" data-action="calendar-delete-event" data-id="${ev.id}">🗑️</button>
+    const n = daysTo(ev.date);
+    return `<div class="sk-event ${isPast ? 'past' : ''}" style="--ec:${t.color}; --eb:${t.bg};">
+      <span class="sk-event-ic">${t.icon}</span>
+      <div class="sk-event-body">
+        <strong>${esc(ev.title)}</strong>
+        <small>${t.label} · ${formatEventDate(ev.date)}</small>
+      </div>
+      <span class="sk-event-when">${whenLabel(n)}</span>
+      <button class="icon-btn danger" title="Eliminar" data-action="calendar-delete-event" data-id="${ev.id}">${ic('trash')}</button>
     </div>`;
   }).join('');
 
+  const atMax = sortedEvents.length >= CALENDAR_EVENTS_MAX;
   const addForm = STATE.calendarAddingEvent ? `
-  <div class="qcard" style="margin-bottom:14px;">
+  <div class="sk-form">
     <label>Fecha</label>
     <input type="date" id="cal-event-date">
     <label>Título</label>
@@ -2497,36 +2510,49 @@ function streakCalendarView(){
   </div>
   ` : '';
 
+  const legend = `
+  <div class="sk-legend">
+    <span><i class="act"></i> Día con actividad</span>
+    <span><i class="none"></i> Sin actividad</span>
+    ${Object.values(CALENDAR_EVENT_TYPES).map(t=>`<span><i class="dot" style="background:${t.color};"></i> ${t.label}</span>`).join('')}
+  </div>`;
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Racha de estudio</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Convierte el calendario en tu centro de planificación. Registra automáticamente los días en los que estudias y añade las fechas más importantes de tu preparación, como exámenes, pruebas físicas o reuniones, para tener toda tu planificación en un mismo lugar.</div>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Tu constancia</div>
+      <h1>Racha de estudio</h1>
+      <p>Convierte el calendario en tu centro de planificación. Registra automáticamente los días en los que estudias y añade las fechas más importantes de tu preparación, como exámenes, pruebas físicas o reuniones, para tener toda tu planificación en un mismo lugar.</p>
+    </div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat sk-flame"><b>${streak}</b><span>${streak===1 ? 'Día seguido' : 'Días seguidos'}</span></div>
+      <div class="lg-stat"><b>${bestStreak}</b><span>Mejor racha</span></div>
+      <div class="lg-stat"><b>${totalActiveDays}</b><span>${totalActiveDays===1 ? 'Día activo' : 'Días activos'}</span></div>
+    </div>
+  </section>
 
-  <div class="result-hero" style="margin-bottom:18px;">
-    <div style="font-size:26px;">🔥</div>
-    <div class="big" style="color:var(--pitch); font-size:38px;">${streak}</div>
-    <div class="label">día${streak===1?'':'s'} seguidos ahora mismo · ${totalActiveDays} día${totalActiveDays===1?'':'s'} activo${totalActiveDays===1?'':'s'} en total</div>
-  </div>
+  <div class="sk-layout">
+    <div class="tc-card sk-cal">
+      <div class="sk-year">
+        <button class="btn btn-ghost" data-action="calendar-year" data-delta="-1" ${year<=2025?'disabled':''}>${ic('chevron')} ${year-1}</button>
+        <strong>${year}</strong>
+        <button class="btn btn-ghost" data-action="calendar-year" data-delta="1" ${year>=now.getFullYear()+1?'disabled':''}>${year+1} ${ic('chevron')}</button>
+      </div>
+      <div class="cal-wrap">${months}</div>
+      ${legend}
+    </div>
 
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
-    <div class="section-title" style="margin:0;">Tus eventos <span class="mono" style="font-size:11px; color:var(--muted); text-transform:none;">(${sortedEvents.length}/${CALENDAR_EVENTS_MAX})</span></div>
-    ${STATE.calendarAddingEvent || sortedEvents.length>=CALENDAR_EVENTS_MAX ? '' : `<button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="calendar-add-event">+ Añadir evento</button>`}
-  </div>
-  ${(!STATE.calendarAddingEvent && sortedEvents.length>=CALENDAR_EVENTS_MAX) ? `<div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:12.5px;">Has llegado al máximo de ${CALENDAR_EVENTS_MAX} eventos. Elimina alguno para añadir otro.</div>` : ''}
-  ${addForm}
-  ${sortedEvents.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:18px;">${eventRows}</div>` : `<div class="empty-state" style="padding:20px;">Todavía no has añadido ningún evento. Usa "+ Añadir evento" para marcar tu próximo examen, prueba física o reunión.</div>`}
-
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-    <button class="btn btn-ghost" data-action="calendar-year" data-delta="-1" ${year<=2025?'disabled':''}>‹ ${year-1}</button>
-    <div style="font-weight:700; font-size:16px;">${year}</div>
-    <button class="btn btn-ghost" data-action="calendar-year" data-delta="1" ${year>=now.getFullYear()+1?'disabled':''}>${year+1} ›</button>
-  </div>
-
-  <div class="cal-wrap">${months}</div>
-  <div style="display:flex; align-items:center; gap:6px; margin-top:14px; font-size:11.5px; color:var(--muted); flex-wrap:wrap;">
-    <div class="cal-cell active" style="width:12px; height:12px; font-size:0;"></div> Día con actividad
-    <div class="cal-cell" style="width:12px; height:12px; font-size:0; margin-left:10px;"></div> Sin actividad
-    ${Object.values(CALENDAR_EVENT_TYPES).map(t=>`<span style="display:inline-flex; align-items:center; gap:5px; margin-left:10px;"><span style="width:10px; height:10px; border-radius:50%; background:${t.color}; display:inline-block; flex-shrink:0;"></span>${t.label}</span>`).join('')}
+    <aside class="tc-card sk-events">
+      <div class="tc-card-head">
+        <span class="tc-step">${ic('calendar')}</span>
+        <div><h3>Tus eventos</h3><small>${sortedEvents.length} de ${CALENDAR_EVENTS_MAX} · exámenes, pruebas y reuniones</small></div>
+      </div>
+      ${STATE.calendarAddingEvent || atMax ? '' : `<button class="btn btn-primary sk-add" data-action="calendar-add-event">${ic('plus')} Añadir evento</button>`}
+      ${atMax && !STATE.calendarAddingEvent ? `<div class="st-note" style="margin-bottom:12px;">Has llegado al máximo de ${CALENDAR_EVENTS_MAX} eventos. Elimina alguno para añadir otro.</div>` : ''}
+      ${addForm}
+      ${sortedEvents.length>0 ? `<div class="sk-eventlist">${eventRows}</div>` : (STATE.calendarAddingEvent ? '' : `<div class="ac-empty" style="padding:24px 14px;">${ic('calendar')}<strong>Sin eventos todavía</strong><span>Marca tu próximo examen o prueba para tenerlo siempre a la vista.</span></div>`)}
+    </aside>
   </div>
   `;
 }
