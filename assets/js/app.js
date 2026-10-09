@@ -1346,6 +1346,7 @@ function viewFor(v){
 }
 
 function dailyChallengeView(){
+  const ic = (n) => shellIcon(n);
   const heartsR = STATE.storage.heartsRecord || 0;
   const sdR = STATE.storage.suddenDeathRecord || 0;
   const taR = STATE.storage.timeAttackRecord || 0;
@@ -1355,9 +1356,9 @@ function dailyChallengeView(){
   let rankLabel = '...', modeLabel = '...';
   if(summary){
     const ranked = [
-      { label:'❤️ Corazones', rank: summary.hearts },
-      { label:'💀 M. Súbita', rank: summary.suddendeath },
-      { label:'⏱️ Contrarreloj', rank: summary.timeattack }
+      { label:'Corazones', rank: summary.hearts },
+      { label:'M. Súbita', rank: summary.suddendeath },
+      { label:'Contrarreloj', rank: summary.timeattack }
     ].filter(e => e.rank !== null && e.rank !== undefined);
     if(ranked.length>0){
       ranked.sort((a,b)=>a.rank-b.rank);
@@ -1369,127 +1370,96 @@ function dailyChallengeView(){
     }
   }
 
+  const mode = (cls, icon, title, desc, rec, facts, tagline, action) => `
+  <article class="lg-mode ${cls}">
+    <div class="lg-mode-top">
+      <span class="lg-mode-ic">${ic(icon)}</span>
+      <div class="lg-mode-rec"><small>Récord personal</small><b>${rec}</b></div>
+    </div>
+    <h3>${title}</h3>
+    <p>${desc}</p>
+    <ul class="lg-facts">${facts.map(f => `<li>${ic(f[0])}<span>${f[1]}</span></li>`).join('')}</ul>
+    <div class="lg-tag">${tagline}</div>
+    <button class="btn lg-play" data-action="${action}">${ic('play')} Jugar ahora</button>
+  </article>`;
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <div class="app-header league-hero">
-    <div class="eyebrow">Zona competitiva</div>
-    <h2>WEREF League</h2>
-    <div class="sub">Compite, supera tus récords y escala posiciones en la clasificación global.</div>
-    <div class="league-summary-row">
-      <div class="league-stat"><div class="num">${totalRecord}</div><div class="label">Récord total</div></div>
-      <div class="league-stat"><div class="num">${rankLabel}</div><div class="label">Tu posición</div></div>
-      <div class="league-stat"><div class="num">${modeLabel}</div><div class="label">Mejor modo</div></div>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Zona competitiva</div>
+      <h1>WEREF League</h1>
+      <p>Compite, supera tus récords y escala posiciones en la clasificación global.</p>
+      <div class="lg-hero-actions">
+        <button class="btn btn-yellow" data-action="leaderboard">${ic('trophy')} Clasificación global</button>
+      </div>
     </div>
-  </div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${totalRecord}</b><span>Récord total</span></div>
+      <div class="lg-stat"><b>${rankLabel}</b><span>Tu posición</span></div>
+      <div class="lg-stat"><b>${modeLabel}</b><span>Mejor modo</span></div>
+    </div>
+  </section>
 
-  <button class="qcard league-lb-card" data-action="leaderboard">
-    <div style="font-size:30px; flex-shrink:0;">🏆</div>
-    <div style="flex:1; min-width:0;">
-      <div style="font-weight:700; font-size:16px;">Clasificación Global</div>
-      <div style="font-size:12.5px; color:var(--muted); margin-top:2px;">Consulta el Top 25 y descubre en qué posición te encuentras.</div>
-    </div>
-    <div class="arrow">›</div>
-  </button>
-
-  <div class="qcard league-mode-card" style="border-left:4px solid var(--red); margin-bottom:16px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-        <div style="font-size:28px; flex-shrink:0;">❤️</div>
-        <div>
-          <div style="font-weight:700; font-size:16px;">Modo Corazones</div>
-          <div style="font-size:12px; color:var(--muted); margin-top:2px;">Consigue aciertos antes de perder tus 3 vidas.</div>
-        </div>
-      </div>
-      <div style="text-align:right; flex-shrink:0;">
-        <div style="font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">🔥 Récord personal</div>
-        <div class="mono" style="font-weight:700; font-size:24px; color:var(--red);">${heartsR}</div>
-      </div>
-    </div>
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-      <span class="league-fact">❤️ 3 vidas</span>
-      <span class="league-fact">🎯 Sin límite de tiempo</span>
-      <span class="league-fact">🏆 Récord: ${heartsR}</span>
-    </div>
-    <div style="font-size:12px; color:var(--muted); font-style:italic; margin-bottom:12px;">¿Serás capaz de superar tu récord?</div>
-    <button class="btn btn-primary" style="width:100%; background:var(--red);" data-action="start-hearts">▶️ Jugar ahora</button>
-  </div>
-
-  <div class="qcard league-mode-card" style="border-left:4px solid var(--pitch); margin-bottom:16px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-        <div style="font-size:28px; flex-shrink:0;">💀</div>
-        <div>
-          <div style="font-weight:700; font-size:16px;">Muerte Súbita</div>
-          <div style="font-size:12px; color:var(--muted); margin-top:2px;">Una sola vida. Falla una vez y quedas eliminado.</div>
-        </div>
-      </div>
-      <div style="text-align:right; flex-shrink:0;">
-        <div style="font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">🔥 Récord personal</div>
-        <div class="mono" style="font-weight:700; font-size:24px; color:var(--pitch);">${sdR}</div>
-      </div>
-    </div>
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-      <span class="league-fact">☠️ Una única vida</span>
-      <span class="league-fact">⚡ Cada fallo termina la partida</span>
-      <span class="league-fact">🏆 Récord: ${sdR}</span>
-    </div>
-    <div style="font-size:12px; color:var(--muted); font-style:italic; margin-bottom:12px;">Solo los mejores llegan al Top 25.</div>
-    <button class="btn" style="width:100%; background:var(--pitch); color:#fff;" data-action="start-suddendeath">▶️ Jugar ahora</button>
-  </div>
-
-  <div class="qcard league-mode-card" style="border-left:4px solid var(--accent); margin-bottom:16px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
-      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-        <div style="font-size:28px; flex-shrink:0;">⏱️</div>
-        <div>
-          <div style="font-weight:700; font-size:16px;">Contrarreloj</div>
-          <div style="font-size:12px; color:var(--muted); margin-top:2px;">60 segundos en el reloj. Sin vidas, pero cada fallo resta.</div>
-        </div>
-      </div>
-      <div style="text-align:right; flex-shrink:0;">
-        <div style="font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">🔥 Récord personal</div>
-        <div class="mono" style="font-weight:700; font-size:24px; color:var(--accent-dark);">${formatScore(taR)}</div>
-      </div>
-    </div>
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-      <span class="league-fact">⏱️ 60 segundos</span>
-      <span class="league-fact">❌ Cada fallo resta 0,5 puntos</span>
-      <span class="league-fact">🏆 Récord: ${formatScore(taR)}</span>
-    </div>
-    <div style="font-size:12px; color:var(--muted); font-style:italic; margin-bottom:12px;">Cada punto cuenta para la clasificación.</div>
-    <button class="btn" style="width:100%; background:var(--accent); color:#fff;" data-action="start-timeattack">▶️ Jugar ahora</button>
+  <div class="lg-section-head"><h2>Elige tu modo de juego</h2><span>Cada partida cuenta para la clasificación</span></div>
+  <div class="lg-modes">
+    ${mode('hearts', 'heart', 'Modo Corazones', 'Consigue aciertos antes de perder tus 3 vidas.', heartsR,
+      [['heart','3 vidas'], ['target','Sin límite de tiempo'], ['trophy','Récord: ' + heartsR]],
+      '¿Serás capaz de superar tu récord?', 'start-hearts')}
+    ${mode('sudden', 'skull', 'Muerte Súbita', 'Una sola vida. Falla una vez y quedas eliminado.', sdR,
+      [['skull','Una única vida'], ['zap','Cada fallo termina la partida'], ['trophy','Récord: ' + sdR]],
+      'Solo los mejores llegan al Top 25.', 'start-suddendeath')}
+    ${mode('attack', 'timer', 'Contrarreloj', '60 segundos en el reloj. Sin vidas, pero cada fallo resta.', formatScore(taR),
+      [['timer','60 segundos'], ['zap','Cada fallo resta 0,5 puntos'], ['trophy','Récord: ' + formatScore(taR)]],
+      'Cada punto cuenta para la clasificación.', 'start-timeattack')}
   </div>
   `;
 }
 
 function leaderboardView(){
+  const ic = (n) => shellIcon(n);
   const mode = STATE.leaderboardMode || 'hearts';
-  const modeLabel = mode==='hearts' ? '❤️ Modo Corazones' : mode==='suddendeath' ? '💀 Muerte Súbita' : '⏱️ Contrarreloj';
+  const modeTitle = mode==='hearts' ? 'Modo Corazones' : mode==='suddendeath' ? 'Muerte Súbita' : 'Contrarreloj';
   const medals = ['🥇','🥈','🥉'];
   const s = STATE.myStanding;
   const participants = STATE.leaderboardParticipants;
+  const list = STATE.leaderboard || [];
 
-  const rows = (STATE.leaderboard||[]).map((r,i) => {
+  const pod = (r, i) => {
     const isMe = r.user_id === CURRENT_USER_ID;
-    const topCls = i===0 ? ' lb-top1' : i===1 ? ' lb-top2' : i===2 ? ' lb-top3' : '';
+    const level = rankLevelFor(r.rank_name);
+    return `<div class="lg-pod p${i+1}${isMe?' me':''}">
+      <div class="lg-pod-medal">${medals[i]}</div>
+      <div class="lg-pod-flag">${COUNTRY_FLAGS[r.country] || '🏳️'}</div>
+      <div class="lg-pod-name">${esc(r.username || 'Anónimo')}${isMe?' <span class="lb-you-badge">TÚ</span>':''}</div>
+      <div class="lg-pod-score">${formatScore(Number(r.score))}</div>
+      <div class="lg-pod-meta">${esc(r.rank_name || '')}${level?' · Nivel '+level:''} · ${r.points||0} XP</div>
+    </div>`;
+  };
+  const podium = list.length ? `<div class="lg-podium">${list.slice(0,3).map(pod).join('')}</div>` : '';
+
+  const rows = list.slice(3).map((r,k) => {
+    const i = k + 3;
+    const isMe = r.user_id === CURRENT_USER_ID;
     const level = rankLevelFor(r.rank_name);
     return `
-    <div class="lb-row${topCls}${isMe?' lb-me':''}" style="animation-delay:${Math.min(i*0.03,0.4)}s;">
-      ${i<3 ? `<div class="lb-medal">${medals[i]}</div>` : `<div class="lb-rank">${i+1}</div>`}
+    <div class="lb-row${isMe?' lb-me':''}" style="animation-delay:${Math.min(k*0.03,0.4)}s;">
+      <div class="lb-rank">${i+1}</div>
       <div class="lb-flag">${COUNTRY_FLAGS[r.country] || '🏳️'}</div>
       <div class="lb-info">
-        <div class="lb-name">${i===0?'👑 ':''}${esc(r.username || 'Anónimo')}${isMe?' <span class="lb-you-badge">TÚ</span>':''}</div>
-        <div class="lb-meta">⭐ ${esc(r.rank_name || '')}${level?' · Nivel '+level:''} · ${r.points||0} XP</div>
+        <div class="lb-name">${esc(r.username || 'Anónimo')}${isMe?' <span class="lb-you-badge">TÚ</span>':''}</div>
+        <div class="lb-meta">${esc(r.rank_name || '')}${level?' · Nivel '+level:''} · ${r.points||0} XP</div>
       </div>
       <div class="lb-score">${formatScore(Number(r.score))}</div>
     </div>`;
   }).join('');
 
-  let summaryStripHtml = `
-  <div class="lb-summary-row">
-    <div class="lb-summary-stat"><div class="num">${participants===null?'...':participants}</div><div class="label">👥 Participantes</div></div>
-    <div class="lb-summary-stat"><div class="num">${s?'#'+s.rank:(s===false?'—':'...')}</div><div class="label">🏆 Tu posición</div></div>
-    <div class="lb-summary-stat"><div class="num">${s?formatScore(Number(s.score)):(s===false?'—':'...')}</div><div class="label">🎯 Récord personal</div></div>
+  const stat = (icon, val, label) => `<div class="lg-sum"><span class="lg-sum-ic">${ic(icon)}</span><div><b>${val}</b><small>${label}</small></div></div>`;
+  const summaryStripHtml = `
+  <div class="lg-sumrow">
+    ${stat('users', participants===null?'...':participants, 'Participantes')}
+    ${stat('trophy', s?'#'+s.rank:(s===false?'—':'...'), 'Tu posición')}
+    ${stat('target', s?formatScore(Number(s.score)):(s===false?'—':'...'), 'Récord personal')}
   </div>`;
 
   let standingHtml = '';
@@ -1503,14 +1473,14 @@ function leaderboardView(){
       ? `Te faltan <strong>${formatScore(Number(s.milestoneScore) - Number(s.score))}</strong> puntos para entrar en el Top ${s.milestoneRank}.`
       : (s.rank<=10 ? '¡Ya estás en el Top 10! 🎉' : '');
     standingHtml = `
-    <div style="text-align:center; color:var(--muted); font-size:11px; margin:18px 0 10px; letter-spacing:0.06em;">━━━━━━━━━━━━━━━━━━<br>TU POSICIÓN</div>
     <div class="lb-standing">
+      <div class="lg-stand-title">Tu posición</div>
       <div style="display:flex; align-items:center; gap:10px;">
-        <div class="lb-rank" style="color:rgba(255,255,255,0.7);">#${s.rank}</div>
+        <div class="lb-rank" style="color:rgba(255,255,255,0.7); width:auto; min-width:34px;">#${s.rank}</div>
         <div class="lb-flag">${COUNTRY_FLAGS[s.country] || '🏳️'}</div>
         <div class="lb-info">
           <div class="lb-name">${esc(s.username || 'Tú')} <span class="lb-you-badge">TÚ</span></div>
-          <div class="lb-meta">⭐ ${esc(s.rank_name || '')}${level?' · Nivel '+level:''} · ${s.points||0} XP</div>
+          <div class="lb-meta">${esc(s.rank_name || '')}${level?' · Nivel '+level:''} · ${s.points||0} XP</div>
         </div>
         <div class="lb-score">${formatScore(Number(s.score))}</div>
       </div>
@@ -1522,21 +1492,33 @@ function leaderboardView(){
       ` : ''}
     </div>`;
   } else if(s===false){
-    standingHtml = `<div class="empty-state" style="padding:16px;">Todavía no tienes puntuación en este modo. ¡Juega una partida para entrar en la clasificación!</div>`;
+    standingHtml = `<div class="lg-empty-me">${ic('flame')}<div>Todavía no tienes puntuación en este modo. ¡Juega una partida para entrar en la clasificación!</div></div>`;
   }
+
+  const seg = (m, icon, label) => `<button class="${mode===m?'active':''}" data-action="leaderboard-tab" data-mode="${m}">${ic(icon)}<span>${label}</span></button>`;
 
   return `
   <button class="backbtn" data-action="dailyChallenge">&larr; WEREF League</button>
-  <h2 style="margin-bottom:4px;">🏆 Clasificación Global</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:14px; font-size:13.5px;">${modeLabel} · Top 25</div>
-  <div class="tabs" style="margin-bottom:14px;">
-    <button class="tab ${mode==='hearts'?'active':''}" data-action="leaderboard-tab" data-mode="hearts">❤️ Corazones</button>
-    <button class="tab ${mode==='suddendeath'?'active':''}" data-action="leaderboard-tab" data-mode="suddendeath">💀 Muerte Súbita</button>
-    <button class="tab ${mode==='timeattack'?'active':''}" data-action="leaderboard-tab" data-mode="timeattack">⏱️ Contrarreloj</button>
-  </div>
+  <section class="lg-hero lg-hero-sm">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Clasificación global · Top 25</div>
+      <h1>${modeTitle}</h1>
+    </div>
+    <div class="lg-seg">
+      ${seg('hearts', 'heart', 'Corazones')}
+      ${seg('suddendeath', 'skull', 'Muerte Súbita')}
+      ${seg('timeattack', 'timer', 'Contrarreloj')}
+    </div>
+  </section>
   ${summaryStripHtml}
-  <div class="qcard" style="padding:6px 10px;">${rows || '<div class="empty-state">Todavía no hay puntuaciones en este modo. ¡Sé el primero!</div>'}</div>
-  ${standingHtml}
+  <div class="lg-lb-layout ${standingHtml ? 'has-side' : ''}">
+    <div class="lg-lb-main">
+      ${podium}
+      ${rows ? `<div class="qcard" style="padding:6px 10px;">${rows}</div>` : ''}
+      ${list.length ? '' : '<div class="empty-state">Todavía no hay puntuaciones en este modo. ¡Sé el primero!</div>'}
+    </div>
+    ${standingHtml ? `<aside class="lg-lb-side">${standingHtml}</aside>` : ''}
+  </div>
   `;
 }
 
