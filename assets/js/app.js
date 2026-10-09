@@ -137,11 +137,21 @@ async function loadAdminStats(page){
     const { data, error } = await supabaseClient.functions.invoke('admin-stats', { body: {
       page: STATE.adminUsersPage,
       search: STATE.adminUsersFilter.search,
-      status: STATE.adminUsersFilter.status
+      status: STATE.adminUsersFilter.status,
+      role: STATE.adminUsersFilter.role
     } });
     if(error || !data || data.error){ STATE.adminStats = false; render(); return; }
     const ov = STATE.roleOverrides || {};
     (data.users || []).forEach(u => { if(u.role === undefined){ if(ov[u.id]) u.role = ov[u.id]; } else { delete ov[u.id]; } });
+    // Si la función del servidor aún no filtra por rol, se filtra aquí la página recibida.
+    const roleFilter = STATE.adminUsersFilter.role;
+    if(roleFilter && roleFilter !== 'all' && data.roleFilter === undefined){
+      const roleOfU = (u) => u.email === DEV_USER_EMAIL ? 'master' : (u.role || 'user');
+      data.users = (data.users || []).filter(u => roleOfU(u) === roleFilter);
+      data.usersFilteredTotal = data.users.length;
+      data.usersTotalPages = 1;
+      data.usersPage = 1;
+    }
     STATE.adminStats = data;
     STATE.adminUsersPage = data.usersPage || 1;
     render();
@@ -272,7 +282,7 @@ let STATE = {
   suggestions: [],
   adminStats: null,
   adminUsersPage: 1,
-  adminUsersFilter: { search: '', status: 'all' },
+  adminUsersFilter: { search: '', status: 'all', role: 'all' },
   confirmDeleteUserId: null,
   leaderboard: [],
   leaderboardMode: 'hearts',
@@ -4171,6 +4181,12 @@ function adminDashboardView(){
         <option value="inactive" ${STATE.adminUsersFilter.status==='inactive'?'selected':''}>Inactivos</option>
         <option value="blocked" ${STATE.adminUsersFilter.status==='blocked'?'selected':''}>Bloqueados</option>
       </select>
+      <select id="admin-users-role" style="flex:1; min-width:150px; margin:0;" aria-label="Filtrar por rol">
+        <option value="all" ${STATE.adminUsersFilter.role==='all'?'selected':''}>Todos los roles</option>
+        <option value="master" ${STATE.adminUsersFilter.role==='master'?'selected':''}>Maestro</option>
+        <option value="developer" ${STATE.adminUsersFilter.role==='developer'?'selected':''}>Desarrolladores</option>
+        <option value="user" ${STATE.adminUsersFilter.role==='user'?'selected':''}>Usuarios normales</option>
+      </select>
     </div>
     <div class="ad-users">${rowsHtml || `<div class="st-note">Ningún usuario coincide con este filtro.</div>`}</div>
     ${s.usersTotalPages > 1 ? `
@@ -4568,6 +4584,8 @@ function bindEvents(){
   }
   const adminUsersStatus = document.getElementById('admin-users-status');
   if(adminUsersStatus){ adminUsersStatus.addEventListener('change', (e)=>{ STATE.adminUsersFilter.status = e.target.value; loadAdminStats(1); }); }
+  const adminUsersRole = document.getElementById('admin-users-role');
+  if(adminUsersRole){ adminUsersRole.addEventListener('change', (e)=>{ STATE.adminUsersFilter.role = e.target.value; loadAdminStats(1); }); }
 }
 
 function onAction(e){

@@ -232,6 +232,11 @@ Deno.serve(async (req: Request) => {
       sortedUsers = sortedUsers.filter((u) => !u.blocked && !(u._lastSignInAt && new Date(u._lastSignInAt) >= thirtyDaysAgo));
     }
 
+    const roleFilter = String(body.role || "all");
+    if (roleFilter === "master" || roleFilter === "developer" || roleFilter === "user") {
+      sortedUsers = sortedUsers.filter((u) => u.role === roleFilter);
+    }
+
     const usersPageSize = 15;
     const usersTotalPages = Math.max(1, Math.ceil(sortedUsers.length / usersPageSize));
     const usersPage = Math.min(Math.max(1, parseInt(body.page, 10) || 1), usersTotalPages);
@@ -249,6 +254,7 @@ Deno.serve(async (req: Request) => {
         blocked,
         developers: allUsers.filter((u) => roleOf(u) === "developer").length,
         callerRole,
+        roleFilter,
         chart,
         users,
         usersFilteredTotal: sortedUsers.length,
