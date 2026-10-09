@@ -66,7 +66,7 @@ function shellSection(view){
   if(v === 'academia' || v === 'savedBrowse' || v.startsWith('myBank') || v.startsWith('myDocs')) return 'academia';
   if(['stats', 'recentPerformance', 'streakCalendar'].includes(v)) return 'stats';
   if(v === 'achievements') return 'logros';
-  if(v === 'committeeTraining') return 'formacion';
+  if(['committeeTraining', 'committeeAdmin', 'committeeBuilder', 'committeeTestDetail'].includes(v)) return 'formacion';
   if(v.startsWith('committee')) return 'comite';
   if(v === 'database') return 'db';
   if(v === 'suggestionsAdmin') return 'sug';
@@ -87,7 +87,7 @@ function shellNavItems(){
     { id: 'stats', label: 'Estadísticas', icon: 'chart', action: 'stats' },
     { id: 'logros', label: 'Rango e insignias', icon: 'award', action: 'achievements' }
   ];
-  if(st && (st.is_admin || (st.is_member && cmSettingsOn()))) main.push({ id: 'comite', label: 'CTA BAGES', icon: 'users', action: 'committee-open', badge: (st.is_admin && !cmSettingsOn()) ? 'Borrador' : 0 });
+  if(st && (st.is_admin || (st.is_member && cmSettingsOn()))) main.push({ id: 'comite', label: 'CTA BAGES', icon: 'users', action: 'committee-open', badge: (st.is_admin && !cmSettingsOn()) ? 'Cerrado' : 0 });
   const admin = [];
   if(isDevUser()){
     const reports = Object.keys(STATE.reports || {}).length;
