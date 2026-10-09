@@ -1488,3 +1488,72 @@ input.tc-count{max-width:140px; font:700 26px 'Oswald'; text-align:center; margi
 .lw-reset .btn{display:inline-flex; align-items:center; gap:7px; font-size:13px; padding:8px 16px;}
 .lw-reset .btn svg{width:15px; height:15px;}
 @media (max-width:760px){ .lw-extras{grid-template-columns:1fr;} }
+
+/* ---------- Pantalla de preguntas (test) ---------- */
+.qz{max-width:780px; margin:0 auto;}
+.qz-top{display:flex; align-items:center; gap:12px; background:linear-gradient(135deg,var(--pitch),var(--pitch-dark)); color:#fff; border-radius:16px; padding:12px 16px; box-shadow:0 10px 26px rgba(0,0,0,0.16);}
+.qz-exit{display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:10px; padding:7px 12px 7px 6px; cursor:pointer; font:600 13px 'Work Sans';}
+.qz-exit svg{width:16px; height:16px; transform:rotate(180deg);}
+.qz-exit:hover{background:rgba(255,255,255,0.18);}
+.qz-info{flex:1; min-width:0; display:flex; flex-direction:column;}
+.qz-info strong{font:700 17px 'Oswald'; letter-spacing:0.01em;}
+.qz-info small{font-size:12px; color:rgba(255,255,255,0.65);}
+.qz-status{flex-shrink:0;}
+.qz-chip{display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.22); border-radius:20px; padding:7px 14px; font:700 14px 'JetBrains Mono'; color:var(--yellow);}
+.qz-chip svg{width:16px; height:16px;}
+.qz-chip.soft{color:#fff; font:600 12.5px 'Work Sans';}
+.qz-chip.bad{color:#FF8A80;}
+.qz-chip #timer-display{color:inherit;}
+.qz-hearts{display:inline-flex; gap:4px;}
+.qz-heart{color:rgba(255,255,255,0.25); display:flex;}
+.qz-heart svg{width:22px; height:22px;}
+.qz-heart.on{color:#FF5A4F;}
+.qz-heart.on svg{fill:#FF5A4F;}
+.qz-progress{height:6px; border-radius:4px; background:var(--line); overflow:hidden; margin:12px 4px 16px;}
+.qz-progress i{display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--yellow)); transition:width .25s ease;}
+.qz-card{background:#fff; border:1px solid var(--line); border-radius:20px; padding:26px 28px; box-shadow:var(--shadow);}
+.qz-tag{display:inline-block; font:700 11px 'JetBrains Mono'; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent-dark); background:#FFF1E8; border-radius:20px; padding:4px 12px;}
+.qz-text{font:600 20px 'Work Sans'; line-height:1.45; letter-spacing:0; margin:14px 0 20px; color:var(--ink);}
+.qz-options{display:flex; flex-direction:column; gap:10px;}
+.qz .option{display:flex; align-items:flex-start; gap:14px; margin:0; padding:14px 16px; border:1.5px solid var(--line); border-radius:14px; font-size:15px; line-height:1.45; transition:border-color .12s ease, background .12s ease, transform .12s ease;}
+.qz .option .letter{width:30px; height:30px; flex-shrink:0; margin:0; border-radius:50%; background:var(--chalk); border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font:700 13px 'Oswald'; color:var(--pitch);}
+.qz .option .opt-text{flex:1; min-width:0; padding-top:4px;}
+.qz button.option:hover:not(:disabled){border-color:var(--accent); background:#FFF9F5; transform:translateX(2px);}
+.qz .option.selected{border-color:var(--accent); background:#FFF5EF;}
+.qz .option.selected .letter{background:var(--accent); border-color:var(--accent); color:#fff;}
+.qz .option.correct{border-color:var(--green-ok); background:#EAF7EF;}
+.qz .option.correct .letter{background:var(--green-ok); border-color:var(--green-ok); color:#fff;}
+.qz .option.incorrect{border-color:var(--red); background:#FDECEC;}
+.qz .option.incorrect .letter{background:var(--red); border-color:var(--red); color:#fff;}
+.qz .option:disabled:not(.correct):not(.incorrect){opacity:0.6;}
+.qz-feedback{display:flex; align-items:center; gap:14px; margin-top:18px; padding:14px 16px; border-radius:14px; animation:cardIn .28s cubic-bezier(.2,.8,.2,1);}
+.qz-feedback.ok{background:#EAF7EF; border:1px solid #BFE6CF;}
+.qz-feedback.bad{background:#FDECEC; border:1px solid #F3C4C4;}
+.qz-fb-ic{width:40px; height:40px; flex-shrink:0; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff;}
+.qz-fb-ic svg{width:22px; height:22px; stroke-width:2.6;}
+.qz-feedback.ok .qz-fb-ic{background:var(--green-ok);}
+.qz-feedback.bad .qz-fb-ic{background:var(--red);}
+.qz-feedback strong{display:block; font-size:15px;}
+.qz-feedback small{display:block; font-size:13px; color:var(--muted); margin-top:2px;}
+.qz-alert{margin-top:10px; padding:12px 14px; background:#FDECEC; border-radius:12px; font-size:14px; font-weight:700; color:var(--red);}
+.qz-expl{margin-top:12px; padding:12px 16px; background:#FFF6DE; border-left:3px solid var(--yellow); border-radius:10px; font-size:13.5px; line-height:1.55;}
+.qz-links{display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px solid var(--line);}
+.qz-links .flag-btn{display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line); background:var(--chalk); border-radius:20px; padding:7px 14px; font-size:12.5px;}
+.qz-links .flag-btn svg{width:14px; height:14px;}
+.qz-links .flag-btn.on{background:#FFF6DE; border-color:#F0E4B4; color:var(--yellow-ink);}
+.qz-links .flag-btn.on svg{fill:var(--yellow);}
+.qz-actions{display:flex; justify-content:space-between; gap:10px; margin-top:16px;}
+.qz-actions .btn{padding:13px 22px; font-size:14.5px;}
+.qz-actions .btn-primary:only-child, .qz-actions .btn:last-child{margin-left:auto;}
+.qz .q-dots{margin-top:20px;}
+@media (max-width:640px){
+  .qz-card{padding:18px 16px; border-radius:16px;}
+  .qz-text{font-size:17.5px;}
+  .qz-exit span{display:none;}
+  .qz-exit{padding:7px;}
+  .qz-top{padding:10px 12px;}
+  .qz-actions{position:sticky; bottom:0; background:linear-gradient(180deg,rgba(250,250,248,0),var(--chalk) 35%); padding:14px 0 6px; margin-top:12px;}
+  .qz-actions .btn{flex:1; padding:13px 10px;}
+  .qz-links .flag-btn{font-size:12px; padding:6px 11px;}
+}
+.qz .option:disabled{color:var(--ink);} .qz .option:disabled:not(.correct):not(.incorrect){color:var(--muted);}
