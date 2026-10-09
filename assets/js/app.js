@@ -2620,14 +2620,14 @@ function homeView(){
   const failRatio = os.attempted > 0 ? Math.round(fs2.total / os.attempted * 100) : 0;
   cards += `<button class="law-card law-card-failed" data-action="open-law" data-law="failed">
       <div class="law-icon">${ic('repeat')}</div>
-      <div class="law-num">${fs2.total}</div>
+      <div class="law-num">R</div>
       <div class="law-name">Sala de Repaso</div>
       <div class="hard-tag">Preguntas falladas</div>
       <div class="law-meta">
         <div class="law-bar-bg"><div class="law-bar-fill" style="width:${failRatio}%; background:var(--yellow-ink);"></div></div>
         <div class="law-pct">${failRatio}%</div>
       </div>
-      <div class="law-sub">${fs2.total === 0 ? '<span class="law-sub-muted">¡Nada pendiente!</span>' : 'Preguntas por repasar'}</div>
+      <div class="law-sub">${fs2.total === 0 ? '<span class="law-sub-muted">¡Nada pendiente!</span>' : fs2.total + (fs2.total === 1 ? ' pregunta por repasar' : ' preguntas por repasar')}</div>
     </button>
     <button class="law-card law-card-hard" data-action="open-law" data-law="hard">
       <div class="law-icon">${ic('shield')}</div>
