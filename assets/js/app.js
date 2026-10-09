@@ -1573,87 +1573,93 @@ function myBankCategoryCounts(){
   return counts;
 }
 
+function acHero(eyebrow, title, desc, stats, actions, small){
+  return `<section class="lg-hero ac-hero${small ? ' lg-hero-sm' : ''}">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">${eyebrow}</div>
+      <h1>${title}</h1>
+      ${desc ? `<p>${desc}</p>` : ''}
+      ${actions ? `<div class="ac-hero-actions">${actions}</div>` : ''}
+    </div>
+    ${stats && stats.length ? `<div class="lg-hero-stats">${stats.map(s => `<div class="lg-stat"><b>${s[0]}</b><span>${s[1]}</span></div>`).join('')}</div>` : ''}
+  </section>`;
+}
+
 function myBankCategoriesView(){
+  const ic = (n) => shellIcon(n);
   const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
   const counts = myBankCategoryCounts();
   const uncategorizedCount = counts[''] || 0;
   const totalQuestions = (STATE.storage.myBank||[]).length;
 
-  const rows = cats.map(c => `
-    <button class="breakdown-row" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="${esc(c)}">
-      <span>📂 ${esc(c)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${counts[c]||0})</span></span>
-      <span class="arrow">›</span>
-    </button>
-  `).join('');
+  const folder = (cat, label, n, iconName) => `
+    <div class="ac-folder">
+      <button class="ac-folder-open" data-action="mybank-open-category" data-category="${esc(cat)}">
+        <span class="ac-folder-ic ${iconName === 'folder' ? '' : 'muted'}">${ic(iconName)}</span>
+        <span class="ac-folder-txt"><strong>${esc(label)}</strong><small>${n} ${n === 1 ? 'pregunta' : 'preguntas'}</small></span>
+      </button>
+      <span class="ac-folder-go">${ic('chevron')}</span>
+    </div>`;
+  const rows = cats.map(c => folder(c, c, counts[c]||0, 'folder')).join('');
+
+  const actions = `
+    ${STATE.myBankCreatingCategory ? '' : `<button class="btn btn-yellow" data-action="mybank-new-category">${ic('plus')} Nueva categoría</button>`}
+    ${totalQuestions>0 ? `<button class="btn btn-glass" data-action="mybank-train-config">${ic('play')} Crear test</button>` : ''}`;
 
   return `
   <button class="backbtn" data-action="academia">&larr; Mi Academia</button>
-  <h2 style="margin-bottom:4px;">📁 Mis Propios Test</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu contenido privado, organizado por categorías. Nadie más puede verlo, y nunca se mezcla con las preguntas de WEREF.</div>
-
-  <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
-    ${STATE.myBankCreatingCategory ? '' : `<button class="btn btn-primary" data-action="mybank-new-category">+ Nueva categoría</button>`}
-    ${totalQuestions>0 ? `<button class="btn btn-secondary" data-action="mybank-train-config">▶ Crear test</button>` : ''}
-  </div>
+  ${acHero('Mi Academia · Privado', 'Mis propios test', 'Tu contenido privado, organizado por categorías. Nadie más puede verlo, y nunca se mezcla con las preguntas de WEREF.',
+    [[cats.length, 'Categorías'], [totalQuestions, 'Preguntas'], [uncategorizedCount, 'Sin categoría']], actions)}
 
   ${STATE.myBankCreatingCategory ? `
-  <div class="qcard" style="margin-bottom:14px;">
-    <label>Nombre de la categoría</label>
+  <div class="tc-card" style="margin-bottom:16px;">
+    <div class="tc-card-head"><span class="tc-step">${ic('plus')}</span><div><h3>Nueva categoría</h3><small>Agrupa tus preguntas por tema</small></div></div>
     <input type="text" id="mybank-new-category-name" placeholder="Ej: Tema 3, Casos prácticos..." maxlength="60">
-    <div style="margin-top:12px; display:flex; gap:10px;">
+    <div style="margin-top:14px; display:flex; gap:10px;">
       <button class="btn btn-primary" data-action="mybank-save-category">Crear</button>
       <button class="btn btn-ghost" data-action="mybank-cancel-category">Cancelar</button>
     </div>
   </div>
   ` : ''}
 
-  <div class="qcard" style="padding:6px 10px; margin-bottom:14px;">
-    ${rows || (uncategorizedCount===0 ? `<div class="empty-state">Todavía no has creado ninguna categoría. Crea la primera para empezar a añadir preguntas.</div>` : '')}
-  </div>
-
-  ${uncategorizedCount>0 ? `
-  <button class="breakdown-row" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mybank-open-category" data-category="">
-    <span>🗂️ Sin categoría <span class="mono" style="color:var(--muted); font-size:11.5px;">(${uncategorizedCount})</span></span>
-    <span class="arrow">›</span>
-  </button>
-  ` : ''}
+  <div class="lg-section-head"><h2>Tus categorías</h2><span>${cats.length === 0 ? 'Crea la primera para empezar' : 'Entra en una para ver y añadir preguntas'}</span></div>
+  ${(rows || uncategorizedCount>0) ? `<div class="ac-folders">${rows}${uncategorizedCount>0 ? folder('', 'Sin categoría', uncategorizedCount, 'file') : ''}</div>` :
+    `<div class="ac-empty">${ic('folder')}<strong>Todavía no has creado ninguna categoría</strong><span>Crea la primera para empezar a añadir preguntas.</span></div>`}
   `;
 }
 
 function myBankCategoryView(){
+  const ic = (n) => shellIcon(n);
   const cat = STATE.myBankViewCategory;
   const catLabel = cat === '' ? 'Sin categoría' : cat;
   const list = (STATE.storage.myBank||[]).filter(q => (q.category||'') === cat);
   const s = (STATE.myBankSearch||'').trim().toLowerCase();
   const filtered = s ? list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o=>o.toLowerCase().includes(s))) : list;
   const letters = ['a','b','c','d'];
-  const rows = filtered.map(q => `
-    <div class="qcard" style="margin-bottom:10px;">
-      <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
-      ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
-      ${q.explanation ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="mybank-edit" data-qid="${q.id}">Editar</button>
-        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="mybank-delete" data-qid="${q.id}">Eliminar</button>
+  const rows = filtered.map((q, n) => `
+    <article class="ac-q">
+      <div class="ac-q-head"><span class="ac-q-num">${n+1}</span><div class="ac-q-text">${esc(q.question)}</div></div>
+      <div class="ac-q-opts">${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}</div>
+      ${q.explanation ? `<div class="ac-q-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+      <div class="ac-q-actions">
+        <button class="btn btn-ghost" data-action="mybank-edit" data-qid="${q.id}">${ic('pencil')} Editar</button>
+        <button class="btn btn-ghost btn-danger-soft" data-action="mybank-delete" data-qid="${q.id}">${ic('trash')} Eliminar</button>
       </div>
-    </div>
+    </article>
   `).join('');
+  const actions = `
+    <button class="btn btn-yellow" data-action="mybank-add">${ic('plus')} Añadir pregunta aquí</button>
+    ${cat!=='' ? `<button class="btn btn-glass" data-action="mybank-delete-category" data-category="${esc(cat)}">${ic('trash')} Eliminar categoría</button>` : ''}`;
   return `
-  <button class="backbtn" data-action="mybank">&larr; Mis Propios Test</button>
-  <h2 style="margin-bottom:4px;">📂 ${esc(catLabel)}</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${list.length} pregunta(s)</div>
+  <button class="backbtn" data-action="mybank">&larr; Mis propios test</button>
+  ${acHero('Mis propios test · Categoría', esc(catLabel), '', [[list.length, list.length === 1 ? 'Pregunta' : 'Preguntas']], actions, true)}
 
-  <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
-    <button class="btn btn-primary" data-action="mybank-add">+ Añadir pregunta aquí</button>
-    ${cat!=='' ? `<button class="btn btn-ghost" style="color:var(--red); border-color:#F0C4C4;" data-action="mybank-delete-category" data-category="${esc(cat)}">Eliminar categoría</button>` : ''}
+  <div class="ac-search">
+    ${ic('search')}
+    <input type="text" id="mybank-search" placeholder="Busca en esta categoría por palabra..." value="${esc(STATE.myBankSearch)}" maxlength="100" aria-label="Buscar en esta categoría">
   </div>
 
-  <div class="qcard" style="margin-bottom:14px;">
-    <label>Buscar en esta categoría</label>
-    <input type="text" id="mybank-search" placeholder="Busca por palabra..." value="${esc(STATE.myBankSearch)}" maxlength="100">
-  </div>
-
-  ${rows || `<div class="empty-state">${list.length===0 ? 'Todavía no hay preguntas en esta categoría.' : 'Ninguna coincide con esa búsqueda.'}</div>`}
+  ${rows ? `<div class="ac-qlist">${rows}</div>` : `<div class="ac-empty">${ic('pencil')}<strong>${list.length===0 ? 'Todavía no hay preguntas en esta categoría' : 'Ninguna coincide con esa búsqueda'}</strong><span>${list.length===0 ? 'Pulsa "Añadir pregunta aquí" para crear la primera.' : 'Prueba con otra palabra.'}</span></div>`}
   `;
 }
 
@@ -1670,30 +1676,106 @@ function myBankFormView(){
   const getOption = (i) => (draft && draft.options && draft.options[i]!==undefined) ? (draft.options[i]||'') : (editing && editing.options[i]!==undefined ? editing.options[i] : '');
   let correctVal = draft ? draft.correct : (editing ? editing.correct : 'a');
   if(!letters.includes(correctVal)) correctVal = letters[0];
+  const backAct = STATE.myBankViewCategory!==null ? 'mybank-open-category-back' : 'mybank';
   return `
-  <button class="backbtn" data-action="${STATE.myBankViewCategory!==null ? 'mybank-open-category-back' : 'mybank'}">&larr; Volver</button>
-  <h2>${editing ? 'Editar pregunta' : 'Añadir pregunta'}</h2>
-  <div class="qcard">
-    <label>Categoría</label>
-    <select id="mb-category">
-      ${cats.map(c=>`<option value="${esc(c)}" ${catVal===c?'selected':''}>${esc(c)}</option>`).join('')}
-      <option value="" ${catVal===''?'selected':''}>Sin categoría</option>
-    </select>
-    <label>Pregunta</label>
-    <textarea id="mb-question" placeholder="Escribe el enunciado..." maxlength="1000">${esc(getField('question'))}</textarea>
-    <label>Número de opciones de respuesta</label>
-    <select id="mb-option-count">
-      ${[3,4].map(n=>`<option value="${n}" ${optionCount===n?'selected':''}>${n} opciones</option>`).join('')}
-    </select>
-    ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="mb-${l}" maxlength="300" value="${esc(getOption(i))}">`).join('')}
-    <label>Respuesta correcta</label>
-    <select id="mb-correct">${letters.map(l=>`<option value="${l}" ${correctVal===l?'selected':''}>${l})</option>`).join('')}</select>
-    <label>Explicación o anotación personal (opcional)</label>
-    <textarea id="mb-explanation" placeholder="Por qué es correcta, referencia, apunte propio..." maxlength="2000">${esc(getField('explanation'))}</textarea>
-    <div style="margin-top:18px; display:flex; gap:10px;">
-      <button class="btn btn-primary" data-action="mybank-save" ${editing ? `data-qid="${editing.id}"` : ''}>Guardar</button>
-      <button class="btn btn-ghost" data-action="${STATE.myBankViewCategory!==null ? 'mybank-open-category-back' : 'mybank'}">Cancelar</button>
+  <button class="backbtn" data-action="${backAct}">&larr; Volver</button>
+  ${acHero('Mis propios test', editing ? 'Editar pregunta' : 'Añadir pregunta', '', [], '', true)}
+  <div class="ac-form">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Enunciado</h3><small>Categoría y texto de la pregunta</small></div></div>
+      <label>Categoría</label>
+      <select id="mb-category">
+        ${cats.map(c=>`<option value="${esc(c)}" ${catVal===c?'selected':''}>${esc(c)}</option>`).join('')}
+        <option value="" ${catVal===''?'selected':''}>Sin categoría</option>
+      </select>
+      <label>Pregunta</label>
+      <textarea id="mb-question" placeholder="Escribe el enunciado..." maxlength="1000">${esc(getField('question'))}</textarea>
     </div>
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Respuestas</h3><small>Indica cuál es la correcta</small></div></div>
+      <label>Número de opciones de respuesta</label>
+      <select id="mb-option-count">
+        ${[3,4].map(n=>`<option value="${n}" ${optionCount===n?'selected':''}>${n} opciones</option>`).join('')}
+      </select>
+      ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="mb-${l}" maxlength="300" value="${esc(getOption(i))}">`).join('')}
+      <label>Respuesta correcta</label>
+      <select id="mb-correct">${letters.map(l=>`<option value="${l}" ${correctVal===l?'selected':''}>${l})</option>`).join('')}</select>
+    </div>
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">3</span><div><h3>Explicación</h3><small>Opcional · solo la ves tú</small></div></div>
+      <textarea id="mb-explanation" placeholder="Por qué es correcta, referencia, apunte propio..." maxlength="2000">${esc(getField('explanation'))}</textarea>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-primary" data-action="mybank-save" ${editing ? `data-qid="${editing.id}"` : ''}>Guardar</button>
+      <button class="btn btn-ghost" data-action="${backAct}">Cancelar</button>
+    </div>
+  </div>
+  `;
+}
+
+function myBankTrainConfigView(){
+  const ic = (n) => shellIcon(n);
+  const cfg = STATE.myBankTrainCfg;
+  const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
+  const scoped = cfg.categories.length ? (STATE.storage.myBank||[]).filter(q=>cfg.categories.includes(q.category)) : (STATE.storage.myBank||[]);
+  const opt = (on, action, attrs, icon, title, text) => `<button class="tc-opt ${on?'active':''}" data-action="${action}" ${attrs}>
+    <span class="tc-opt-ic">${ic(icon)}</span><span class="tc-opt-body"><strong>${title}</strong><small>${text}</small></span><span class="tc-opt-check">${ic('check')}</span>
+  </button>`;
+  const timerText = cfg.timerMode==='none' ? 'Sin límite' : cfg.timerMode==='total' ? cfg.minutes + ' min en total' : cfg.secondsPerQuestion + ' s por pregunta';
+  const catsText = cfg.categories.length===0 ? 'Todas las categorías' : cfg.categories.length===1 ? cfg.categories[0] : cfg.categories.length + ' categorías';
+  return `
+  <button class="backbtn" data-action="mybank">&larr; Mis propios test</button>
+  ${acHero('Mis propios test', 'Crear test', 'Elige qué categorías incluir, cuántas preguntas quieres y cómo quieres el tiempo.', [[scoped.length, 'Preguntas disponibles']], '', true)}
+  <div class="tc-layout">
+    <div class="tc-main">
+      ${cats.length>0 ? `
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Categorías incluidas</h3><small>Sin selección entran todas</small></div>
+          <button class="tc-all ${cfg.categories.length===0?'active':''}" data-action="mybank-toggle-train-category" data-category="all">Todas</button></div>
+        <div class="tc-rules">${cats.map(c=>`<button class="tc-rule ${cfg.categories.includes(c)?'active':''}" data-action="mybank-toggle-train-category" data-category="${esc(c)}"><b>${esc(c.charAt(0).toUpperCase())}</b><span>${esc(c)}</span></button>`).join('')}</div>
+      </div>` : ''}
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${cats.length>0?2:1}</span><div><h3>Número de preguntas</h3><small>Máximo 50 por examen</small></div></div>
+        <input type="text" inputmode="numeric" id="mybank-cfg-count" class="tc-count" value="${Math.min(cfg.count,50)}" maxlength="2">
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${cats.length>0?3:2}</span><div><h3>Tipo de test</h3><small>Cuándo quieres ver las soluciones</small></div></div>
+        <div class="tc-opts two">
+          ${opt(cfg.feedbackMode==='exam', 'mybank-set-feedback-mode', 'data-fbmode="exam"', 'target', 'Modo examen', 'No sabrás los resultados hasta terminar todo el test.')}
+          ${opt(cfg.feedbackMode==='study', 'mybank-set-feedback-mode', 'data-fbmode="study"', 'book', 'Modo estudio', 'Verás si aciertas y la solución al momento de responder cada pregunta.')}
+        </div>
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${cats.length>0?4:3}</span><div><h3>Temporización</h3><small>Controla el ritmo del examen</small></div></div>
+        <div class="tc-opts three">
+          ${opt(cfg.timerMode==='none', 'mybank-set-timer-mode', 'data-mode="none"', 'repeat', 'Sin límite', 'A tu ritmo.')}
+          ${opt(cfg.timerMode==='total', 'mybank-set-timer-mode', 'data-mode="total"', 'clock', 'Tiempo total', 'Un reloj para todo el examen.')}
+          ${opt(cfg.timerMode==='perQuestion', 'mybank-set-timer-mode', 'data-mode="perQuestion"', 'zap', 'Por pregunta', 'Cada pregunta con su cuenta atrás.')}
+        </div>
+        ${cfg.timerMode==='total' ? `
+          <div class="tc-field"><label for="mybank-cfg-minutes">Minutos para todo el examen</label>
+          <input type="text" inputmode="numeric" id="mybank-cfg-minutes" value="${cfg.minutes}" maxlength="4"></div>
+        ` : ''}
+        ${cfg.timerMode==='perQuestion' ? `
+          <div class="tc-field"><label for="mybank-cfg-seconds-per-q">Segundos por pregunta</label>
+          <input type="text" inputmode="numeric" id="mybank-cfg-seconds-per-q" value="${cfg.secondsPerQuestion}" maxlength="4"></div>
+        ` : ''}
+      </div>
+    </div>
+
+    <aside class="tc-side">
+      <div class="tc-summary">
+        <div class="tc-summary-title">Resumen del examen</div>
+        <div class="tc-sum-row">${ic('folder')}<span>Categorías</span><b>${esc(catsText)}</b></div>
+        <div class="tc-sum-row">${ic('target')}<span>Tipo</span><b>${cfg.feedbackMode==='study' ? 'Modo estudio' : 'Modo examen'}</b></div>
+        <div class="tc-sum-row">${ic('clock')}<span>Tiempo</span><b>${timerText}</b></div>
+        <div class="tc-sum-row">${ic('shuffle')}<span>Banco</span><b>${scoped.length} preguntas</b></div>
+        <button class="btn btn-yellow tc-go" data-action="mybank-generate-exam">${ic('play')} Generar examen</button>
+      </div>
+    </aside>
   </div>
   `;
 }
@@ -1757,56 +1839,6 @@ function myBankDeleteCategory(name){
   STATE.myBankViewCategory = null;
   STATE.view = 'myBank';
   render();
-}
-
-function myBankTrainConfigView(){
-  const cfg = STATE.myBankTrainCfg;
-  const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
-  const scoped = cfg.categories.length ? (STATE.storage.myBank||[]).filter(q=>cfg.categories.includes(q.category)) : (STATE.storage.myBank||[]);
-  return `
-  <button class="backbtn" data-action="mybank">&larr; Mis Propios Test</button>
-  <h2 style="margin-bottom:4px;">Crear test · Mis Propios Test</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Elige qué categorías incluir, cuántas preguntas quieres y cómo quieres el tiempo.</div>
-  <div class="qcard">
-    ${cats.length>0 ? `
-    <label>Categorías incluidas</label>
-    <div class="tabs">
-      <button class="tab ${cfg.categories.length===0?'active':''}" data-action="mybank-toggle-train-category" data-category="all">Todas</button>
-      ${cats.map(c=>`<button class="tab ${cfg.categories.includes(c)?'active':''}" data-action="mybank-toggle-train-category" data-category="${esc(c)}">${esc(c)}</button>`).join('')}
-    </div>
-    ` : ''}
-    <div style="font-size:12px; color:var(--muted); margin-top:8px;">${scoped.length} pregunta(s) disponibles con esta selección.</div>
-
-    <label>Número de preguntas <span class="mono" style="color:var(--muted); text-transform:none; font-weight:500;">(máximo 50)</span></label>
-    <input type="text" inputmode="numeric" id="mybank-cfg-count" value="${Math.min(cfg.count,50)}" maxlength="2">
-
-    <label>Tipo de test</label>
-    <div class="tabs">
-      <button class="tab ${cfg.feedbackMode==='exam'?'active':''}" data-action="mybank-set-feedback-mode" data-fbmode="exam">Modo examen</button>
-      <button class="tab ${cfg.feedbackMode==='study'?'active':''}" data-action="mybank-set-feedback-mode" data-fbmode="study">Modo estudio</button>
-    </div>
-    <div style="font-size:12px; color:var(--muted); margin-top:4px;">${cfg.feedbackMode==='study' ? 'Verás si aciertas y la solución al momento de responder cada pregunta.' : 'No sabrás los resultados hasta terminar todo el test.'}</div>
-
-    <label>Temporización</label>
-    <div class="tabs">
-      <button class="tab ${cfg.timerMode==='none'?'active':''}" data-action="mybank-set-timer-mode" data-mode="none">Sin límite</button>
-      <button class="tab ${cfg.timerMode==='total'?'active':''}" data-action="mybank-set-timer-mode" data-mode="total">Tiempo total</button>
-      <button class="tab ${cfg.timerMode==='perQuestion'?'active':''}" data-action="mybank-set-timer-mode" data-mode="perQuestion">Tiempo por pregunta</button>
-    </div>
-    ${cfg.timerMode==='total' ? `
-      <label>Minutos para todo el examen</label>
-      <input type="text" inputmode="numeric" id="mybank-cfg-minutes" value="${cfg.minutes}" maxlength="4">
-    ` : ''}
-    ${cfg.timerMode==='perQuestion' ? `
-      <label>Segundos por pregunta</label>
-      <input type="text" inputmode="numeric" id="mybank-cfg-seconds-per-q" value="${cfg.secondsPerQuestion}" maxlength="4">
-    ` : ''}
-
-    <div style="margin-top:20px;">
-      <button class="btn btn-primary" data-action="mybank-generate-exam">Generar examen</button>
-    </div>
-  </div>
-  `;
 }
 
 function startMyBankTraining(opts){
@@ -1997,72 +2029,76 @@ function myDocsSort(list, dateField){
 }
 
 function myDocRowHtml(d, showPath){
+  const ic = (n) => shellIcon(n);
   const pathLabel = showPath ? myDocsBreadcrumb(d.folderId).map(f=>f.name).join(' / ') || 'Mis Documentos' : null;
   const folderOptions = [{id:'', name:'Mis Documentos', depth:0}].concat(myDocsAllFoldersFlat().map(x=>({id:x.folder.id, name:x.folder.name, depth:x.depth})));
   return `
-    <div class="qcard" style="margin-bottom:10px;">
-      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
-        <div>
-          <div style="font-weight:700; font-size:14px;">📄 ${esc(d.name)}</div>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${formatBytes(d.size)} · ${new Date(d.createdAt).toLocaleDateString('es-ES')}${pathLabel ? ' · 📁 '+esc(pathLabel) : ''}</div>
+    <article class="ac-doc">
+      <div class="ac-doc-main">
+        <span class="ac-doc-ic">${ic('file')}</span>
+        <div class="ac-doc-info">
+          <strong>${esc(d.name)}</strong>
+          <small>${formatBytes(d.size)} · ${new Date(d.createdAt).toLocaleDateString('es-ES')}${pathLabel ? ' · ' + esc(pathLabel) : ''}</small>
         </div>
       </div>
       ${STATE.myDocsEditingNotesId===d.id ? `
-        <textarea id="mydoc-notes-${d.id}" placeholder="Notas o comentario personal..." maxlength="1000" style="margin-top:10px;">${esc(d.notes||'')}</textarea>
+        <textarea id="mydoc-notes-${d.id}" placeholder="Notas o comentario personal..." maxlength="1000" style="margin-top:12px;">${esc(d.notes||'')}</textarea>
         <div style="display:flex; gap:8px; margin-top:8px;">
           <button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-save-notes" data-id="${d.id}">Guardar nota</button>
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-cancel-notes">Cancelar</button>
         </div>
-      ` : (d.notes ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px; white-space:pre-wrap;">${esc(d.notes)}</div>` : '')}
+      ` : (d.notes ? `<div class="ac-doc-note">${esc(d.notes)}</div>` : '')}
       ${STATE.myDocsMovingId===d.id ? `
-        <div style="margin-top:10px;">
+        <div style="margin-top:12px;">
           <label>Mover a</label>
           <select id="mydocs-move-select-${d.id}">
             ${folderOptions.map(f=>`<option value="${f.id}" ${d.folderId===(f.id||null)?'selected':''}>${'— '.repeat(f.depth)}${esc(f.name)}</option>`).join('')}
           </select>
         </div>
       ` : ''}
-      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <button class="btn btn-secondary" style="padding:7px 14px; font-size:13px;" data-action="mydocs-preview" data-id="${d.id}">Ver</button>
-        ${STATE.myDocsEditingNotesId===d.id ? '' : `<button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="mydocs-edit-notes" data-id="${d.id}">${d.notes?'Editar nota':'+ Nota'}</button>`}
-        ${STATE.myDocsMovingId===d.id ? '' : `<button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="mydocs-move" data-id="${d.id}">Mover</button>`}
-        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="mydocs-delete" data-id="${d.id}">Eliminar</button>
+      <div class="ac-doc-actions">
+        <button class="btn btn-primary" data-action="mydocs-preview" data-id="${d.id}">${ic('eye')} Ver</button>
+        ${STATE.myDocsEditingNotesId===d.id ? '' : `<button class="btn btn-ghost" data-action="mydocs-edit-notes" data-id="${d.id}">${ic('pencil')} ${d.notes?'Editar nota':'Nota'}</button>`}
+        ${STATE.myDocsMovingId===d.id ? '' : `<button class="btn btn-ghost" data-action="mydocs-move" data-id="${d.id}">${ic('folder')} Mover</button>`}
+        <button class="btn btn-ghost btn-danger-soft" data-action="mydocs-delete" data-id="${d.id}">${ic('trash')} Eliminar</button>
       </div>
-    </div>
+    </article>
   `;
 }
 
 function myDocsView(){
+  const ic = (n) => shellIcon(n);
   const folderId = STATE.myDocsCurrentFolder;
   const s = (STATE.myDocsSearch||'').trim().toLowerCase();
+  const totalDocs = (STATE.storage.myDocs||[]).length;
+
   const sortControls = `
-    <div class="tabs">
-      <button class="tab ${STATE.myDocsSortBy==='name'?'active':''}" data-action="mydocs-set-sort" data-sort="name">Nombre</button>
-      <button class="tab ${STATE.myDocsSortBy==='date'?'active':''}" data-action="mydocs-set-sort" data-sort="date">Fecha</button>
+    <div class="ac-seg">
+      <button class="${STATE.myDocsSortBy==='name'?'active':''}" data-action="mydocs-set-sort" data-sort="name">Nombre</button>
+      <button class="${STATE.myDocsSortBy==='date'?'active':''}" data-action="mydocs-set-sort" data-sort="date">Fecha</button>
     </div>
   `;
-  const uploadControls = `
-  <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-    ${STATE.myDocsCreatingFolder ? '' : `<button class="btn btn-secondary" data-action="mydocs-new-folder">+ Nueva carpeta</button>`}
-    <label class="btn btn-primary" style="cursor:pointer; margin:0;">
-      ${STATE.myDocsUploading ? 'Subiendo...' : '+ Subir PDF'}
+  const heroActions = `
+    ${STATE.myDocsCreatingFolder ? '' : `<button class="btn btn-glass" data-action="mydocs-new-folder">${ic('plus')} Nueva carpeta</button>`}
+    <label class="btn btn-yellow" style="cursor:pointer; margin:0;">
+      ${ic('plus')} ${STATE.myDocsUploading ? 'Subiendo...' : 'Subir PDF'}
       <input type="file" id="mydocs-upload-input" accept="application/pdf" style="display:none;" ${STATE.myDocsUploading?'disabled':''}>
     </label>
-    <span style="font-size:12px; color:var(--muted);">o arrastra un PDF aquí</span>
-  </div>
+    <span class="ac-last">o arrastra un PDF aquí</span>`;
+  const toolbar = `
   ${STATE.myDocsCreatingFolder ? `
-  <div class="qcard" style="margin-bottom:14px;">
-    <label>Nombre de la carpeta</label>
+  <div class="tc-card" style="margin-bottom:14px;">
+    <div class="tc-card-head"><span class="tc-step">${ic('folder')}</span><div><h3>Nueva carpeta</h3><small>Organiza tus documentos</small></div></div>
     <input type="text" id="mydocs-new-folder-name" placeholder="Ej: Temporada 2025/2026" maxlength="60">
-    <div style="margin-top:12px; display:flex; gap:10px;">
+    <div style="margin-top:14px; display:flex; gap:10px;">
       <button class="btn btn-primary" data-action="mydocs-save-folder">Crear</button>
       <button class="btn btn-ghost" data-action="mydocs-cancel-folder">Cancelar</button>
     </div>
   </div>
   ` : ''}
-  <div class="qcard" style="margin-bottom:14px;">
-    <label>Buscar en todos tus documentos y carpetas</label>
-    <input type="text" id="mydocs-search" placeholder="Busca por nombre o nota..." value="${esc(STATE.myDocsSearch)}" maxlength="100">
+  <div class="ac-search">
+    ${ic('search')}
+    <input type="text" id="mydocs-search" placeholder="Busca en todos tus documentos y carpetas por nombre o nota..." value="${esc(STATE.myDocsSearch)}" maxlength="100" aria-label="Buscar documentos">
   </div>
   `;
 
@@ -2070,19 +2106,22 @@ function myDocsView(){
     const matchFolders = (STATE.storage.myDocsFolders||[]).filter(f=>f.name.toLowerCase().includes(s));
     const matchDocs = (STATE.storage.myDocs||[]).filter(d => d.name.toLowerCase().includes(s) || (d.notes||'').toLowerCase().includes(s));
     const folderRows = myDocsSort(matchFolders,'createdAt').map(f => `
-      <button class="breakdown-row" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;" data-action="mydocs-open-folder" data-folder="${f.id}">
-        <span>📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11px;">${esc(myDocsBreadcrumb(f.parentId).map(x=>x.name).join(' / ') || 'Mis Documentos')}</span></span>
-        <span class="arrow">›</span>
-      </button>`).join('');
+      <div class="ac-folder">
+        <button class="ac-folder-open" data-action="mydocs-open-folder" data-folder="${f.id}">
+          <span class="ac-folder-ic">${ic('folder')}</span>
+          <span class="ac-folder-txt"><strong>${esc(f.name)}</strong><small>${esc(myDocsBreadcrumb(f.parentId).map(x=>x.name).join(' / ') || 'Mis Documentos')}</small></span>
+        </button>
+        <span class="ac-folder-go">${ic('chevron')}</span>
+      </div>`).join('');
     const docRows = myDocsSort(matchDocs,'createdAt').map(d=>myDocRowHtml(d, true)).join('');
     return `
     <button class="backbtn" data-action="academia">&larr; Mi Academia</button>
-    <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
-    <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Resultados de "${esc(STATE.myDocsSearch)}" en todas las carpetas.</div>
+    ${acHero('Mi Academia · Documentos', 'Resultados de búsqueda', `Resultados de "${esc(STATE.myDocsSearch)}" en todas las carpetas.`,
+      [[matchFolders.length, 'Carpetas'], [matchDocs.length, 'Documentos']], heroActions)}
     <div id="mydocs-dropzone" class="mydocs-dropzone">
-    ${uploadControls}
-    ${matchFolders.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:14px;">${folderRows}</div>` : ''}
-    ${docRows || `<div class="empty-state">Nada coincide con esa búsqueda.</div>`}
+    ${toolbar}
+    ${matchFolders.length>0 ? `<div class="ac-folders" style="margin-bottom:14px;">${folderRows}</div>` : ''}
+    ${docRows ? `<div class="ac-doclist">${docRows}</div>` : `<div class="ac-empty">${ic('search')}<strong>Nada coincide con esa búsqueda</strong><span>Prueba con otra palabra.</span></div>`}
     </div>
     `;
   }
@@ -2092,14 +2131,16 @@ function myDocsView(){
   const trail = myDocsBreadcrumb(folderId);
 
   const breadcrumbHtml = `
-    <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="">📁 Mis Documentos</button>
-    ${trail.map(f=>`<span style="color:var(--muted);">/</span> <button class="btn btn-ghost" style="padding:4px 10px; font-size:12.5px;" data-action="mydocs-open-folder" data-folder="${f.id}">${esc(f.name)}</button>`).join(' ')}
+    <div class="ac-crumbs">
+      <button class="${trail.length===0 ? 'active' : ''}" data-action="mydocs-open-folder" data-folder="">${ic('folder')} Mis Documentos</button>
+      ${trail.map((f,i)=>`<span>/</span><button class="${i===trail.length-1 ? 'active' : ''}" data-action="mydocs-open-folder" data-folder="${f.id}">${esc(f.name)}</button>`).join('')}
+    </div>
   `;
 
   const folderRows = subfolders.map(f => {
     const childCount = myDocsChildFolders(f.id).length + myDocsInFolder(f.id).length;
     if(STATE.myDocsRenamingFolderId===f.id){
-      return `<div style="padding:10px 0; border-bottom:1px solid var(--line);">
+      return `<div class="ac-folder editing">
         <input type="text" id="mydocs-rename-input-${f.id}" value="${esc(f.name)}" maxlength="60">
         <div style="display:flex; gap:8px; margin-top:8px;">
           <button class="btn btn-primary" style="padding:6px 12px; font-size:12.5px;" data-action="mydocs-save-rename-folder" data-folder="${f.id}">Guardar</button>
@@ -2112,8 +2153,8 @@ function myDocsView(){
       const folderOptions = [{id:'', name:'Mis Documentos', depth:0}].concat(
         myDocsAllFoldersFlat().filter(x=>!excludeIds.has(x.folder.id)).map(x=>({id:x.folder.id, name:x.folder.name, depth:x.depth}))
       );
-      return `<div style="padding:10px 0; border-bottom:1px solid var(--line);">
-        <div style="font-size:13px; margin-bottom:8px;">📂 ${esc(f.name)}</div>
+      return `<div class="ac-folder editing">
+        <div style="font-size:13px; font-weight:700; margin-bottom:8px;">${esc(f.name)}</div>
         <select id="mydocs-move-folder-select-${f.id}">
           ${folderOptions.map(o=>`<option value="${o.id}" ${f.parentId===(o.id||null)?'selected':''}>${'— '.repeat(o.depth)}${esc(o.name)}</option>`).join('')}
         </select>
@@ -2124,34 +2165,50 @@ function myDocsView(){
       </div>`;
     }
     return `
-    <div class="breakdown-row">
-      <button style="flex:1; text-align:left; background:none; border:none; cursor:pointer; font:inherit; color:inherit; padding:0;" data-action="mydocs-open-folder" data-folder="${f.id}">
-        📂 ${esc(f.name)} <span class="mono" style="color:var(--muted); font-size:11.5px;">(${childCount})</span>
+    <div class="ac-folder">
+      <button class="ac-folder-open" data-action="mydocs-open-folder" data-folder="${f.id}">
+        <span class="ac-folder-ic">${ic('folder')}</span>
+        <span class="ac-folder-txt"><strong>${esc(f.name)}</strong><small>${childCount} ${childCount === 1 ? 'elemento' : 'elementos'}</small></span>
       </button>
-      <button class="icon-btn" title="Renombrar" data-action="mydocs-rename-folder" data-folder="${f.id}">✏️</button>
-      <button class="icon-btn" title="Mover" data-action="mydocs-move-folder" data-folder="${f.id}">➡️</button>
-      <button class="icon-btn" title="Eliminar" data-action="mydocs-delete-folder" data-folder="${f.id}">🗑️</button>
-      <span class="arrow">›</span>
+      <div class="ac-folder-tools">
+        <button class="icon-btn" title="Renombrar" data-action="mydocs-rename-folder" data-folder="${f.id}">${ic('pencil')}</button>
+        <button class="icon-btn" title="Mover" data-action="mydocs-move-folder" data-folder="${f.id}">${ic('chevron')}</button>
+        <button class="icon-btn danger" title="Eliminar" data-action="mydocs-delete-folder" data-folder="${f.id}">${ic('trash')}</button>
+      </div>
     </div>`;
   }).join('');
 
   const docRows = docs.map(d=>myDocRowHtml(d, false)).join('');
+  const title = trail.length ? esc(trail[trail.length-1].name) : 'Mis Documentos';
 
   return `
   <button class="backbtn" data-action="academia">&larr; Mi Academia</button>
-  <h2 style="margin-bottom:4px;">📁 Mis Documentos</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:13.5px;">Tus PDFs privados (informes, circulares, evaluaciones...). Solo tú puedes verlos. Máximo 20 MB por archivo.</div>
+  ${acHero('Mi Academia · Documentos', title, 'Tus PDFs privados (informes, circulares, evaluaciones...). Solo tú puedes verlos. Máximo 20 MB por archivo.',
+    [[subfolders.length, 'Carpetas'], [docs.length, 'Aquí'], [totalDocs, 'En total']], heroActions)}
 
-  <div style="margin-bottom:10px; font-size:13px;">${breadcrumbHtml}</div>
-  <div style="margin-bottom:14px;">${sortControls}</div>
+  <div class="ac-bar">${breadcrumbHtml}${sortControls}</div>
 
   <div id="mydocs-dropzone" class="mydocs-dropzone">
-  ${uploadControls}
+  ${toolbar}
 
-  ${subfolders.length>0 ? `<div class="qcard" style="padding:6px 10px; margin-bottom:14px;">${folderRows}</div>` : ''}
+  ${subfolders.length>0 ? `<div class="lg-section-head"><h2>Carpetas</h2></div><div class="ac-folders" style="margin-bottom:18px;">${folderRows}</div>` : ''}
 
-  ${docRows || `<div class="empty-state">${subfolders.length===0 && docs.length===0 ? 'Esta carpeta está vacía. Crea una subcarpeta o sube tu primer PDF.' : 'Ningún documento coincide con esa búsqueda.'}</div>`}
+  ${docRows ? `<div class="lg-section-head"><h2>Documentos</h2></div><div class="ac-doclist">${docRows}</div>` : `<div class="ac-empty">${ic('file')}<strong>${subfolders.length===0 && docs.length===0 ? 'Esta carpeta está vacía' : 'No hay documentos en esta carpeta'}</strong><span>Crea una subcarpeta o sube tu primer PDF.</span></div>`}
   </div>
+  `;
+}
+
+function myDocsPreviewView(){
+  const ic = (n) => shellIcon(n);
+  const doc = (STATE.storage.myDocs||[]).find(d=>d.id===STATE.myDocsPreviewId);
+  if(!doc) return `<button class="backbtn" data-action="mydocs">&larr; Mis Documentos</button><div class="ac-empty">${ic('file')}<strong>Documento no encontrado</strong></div>`;
+  const actions = STATE.myDocsPreviewUrl ? `<a href="${STATE.myDocsPreviewUrl}" target="_blank" rel="noopener" class="btn btn-yellow" style="text-decoration:none;">${ic('eye')} Abrir en pestaña nueva</a>` : '';
+  return `
+  <button class="backbtn" data-action="mydocs">&larr; Mis Documentos</button>
+  ${acHero('Documento', esc(doc.name), `${formatBytes(doc.size)} · ${new Date(doc.createdAt).toLocaleDateString('es-ES')}`, [], actions, true)}
+  ${STATE.myDocsPreviewUrl
+    ? `<iframe class="ac-pdf" src="${STATE.myDocsPreviewUrl}"></iframe>`
+    : `<div class="ac-empty">${ic('clock')}<strong>Cargando documento...</strong></div>`}
   `;
 }
 
@@ -2293,20 +2350,6 @@ async function myDocsPreview(id){
     STATE.toast = 'No se pudo cargar el documento.';
     render();
   }
-}
-
-function myDocsPreviewView(){
-  const doc = (STATE.storage.myDocs||[]).find(d=>d.id===STATE.myDocsPreviewId);
-  if(!doc) return `<button class="backbtn" data-action="mydocs">&larr; Mis Documentos</button><div class="empty-state">Documento no encontrado.</div>`;
-  return `
-  <button class="backbtn" data-action="mydocs">&larr; Mis Documentos</button>
-  <h2 style="margin-bottom:4px; font-size:16px;">📄 ${esc(doc.name)}</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:12px; font-size:12.5px;">${formatBytes(doc.size)} · ${new Date(doc.createdAt).toLocaleDateString('es-ES')}</div>
-  ${STATE.myDocsPreviewUrl
-    ? `<iframe src="${STATE.myDocsPreviewUrl}" style="width:100%; height:70vh; border:1.5px solid var(--line); border-radius:10px; background:#fff;"></iframe>
-       <div style="margin-top:10px;"><a href="${STATE.myDocsPreviewUrl}" target="_blank" rel="noopener" class="btn btn-ghost" style="text-decoration:none; display:inline-block;">Abrir en pestaña nueva</a></div>`
-    : `<div class="empty-state">Cargando documento...</div>`}
-  `;
 }
 
 async function deleteMyDoc(id){
@@ -2899,6 +2942,8 @@ function lawMenuView(){
        <div><div class="name">Preguntas Guardadas <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Guardadas por ti</span></div><div class="stat">${s.total>0 ? s.total+' pregunta(s) guardadas' : 'Nada guardado todavía'}</div></div>`
     : `<div class="num">${law}</div>
        <div><div class="name">${esc(LAW_NAMES[law])}</div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`;
+  const savedHero = isSaved ? acHero('Mi Academia · Privado', 'Preguntas guardadas', 'Todas las preguntas que has marcado para repasar más adelante.',
+    [[s.total, s.total === 1 ? 'Guardada' : 'Guardadas'], [s.completionPct + '%', 'Repasado'], [s.attempted>0 ? s.accuracyPct + '%' : '—', 'Acierto']]) : '';
   const backAction = isSaved ? 'academia' : 'home';
   const backLabel = isSaved ? '&larr; Mi Academia' : '&larr; Todas las reglas';
   if(isFailed && s.total===0){
@@ -2918,16 +2963,14 @@ function lawMenuView(){
   if(isSaved && s.total===0){
     return `
     <button class="backbtn" data-action="${backAction}">${backLabel}</button>
-    <div class="big-law-head">${headHtml}</div>
-    <div class="empty-state">Todavía no has guardado ninguna pregunta. Pulsa "📚 Guardar en Mi Lista" durante un test para añadirla aquí.</div>
+    ${savedHero}
+    <div class="ac-empty">${shellIcon('star')}<strong>Todavía no has guardado ninguna pregunta</strong><span>Pulsa "Guardar en Mi Lista" durante un test para añadirla aquí.</span></div>
     `;
   }
   const scopeOf = isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isAssistants?' de árbitros asistentes':isSaved?' de tu lista':' de esta regla';
   return `
   <button class="backbtn" data-action="${backAction}">${backLabel}</button>
-  <div class="big-law-head">
-    ${headHtml}
-  </div>
+  ${isSaved ? savedHero : `<div class="big-law-head">${headHtml}</div>`}
   ${isFailed ? `<div style="background:rgba(91,67,0,0.1); border:1px solid rgba(91,67,0,0.18); border-radius:12px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:var(--ink); line-height:1.5;">Todas las preguntas que falles se añadirán automáticamente a la Sala de Repaso. Solo desaparecerán cuando las aciertes 3 veces consecutivas; si vuelves a fallar una, el contador empezará de nuevo.</div>` : ''}
   <div class="menu-list">
     <button class="menu-item" data-action="start-quiz" data-law="${law}" data-mode="short">
@@ -3416,31 +3459,34 @@ function trainConfigView(){
 }
 
 function savedBrowseView(){
+  const ic = (n) => shellIcon(n);
   const ids = Object.keys(STATE.storage.saved);
   const letters=['a','b','c','d'];
   if(ids.length===0){
-    return `<button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas Guardadas</button>
-    <div class="empty-state">Ya no te quedan preguntas guardadas.</div>`;
+    return `<button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas guardadas</button>
+    <div class="ac-empty">${ic('star')}<strong>Ya no te quedan preguntas guardadas</strong><span>Cuando guardes alguna durante un test aparecerá aquí.</span></div>`;
   }
   if(STATE.savedBrowseIdx >= ids.length) STATE.savedBrowseIdx = ids.length - 1;
   if(STATE.savedBrowseIdx < 0) STATE.savedBrowseIdx = 0;
   const id = ids[STATE.savedBrowseIdx];
   const q = allQuestions().find(x=>x.id===id);
+  const pct = Math.round((STATE.savedBrowseIdx + 1) / ids.length * 100);
   return `
-  <button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas Guardadas</button>
-  <div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:13px;">Pregunta ${STATE.savedBrowseIdx+1} de ${ids.length}</div>
-  <div class="qcard" style="margin-bottom:14px;">
+  <button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas guardadas</button>
+  ${acHero('Mi Academia · Guardadas', `Pregunta ${STATE.savedBrowseIdx+1} de ${ids.length}`, '', [], '', true)}
+  <div class="ac-progress"><i style="width:${pct}%"></i></div>
+  <article class="ac-q big">
     <div class="qtag">${scopeLabel(q)}</div>
-    <div class="qtext">${esc(q.question)}</div>
-    ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
-    ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-    <div style="margin-top:12px;">
-      <button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Elimina esta pregunta de tu lista personal guardada.">Quitar de Guardadas</button>
+    <div class="ac-q-head"><div class="ac-q-text">${esc(q.question)}</div></div>
+    <div class="ac-q-opts">${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}</div>
+    ${q.explanation ? `<div class="ac-q-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+    <div class="ac-q-actions">
+      <button class="btn btn-ghost btn-danger-soft" data-action="toggle-saved" data-qid="${q.id}">${ic('trash')} Quitar de Guardadas</button>
     </div>
-  </div>
-  <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+  </article>
+  <div class="ac-nav">
     <button class="btn btn-secondary" data-action="saved-browse-prev" ${STATE.savedBrowseIdx<=0?'disabled':''}>&larr; Anterior</button>
-    <button class="btn btn-secondary" data-action="saved-browse-next" ${STATE.savedBrowseIdx>=ids.length-1?'disabled':''}>Siguiente &rarr;</button>
+    <button class="btn btn-primary" data-action="saved-browse-next" ${STATE.savedBrowseIdx>=ids.length-1?'disabled':''}>Siguiente &rarr;</button>
   </div>
   `;
 }
