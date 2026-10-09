@@ -858,3 +858,6 @@ input.tc-count{max-width:140px; font:700 26px 'Oswald'; text-align:center; margi
   .tc-rules{grid-template-columns:1fr 1fr;}
   .tc-rule span{font-size:11.5px;}
 }
+.tc-rule.special b{background:var(--pitch); color:#fff;}
+.tc-rule.special[data-law="assistants"] b{background:#2A6FDB;}
+.tc-rule.special.active b{background:var(--accent);}
