@@ -1433,14 +1433,11 @@ function leaderboardView(){
   };
   const pod = (r, i) => {
     const isMe = r.user_id === CURRENT_USER_ID;
-    const level = rankLevelFor(r.rank_name);
     return `<div class="lg-pod p${i+1}${isMe?' me':''}">
       ${i===0 ? '<div class="lg-crown">👑</div>' : ''}
       <div class="lg-pod-av">${avatar(r.username, 'xl')}<span class="lg-pod-flag">${COUNTRY_FLAGS[r.country] || '🏳️'}</span></div>
       <div class="lg-pod-name">${esc(r.username || 'Anónimo')}${isMe?' <span class="lb-you-badge">TÚ</span>':''}</div>
-      <div class="lg-pod-meta">${esc(r.rank_name || '')}${level?' · Nivel '+level:''}</div>
       <div class="lg-pod-score">${formatScore(Number(r.score))}</div>
-      <div class="lg-pod-xp">${r.points||0} XP</div>
       <div class="lg-pod-step"><span>${i+1}</span></div>
     </div>`;
   };
@@ -1450,7 +1447,6 @@ function leaderboardView(){
   const rows = list.slice(3).map((r,k) => {
     const i = k + 3;
     const isMe = r.user_id === CURRENT_USER_ID;
-    const level = rankLevelFor(r.rank_name);
     const pct = Math.max(4, Math.round((Number(r.score) || 0) / topScore * 100));
     return `
     <div class="lg-row${isMe?' me':''}" style="animation-delay:${Math.min(k*0.03,0.4)}s;">
@@ -1458,7 +1454,6 @@ function leaderboardView(){
       ${avatar(r.username)}
       <div class="lg-row-info">
         <div class="lg-row-name"><span>${esc(r.username || 'Anónimo')}</span>${isMe?' <span class="lb-you-badge">TÚ</span>':''}<em>${COUNTRY_FLAGS[r.country] || '🏳️'}</em></div>
-        <div class="lg-row-meta">${esc(r.rank_name || '')}${level?' · Nivel '+level:''} · ${r.points||0} XP</div>
         <div class="lg-row-bar"><i style="width:${pct}%"></i></div>
       </div>
       <div class="lg-row-score">${formatScore(Number(r.score))}</div>
@@ -1475,8 +1470,6 @@ function leaderboardView(){
 
   let standingHtml = '';
   if(s && s.rank>25){
-    const rankInfo = nextRankInfo(s.points || 0);
-    const level = rankLevelFor(s.rank_name);
     const gapText = s.nextAbove
       ? `Te faltan <strong>${formatScore(Number(s.nextAbove.score) - Number(s.score))}</strong> puntos para superar a ${esc(s.nextAbove.username || 'el jugador de arriba')}.`
       : 'Eres el primero de la lista en esta clasificación.';
@@ -1491,22 +1484,16 @@ function leaderboardView(){
         <div class="lb-flag">${COUNTRY_FLAGS[s.country] || '🏳️'}</div>
         <div class="lb-info">
           <div class="lb-name">${esc(s.username || 'Tú')} <span class="lb-you-badge">TÚ</span></div>
-          <div class="lb-meta">${esc(s.rank_name || '')}${level?' · Nivel '+level:''} · ${s.points||0} XP</div>
         </div>
         <div class="lb-score">${formatScore(Number(s.score))}</div>
       </div>
       <div class="lb-gap">${gapText}</div>
       ${milestoneText ? `<div class="lb-gap">${milestoneText}</div>` : ''}
-      ${rankInfo ? `
-      <div class="lb-gap">Progreso hacia ${esc(rankInfo.name)}: ${rankInfo.progressPct}%</div>
-      <div class="lb-progress-track"><div class="lb-progress-fill" style="width:${rankInfo.progressPct}%;"></div></div>
-      ` : ''}
     </div>`;
   } else if(s===false){
     standingHtml = `<div class="lg-empty-me">${ic('flame')}<div>Todavía no tienes puntuación en este modo. ¡Juega una partida para entrar en la clasificación!</div></div>`;
   } else if(s){
     // Dentro del Top 25: resumen de tu posición y lo que te falta para subir.
-    const rankInfo = nextRankInfo(s.points || 0);
     const gapText = s.rank <= 1
       ? '¡Eres el número 1 de esta clasificación! 🎉'
       : s.nextAbove
@@ -1518,10 +1505,6 @@ function leaderboardView(){
       <div class="lg-stand-big"><b>#${s.rank}</b><span>Estás en el Top 25</span></div>
       <div class="lg-stand-score">${formatScore(Number(s.score))} <small>puntos en ${modeTitle}</small></div>
       ${gapText ? `<div class="lb-gap">${gapText}</div>` : ''}
-      ${rankInfo ? `
-      <div class="lb-gap">Progreso hacia ${esc(rankInfo.name)}: ${rankInfo.progressPct}%</div>
-      <div class="lb-progress-track"><div class="lb-progress-fill" style="width:${rankInfo.progressPct}%;"></div></div>
-      ` : ''}
     </div>`;
   }
 
