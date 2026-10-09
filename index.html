@@ -58,7 +58,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=36">
+<link rel="stylesheet" href="assets/css/styles.css?v=37">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
   let hcaptchaApiReady = false;
@@ -363,7 +363,19 @@
 
 <!-- Modal de login / registro -->
 <div class="modal-backdrop" id="auth-modal" style="display:none;">
-  <div class="modal-card" style="max-width:400px; position:relative;">
+  <div class="modal-card auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <aside class="auth-aside" aria-hidden="true">
+      <div class="auth-aside-glow"></div>
+      <div class="auth-aside-brand"><svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="10" width="18" height="26" rx="4" fill="#16181D" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/><rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/></svg><span>WEREF</span></div>
+      <h3>Tu formación arbitral, en un solo lugar</h3>
+      <ul>
+        <li><span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span><div><b>+2.000 preguntas</b><small>Las 17 Reglas de Juego IFAB</small></div></li>
+        <li><span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span><div><b>WEREF League</b><small>Compite y sube en la clasificación</small></div></li>
+        <li><span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><div><b>Estadísticas</b><small>Descubre tus puntos débiles</small></div></li>
+      </ul>
+      <p>100% gratis · Tu progreso siempre contigo</p>
+    </aside>
+    <div class="auth-main">
     <button type="button" class="modal-close" id="auth-modal-close" aria-label="Cerrar">&times;</button>
     <div class="auth-logo"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
       <rect x="5" y="10" width="18" height="26" rx="4" fill="#16181D" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/>
@@ -449,6 +461,7 @@
     <div class="auth-switch">
       <span id="auth-switch-text">¿Todavía no tienes cuenta?</span>
       <button type="button" id="auth-switch-btn">Regístrate</button>
+    </div>
     </div>
   </div>
 </div>
