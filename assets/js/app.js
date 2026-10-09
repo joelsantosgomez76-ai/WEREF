@@ -23,13 +23,30 @@ async function loadUserRole(){
 }
 async function setUserRole(userId, role){
   if(!isMaster() || !userId) return;
+  if(!STATE.roleOverrides) STATE.roleOverrides = {};
+  const users = (STATE.adminStats && STATE.adminStats.users) || [];
+  const target = users.find(x => x.id === userId);
+  const prevRole = target ? (target.role || 'user') : 'user';
+  const adjustCount = (from, to) => {
+    if(STATE.adminStats && typeof STATE.adminStats.developers === 'number'){
+      if(from !== 'developer' && to === 'developer') STATE.adminStats.developers++;
+      if(from === 'developer' && to !== 'developer') STATE.adminStats.developers = Math.max(0, STATE.adminStats.developers - 1);
+    }
+  };
+  // Cambio inmediato en pantalla; si el servidor lo rechaza, se deshace.
+  STATE.roleOverrides[userId] = role;
+  if(target) target.role = role;
+  adjustCount(prevRole, role);
+  STATE.toast = role === 'developer' ? 'Ahora es Desarrollador.' : 'Ahora es Usuario normal.';
+  render();
   try{
     const { error } = await supabaseClient.rpc('weref_set_role', { p_user_id: userId, p_role: role });
     if(error) throw error;
-    STATE.toast = role === 'developer' ? 'Ahora es Desarrollador.' : 'Ahora es Usuario normal.';
-    render();
     loadAdminStats(STATE.adminUsersPage);
   }catch(e){
+    delete STATE.roleOverrides[userId];
+    if(target) target.role = prevRole;
+    adjustCount(role, prevRole);
     STATE.toast = 'No se pudo cambiar el rol. ¿Has instalado el SQL de roles en Supabase?';
     render();
   }
@@ -123,6 +140,8 @@ async function loadAdminStats(page){
       status: STATE.adminUsersFilter.status
     } });
     if(error || !data || data.error){ STATE.adminStats = false; render(); return; }
+    const ov = STATE.roleOverrides || {};
+    (data.users || []).forEach(u => { if(u.role === undefined){ if(ov[u.id]) u.role = ov[u.id]; } else { delete ov[u.id]; } });
     STATE.adminStats = data;
     STATE.adminUsersPage = data.usersPage || 1;
     render();
@@ -4852,3 +4871,12 @@ function onAction(e){
   else if(action==='cancel-reset-law'){ STATE.confirmResetLawId = null; render(); }
 }
 
+
+/* Si el maestro cambia tu rol mientras tienes la web abierta, al volver a la pestaña se actualiza solo. */
+document.addEventListener('visibilitychange', async () => {
+  if(document.visibilityState !== 'visible') return;
+  if(typeof CURRENT_USER_EMAIL === 'undefined' || !CURRENT_USER_EMAIL) return;
+  const before = userRole();
+  await loadUserRole();
+  if(userRole() !== before) render();
+});
