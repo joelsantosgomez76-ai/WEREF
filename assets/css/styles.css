@@ -1333,3 +1333,30 @@ input.tc-count{max-width:140px; font:700 26px 'Oswald'; text-align:center; margi
 .sg-card-actions .btn svg{width:15px; height:15px;}
 @media (max-width:1100px){ .sg-layout{grid-template-columns:1fr;} }
 @media (max-width:760px){ .sg-hero-ic{display:none;} .sg-filter{width:100%; overflow-x:auto;} .sg-filter button{white-space:nowrap;} }
+
+/* ---------- Configuración de cuenta ---------- */
+.pr-hero-id{display:flex; align-items:center; gap:22px; min-width:0;}
+.pr-avatar{width:92px; height:92px; flex-shrink:0; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--yellow)); color:var(--pitch); border:4px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; font:700 40px 'Oswald'; box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+.pr-hero .lg-hero-main p{margin-bottom:14px; overflow-wrap:anywhere;}
+.pr-layout{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:18px; align-items:start;}
+.pr-side{display:flex; flex-direction:column; gap:14px;}
+.pr-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);}
+.pr-row:last-child{border-bottom:none; padding-bottom:0;}
+.pr-row-ic{width:34px; height:34px; flex-shrink:0; border-radius:10px; background:var(--chalk); color:var(--accent); display:flex; align-items:center; justify-content:center;}
+.pr-row-ic svg{width:17px; height:17px;}
+.pr-row-label{width:150px; flex-shrink:0; font-size:13px; color:var(--muted);}
+.pr-row-val{flex:1; min-width:0; font-weight:600; font-size:14px; text-align:right; overflow-wrap:anywhere;}
+.pr-row-val.empty{font-weight:500; color:var(--muted); font-style:italic;}
+.pr-wide{width:100%; display:inline-flex; align-items:center; justify-content:center; gap:8px;}
+.pr-wide svg{width:16px; height:16px;}
+.pr-fields{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px;}
+.pr-fields .full{grid-column:1 / -1;}
+.pr-fields label{margin-top:0;}
+.pr-fields > div{margin-bottom:12px;}
+@media (max-width:1100px){ .pr-layout{grid-template-columns:1fr;} }
+@media (max-width:640px){
+  .pr-hero-id{flex-direction:column; align-items:flex-start; gap:14px;}
+  .pr-avatar{width:72px; height:72px; font-size:30px;}
+  .pr-row-label{width:96px;}
+  .pr-fields{grid-template-columns:1fr;}
+}

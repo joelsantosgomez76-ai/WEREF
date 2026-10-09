@@ -2632,49 +2632,110 @@ async function loadProfileData(){
 }
 
 function profileView(){
+  const ic = (n) => shellIcon(n);
+  const email = (typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL) ? CURRENT_USER_EMAIL : '';
+  const username = (typeof CURRENT_USERNAME!=='undefined' && CURRENT_USERNAME) ? CURRENT_USERNAME : '';
+  const points = computePoints();
+  const rank = currentRank(points);
+  const unlockedCount = BADGES.filter(b => (STATE.storage.unlockedBadges || {})[b.id]).length;
+  const p = STATE.profileData;
+  const fullName = p ? [p.full_name, p.last_name].filter(Boolean).join(' ') : '';
+  const initial = esc((username || email || '?').trim().charAt(0).toUpperCase());
+
+  const row = (icon, label, value) => `<div class="pr-row"><span class="pr-row-ic">${ic(icon)}</span><span class="pr-row-label">${label}</span><span class="pr-row-val ${value ? '' : 'empty'}">${value ? esc(value) : 'Sin rellenar'}</span></div>`;
+  let birth = '';
+  if(p && p.birthdate){ const d = new Date(p.birthdate); birth = isNaN(d) ? p.birthdate : d.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' }); }
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">⚙️ Configuración de cuenta</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">${typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL ? esc(CURRENT_USER_EMAIL) : ''}</div>
-  <div class="menu-list">
-    <button class="menu-item" data-action="profile-edit">
-      <div><div class="title">Editar perfil</div><div class="desc">Nombre, apellidos, país, fecha de nacimiento, ciudad y código postal</div></div>
-      <div class="arrow">›</div>
-    </button>
-    <button class="menu-item" data-action="logout">
-      <div><div class="title" style="color:var(--red);">Cerrar sesión</div></div>
-      <div class="arrow">›</div>
-    </button>
+  <section class="lg-hero pr-hero">
+    <div class="pr-hero-id">
+      <span class="pr-avatar">${initial}</span>
+      <div class="lg-hero-main">
+        <div class="home-eyebrow">Configuración de la cuenta</div>
+        <h1>${esc(username || 'Mi cuenta')}</h1>
+        <p>${esc(email)}${fullName ? ' · ' + esc(fullName) : ''}</p>
+        <div class="ac-hero-actions">
+          <button class="btn btn-yellow" data-action="profile-edit">${ic('pencil')} Editar perfil</button>
+          <button class="btn btn-glass" data-action="logout">${ic('logout')} Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${points}</b><span>Puntos</span></div>
+      <div class="lg-stat"><b>${unlockedCount}/${BADGES.length}</b><span>Insignias</span></div>
+      <div class="lg-stat"><b>${esc(rank.name.replace('Árbitro ', ''))}</b><span>Rango</span></div>
+    </div>
+  </section>
+
+  <div class="pr-layout">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Datos de la cuenta</h3><small>Tu nombre de usuario no se puede cambiar</small></div></div>
+      ${p ? `
+        ${row('award', 'Usuario', username)}
+        ${row('message', 'Correo', email)}
+        ${row('pencil', 'Nombre', p.full_name)}
+        ${row('pencil', 'Apellidos', p.last_name)}
+        ${row('calendar', 'Fecha de nacimiento', birth)}
+        ${row('flag', 'País', p.country)}
+        ${row('home', 'Ciudad', p.city)}
+        ${row('database', 'Código postal', p.postcode)}
+      ` : `<div class="st-note">Cargando tus datos...</div>`}
+    </div>
+
+    <aside class="pr-side">
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('pencil')}</span><div><h3>Editar perfil</h3><small>Nombre, país, nacimiento, ciudad y código postal</small></div></div>
+        <button class="btn btn-primary pr-wide" data-action="profile-edit">${ic('pencil')} Editar mis datos</button>
+      </div>
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('lock')}</span><div><h3>Sesión</h3><small>Cierra la sesión en este dispositivo</small></div></div>
+        <button class="btn btn-ghost btn-danger-soft pr-wide" data-action="logout">${ic('logout')} Cerrar sesión</button>
+      </div>
+    </aside>
   </div>
   `;
 }
 
 function profileEditView(){
+  const ic = (n) => shellIcon(n);
   if(!STATE.profileData){
-    return `<button class="backbtn" data-action="profile">&larr; Configuración de cuenta</button><div class="empty-state">Cargando tus datos...</div>`;
+    return `<button class="backbtn" data-action="profile">&larr; Configuración de cuenta</button><div class="ac-empty">${ic('clock')}<strong>Cargando tus datos...</strong></div>`;
   }
   const p = STATE.profileData;
   return `
   <button class="backbtn" data-action="profile">&larr; Configuración de cuenta</button>
-  <h2 style="margin-bottom:4px;">Editar perfil</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu nombre de usuario no se puede cambiar. El resto de datos, sí.</div>
-  <div class="qcard">
-    <label>Nombre</label>
-    <input type="text" id="profile-name" maxlength="100" value="${esc(p.full_name||'')}">
-    <label>Apellidos</label>
-    <input type="text" id="profile-lastname" maxlength="100" value="${esc(p.last_name||'')}">
-    <label>País</label>
-    <select id="profile-country">
-      <option value="">Selecciona tu país</option>
-      ${PROFILE_COUNTRIES.map(c=>`<option value="${esc(c)}" ${p.country===c?'selected':''}>${esc(c)}</option>`).join('')}
-    </select>
-    <label>Fecha de nacimiento</label>
-    <input type="date" id="profile-birthdate" value="${esc(p.birthdate||'')}">
-    <label>Ciudad</label>
-    <input type="text" id="profile-city" maxlength="100" value="${esc(p.city||'')}">
-    <label>Código postal</label>
-    <input type="text" id="profile-postcode" maxlength="12" inputmode="numeric" value="${esc(p.postcode||'')}">
-    <div style="margin-top:16px; display:flex; gap:10px;">
+  <section class="lg-hero lg-hero-sm">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Configuración de la cuenta</div>
+      <h1>Editar perfil</h1>
+      <p>Tu nombre de usuario no se puede cambiar. El resto de datos, sí.</p>
+    </div>
+  </section>
+
+  <div class="ac-form">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Datos personales</h3><small>Cómo te llamas y cuándo naciste</small></div></div>
+      <div class="pr-fields">
+        <div><label for="profile-name">Nombre</label><input type="text" id="profile-name" maxlength="100" value="${esc(p.full_name||'')}"></div>
+        <div><label for="profile-lastname">Apellidos</label><input type="text" id="profile-lastname" maxlength="100" value="${esc(p.last_name||'')}"></div>
+        <div class="full"><label for="profile-birthdate">Fecha de nacimiento</label><input type="date" id="profile-birthdate" value="${esc(p.birthdate||'')}"></div>
+      </div>
+    </div>
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Ubicación</h3><small>Dónde resides</small></div></div>
+      <div class="pr-fields">
+        <div class="full"><label for="profile-country">País</label>
+          <select id="profile-country">
+            <option value="">Selecciona tu país</option>
+            ${PROFILE_COUNTRIES.map(c=>`<option value="${esc(c)}" ${p.country===c?'selected':''}>${esc(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div><label for="profile-city">Ciudad</label><input type="text" id="profile-city" maxlength="100" value="${esc(p.city||'')}"></div>
+        <div><label for="profile-postcode">Código postal</label><input type="text" id="profile-postcode" maxlength="12" inputmode="numeric" value="${esc(p.postcode||'')}"></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px;">
       <button class="btn btn-primary" data-action="profile-save-edit" ${STATE.profileSaving?'disabled':''}>${STATE.profileSaving?'Guardando...':'Guardar cambios'}</button>
       <button class="btn btn-ghost" data-action="profile">Cancelar</button>
     </div>
