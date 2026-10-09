@@ -3323,6 +3323,7 @@ function questionDots(quiz){
 }
 
 function quizView(){
+  const ic = (n) => shellIcon(n);
   const quiz = STATE.quiz;
   const q = currentQ();
   const total = quiz.qids.length;
@@ -3331,6 +3332,7 @@ function quizView(){
   const selectedLetter = quiz.answers[q.id] || null;
   const timedOut = !!(quiz.timedOut && quiz.timedOut[q.id]);
   const reveal = quiz.instantFeedback && (!!selectedLetter || timedOut);
+  const correctCount = () => Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length;
 
   let optsHtml = q.options.map((opt,i)=>{
     const letter = letters[i];
@@ -3344,88 +3346,86 @@ function quizView(){
       cls+=' selected';
     }
     return `<button class="${cls}" data-action="answer" data-letter="${letter}" ${disabled}>
-      <span class="letter">${letter})</span>${esc(opt)}
+      <span class="letter">${letter.toUpperCase()}</span><span class="opt-text">${esc(opt)}</span>
     </button>`;
   }).join('');
 
   let feedback = '';
   if(reveal){
     const isOk = !timedOut && selectedLetter === q.correct;
-    feedback = `<div class="card-feedback ${isOk?'ok':'bad'}">
-      <div class="ref-card ${isOk?'yellow':'red'}"></div>
-      <div class="msg">${timedOut ? '⏱ Se acabó el tiempo.' : (isOk? '¡Bien visto! Sigue así.' : 'Revisa esta jugada.')}
-        <small>${isOk? 'Respuesta correcta.' : 'La respuesta correcta era la '+q.correct.toUpperCase()+').'}</small>
+    feedback = `<div class="qz-feedback ${isOk?'ok':'bad'}">
+      <span class="qz-fb-ic">${ic(isOk ? 'check' : (timedOut ? 'clock' : 'flag'))}</span>
+      <div><strong>${timedOut ? 'Se acabó el tiempo.' : (isOk ? '¡Bien visto! Sigue así.' : 'Revisa esta jugada.')}</strong>
+        <small>${isOk ? 'Respuesta correcta.' : 'La respuesta correcta era la ' + q.correct.toUpperCase() + '.'}</small>
       </div>
     </div>
-    ${(isLifeMode(quiz.mode) && quiz.hearts<=0) ? `<div style="margin-top:10px; padding:10px 12px; background:#FDECEC; border-radius:8px; font-size:13.5px; font-weight:700; color:var(--red);">${quiz.mode==='suddendeath' ? '💀 ¡Eliminado! Un fallo y se acabó.' : '💔 ¡Te has quedado sin corazones! Aquí termina el reto.'}</div>` : ''}
-    ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
+    ${(isLifeMode(quiz.mode) && quiz.hearts<=0) ? `<div class="qz-alert">${quiz.mode==='suddendeath' ? '¡Eliminado! Un fallo y se acabó la partida.' : '¡Te has quedado sin vidas! Fin de la partida.'}</div>` : ''}
+    ${q.explanation ? `<div class="qz-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
   }
   const reportBtn = STATE.reportedIds[q.id]
-    ? `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Ya has avisado de un posible error en esta pregunta. Nuestro equipo la revisará.">✓ Error reportado, ¡gracias!</button>`
-    : `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Avisa si crees que esta pregunta tiene un error o está desactualizada, para que la revisemos.">🚩 Reportar un error en esta pregunta</button>`;
+    ? `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Ya has avisado de un posible error en esta pregunta. Nuestro equipo la revisará.">${ic('check')} Error reportado, ¡gracias!</button>`
+    : `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Avisa si crees que esta pregunta tiene un error o está desactualizada, para que la revisemos.">${ic('flag')} Reportar un error</button>`;
   const savedBtn = STATE.storage.saved[q.id]
-    ? `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Quítala de tu lista personal si ya no quieres tenerla guardada.">✓ Guardada en Mi Academia</button>`
-    : `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="La pregunta se añadirá a tu lista personal en Mi Academia, para repasarla más tarde.">🎓 Guardar en Mi Academia</button>`;
-  const actionLinksRow = `<div style="display:flex; gap:16px; flex-wrap:wrap;">${savedBtn}${reportBtn}</div>`;
+    ? `<button class="flag-btn on" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Quítala de tu lista personal si ya no quieres tenerla guardada.">${ic('star')} Guardada en Mi Academia</button>`
+    : `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="La pregunta se añadirá a tu lista personal en Mi Academia, para repasarla más tarde.">${ic('star')} Guardar en Mi Academia</button>`;
+  const actionLinksRow = `<div class="qz-links">${savedBtn}${reportBtn}</div>`;
 
-  let topbar;
+  let info, status;
   if(quiz.mode==='training'){
-    topbar = `<div class="quiz-topbar">
-      <span class="qcount">Pregunta ${quiz.idx+1} / ${total} · Respondidas: ${Object.keys(quiz.answers).length}/${total}</span>
-      ${quiz.timerMode==='total' ? `<span class="score mono" id="timer-display">${formatTime(quiz.remainingSec)}</span>` :
-        quiz.timerMode==='perQuestion' ? `<span class="score mono" id="timer-display">⏱ ${formatTime(quiz.remainingSec)}</span>` :
-        `<span class="score">Sin límite de tiempo</span>`}
-    </div>`;
+    info = `<strong>Pregunta ${quiz.idx+1} / ${total}</strong><small>Respondidas: ${Object.keys(quiz.answers).length}/${total}</small>`;
+    status = quiz.timerMode==='total' ? `<span class="qz-chip">${ic('clock')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>` :
+      quiz.timerMode==='perQuestion' ? `<span class="qz-chip">${ic('timer')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>` :
+      `<span class="qz-chip soft">${ic('repeat')} Sin límite</span>`;
   } else if(isLifeMode(quiz.mode)){
     const maxLives = maxLivesFor(quiz.mode);
-    topbar = `<div class="quiz-topbar">
-      <span class="qcount">${quiz.combo>=2 ? '🔥 Racha: '+quiz.combo : 'Pregunta '+(quiz.idx+1)}</span>
-      <span class="score" style="font-size:15px;">${quiz.mode==='suddendeath' ? (quiz.hearts>0?'💀':'☠️') : ('❤️'.repeat(quiz.hearts)+'🖤'.repeat(maxLives-quiz.hearts))}</span>
-    </div>`;
+    info = `<strong>${quiz.combo>=2 ? 'Racha: ' + quiz.combo : 'Pregunta ' + (quiz.idx+1)}</strong><small>${quiz.mode==='suddendeath' ? 'Muerte Súbita' : 'Modo Corazones'}</small>`;
+    status = quiz.mode==='suddendeath'
+      ? `<span class="qz-chip ${quiz.hearts>0 ? 'bad' : 'soft'}">${ic('skull')} ${quiz.hearts>0 ? 'Una vida' : 'Eliminado'}</span>`
+      : `<span class="qz-hearts">${Array.from({length:maxLives}, (_,i) => `<span class="qz-heart ${i < quiz.hearts ? 'on' : ''}">${ic('heart')}</span>`).join('')}</span>`;
   } else if(quiz.mode==='timeattack'){
-    topbar = `<div class="quiz-topbar">
-      <span class="qcount mono" id="timer-display" style="font-weight:700; font-size:16px;">⏱ ${formatTime(quiz.remainingSec)}</span>
-      <span class="score">Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length}</span>
-    </div>`;
+    info = `<strong>Contrarreloj</strong><small>Aciertos: ${correctCount()}</small>`;
+    status = `<span class="qz-chip">${ic('timer')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>`;
   } else {
     const scoreLabel = quiz.law==='failed'
       ? `Aciertos seguidos: ${STATE.storage.failedStreaks[q.id]||0}/3`
-      : `Aciertos: ${Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length}`;
-    topbar = `<div class="quiz-topbar">
-      <span class="qcount">Pregunta ${quiz.idx+1} / ${total}</span>
-      <span class="score">${scoreLabel}</span>
-    </div>`;
+      : `Aciertos: ${correctCount()}`;
+    info = `<strong>Pregunta ${quiz.idx+1} / ${total}</strong><small>${scoreLabel}</small>`;
+    status = `<span class="qz-chip soft">${ic('target')} ${correctCount()}</span>`;
   }
 
   let actions;
   if(quiz.mode==='training'){
     actions = `
-      <button class="btn btn-ghost" data-action="quit-quiz">Salir</button>
-      <button class="btn btn-secondary" data-action="prev-question" ${quiz.idx===0?'disabled':''}>Anterior</button>
-      ${quiz.idx+1<total ? `<button class="btn btn-secondary" data-action="next-question">Siguiente</button>` : ''}
+      <button class="btn btn-secondary" data-action="prev-question" ${quiz.idx===0?'disabled':''}>&larr; Anterior</button>
+      ${quiz.idx+1<total ? `<button class="btn btn-secondary" data-action="next-question">Siguiente &rarr;</button>` : ''}
       <button class="btn btn-primary" data-action="finish-training">Finalizar examen</button>
     `;
   } else {
     const isGameOver = isLifeMode(quiz.mode) && quiz.hearts<=0;
     actions = `
-      <button class="btn btn-ghost" data-action="quit-quiz">Salir</button>
-      <button class="btn btn-secondary" data-action="prev-question" ${quiz.idx===0?'disabled':''}>Anterior</button>
-      ${reveal ? `<button class="btn btn-primary" data-action="next-question">${isGameOver ? 'Ver resultado' : (quiz.idx+1<total?'Siguiente':'Ver resultado')}</button>` : ''}
+      <button class="btn btn-secondary" data-action="prev-question" ${quiz.idx===0?'disabled':''}>&larr; Anterior</button>
+      ${reveal ? `<button class="btn btn-primary" data-action="next-question">${isGameOver ? 'Ver resultado' : (quiz.idx+1<total?'Siguiente &rarr;':'Ver resultado')}</button>` : ''}
     `;
   }
 
   return `
-  ${topbar}
-  <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-  <div class="qcard">
-    <div class="qtag">${scopeLabel(q)}</div>
-    <div class="qtext">${esc(q.question)}</div>
-    ${optsHtml}
-    ${feedback}
-    ${quiz.mode!=='training' ? (reveal ? actionLinksRow : '') : actionLinksRow}
+  <div class="qz">
+    <header class="qz-top">
+      <button class="qz-exit" data-action="quit-quiz" aria-label="Salir del test">${ic('chevron')}<span>Salir</span></button>
+      <div class="qz-info">${info}</div>
+      <div class="qz-status">${status}</div>
+    </header>
+    <div class="qz-progress"><i style="width:${pct}%"></i></div>
+    <article class="qz-card">
+      <div class="qz-tag">${scopeLabel(q)}</div>
+      <h2 class="qz-text">${esc(q.question)}</h2>
+      <div class="qz-options">${optsHtml}</div>
+      ${feedback}
+      ${quiz.mode!=='training' ? (reveal ? actionLinksRow : '') : actionLinksRow}
+    </article>
+    <div class="qz-actions">${actions}</div>
+    ${questionDots(quiz)}
   </div>
-  <div class="quiz-actions">${actions}</div>
-  ${questionDots(quiz)}
   `;
 }
 
