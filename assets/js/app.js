@@ -4235,7 +4235,15 @@ function onAction(e){
     render();
   }
   else if(action==='finish-training'){ stopTimer(); recordTestResult(STATE.quiz); STATE.view='result'; render(); }
-  else if(action==='quit-quiz'){ stopTimer(); STATE.view='home'; render(); }
+  else if(action==='quit-quiz'){
+    stopTimer();
+    const qz = STATE.quiz;
+    // Vuelve a la pantalla desde la que se empezó el test, no siempre al inicio.
+    if(qz && qz.mode==='training'){ STATE.view='trainConfig'; }
+    else if(qz && qz.law!=null && qz.law!==''){ STATE.lawId=qz.law; STATE.view='law'; }
+    else { STATE.view='home'; }
+    render();
+  }
   else if(action==='add'){ STATE.cameFromDb = false; STATE.lawId = law || STATE.lawId; STATE.view='add'; render(); }
   else if(action==='add-from-db'){
     STATE.cameFromDb = true;
