@@ -5,6 +5,7 @@
 const SHELL_FOCUS_VIEWS = ['quiz', 'myBankQuiz', 'committeeRun'];
 
 const SHELL_ICONS = {
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
   skull: '<path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/>',
   timer: '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
@@ -132,7 +133,8 @@ function shellFor(view, html){
   const bottomActive = moreIds.includes(active) ? 'more' : active;
   const bottom = `<nav class="shell-bottom" aria-label="Navegación">${bottomItems.map(it =>
     `<button class="${bottomActive === it.id ? 'active' : ''}" data-action="${it.action}">${shellIcon(it.icon)}<span>${it.label}</span></button>`).join('')}</nav>`;
-  const wide = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia'].includes(String(view));
+  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse'];
+  const wide = WIDE_VIEWS.includes(String(view)) || (String(view) === 'law' && typeof STATE !== 'undefined' && STATE.lawId === 'saved');
   return `<div class="shell">${side}<main class="shell-main"><div class="shell-content ${wide ? 'wide' : ''}">${html}</div></main></div>${bottom}`;
 }
 
