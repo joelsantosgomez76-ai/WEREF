@@ -66,6 +66,7 @@ function shellSection(view){
   if(v === 'academia' || v === 'savedBrowse' || v.startsWith('myBank') || v.startsWith('myDocs')) return 'academia';
   if(['stats', 'recentPerformance', 'streakCalendar'].includes(v)) return 'stats';
   if(v === 'achievements') return 'logros';
+  if(v === 'committeeTraining') return 'formacion';
   if(v.startsWith('committee')) return 'comite';
   if(v === 'database') return 'db';
   if(v === 'suggestionsAdmin') return 'sug';
@@ -86,7 +87,7 @@ function shellNavItems(){
     { id: 'stats', label: 'Estadísticas', icon: 'chart', action: 'stats' },
     { id: 'logros', label: 'Rango e insignias', icon: 'award', action: 'achievements' }
   ];
-  if(st && (st.is_admin || st.is_member)) main.push({ id: 'comite', label: 'Formación Comité', icon: 'users', action: 'committee-open' });
+  if(st && (st.is_admin || (st.is_member && cmSettingsOn()))) main.push({ id: 'comite', label: 'CTA BAGES', icon: 'users', action: 'committee-open', badge: (st.is_admin && !cmSettingsOn()) ? 'Borrador' : 0 });
   const admin = [];
   if(isDevUser()){
     const reports = Object.keys(STATE.reports || {}).length;
@@ -94,6 +95,7 @@ function shellNavItems(){
     admin.push({ id: 'db', label: 'Base de datos', icon: 'database', action: 'database', badge: reports, alert: true });
     admin.push({ id: 'sug', label: 'Sugerencias', icon: 'message', action: 'suggestions-admin', badge: pending, alert: true });
     admin.push({ id: 'panel', label: 'Panel de administración', icon: 'dashboard', action: 'admin-dashboard' });
+    admin.push({ id: 'formacion', label: 'Panel de Formación', icon: 'target', action: 'committee-training' });
   }
   return { main, admin };
 }
@@ -131,11 +133,11 @@ function shellFor(view, html){
     { id: 'academia', label: 'Academia', icon: 'folder', action: 'academia' },
     { id: 'more', label: 'Más', icon: 'more', action: 'menu' }
   ];
-  const moreIds = ['stats', 'logros', 'comite', 'db', 'sug', 'panel', 'config'];
+  const moreIds = ['stats', 'logros', 'comite', 'db', 'sug', 'panel', 'formacion', 'config'];
   const bottomActive = moreIds.includes(active) ? 'more' : active;
   const bottom = `<nav class="shell-bottom" aria-label="Navegación">${bottomItems.map(it =>
     `<button class="${bottomActive === it.id ? 'active' : ''}" data-action="${it.action}">${shellIcon(it.icon)}<span>${it.label}</span></button>`).join('')}</nav>`;
-  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin', 'profile', 'profileEdit', 'adminDashboard', 'database'];
+  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin', 'profile', 'profileEdit', 'adminDashboard', 'database', 'committee', 'committeeAdmin', 'committeeBuilder', 'committeeTestDetail', 'committeeResult', 'committeeTraining'];
   const wide = WIDE_VIEWS.includes(String(view)) || String(view) === 'law';
   return `<div class="shell">${side}<main class="shell-main"><div class="shell-content ${wide ? 'wide' : ''}">${html}</div></main></div>${bottom}`;
 }
@@ -158,4 +160,9 @@ function menuView(){
     ${row({ label: 'Configuración de la cuenta', icon: 'settings', action: 'profile' })}
     ${row({ label: 'Cerrar sesión', icon: 'logout', action: 'logout' })}
   </div>`;
+}
+
+/* ¿Está CTA BAGES visible para los miembros? (por defecto sí) */
+function cmSettingsOn(){
+  return !(typeof COMMITTEE !== 'undefined' && COMMITTEE.settings && COMMITTEE.settings.enabled === false);
 }
