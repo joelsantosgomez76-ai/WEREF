@@ -187,7 +187,7 @@ function cmUsedIn(q){
 
 /* ---------- enrutado de vistas ---------- */
 function committeeView(v){
-  if(v === 'committeeAdmin') return cmAdminView();
+  if(v === 'committeeAdmin') return cmTrainingView();
   if(v === 'committeeTraining') return cmTrainingView();
   if(v === 'committeeBuilder') return cmBuilderView();
   if(v === 'committeeTestDetail') return cmTestDetailView();
@@ -219,28 +219,136 @@ function cmAnnouncementBanner(){
 }
 
 /* ---------- miembro: lista de tests ---------- */
+/* ---------- CTA BAGES: lo que ven los árbitros (el administrador lo ve como vista previa) ---------- */
 function cmMemberView(){
+  const ic = (n) => shellIcon(n);
+  const st = COMMITTEE.status || {};
   if(!cmMemberAccess()){
     return cmHero('CTA BAGES', 'CTA BAGES', 'Formación del comité de árbitros del Bages.', '', '') +
-      `<div class="ac-empty">${shellIcon('lock')}<strong>Todavía no está disponible</strong><span>El comité está preparando este apartado. Te avisarán cuando se publique.</span></div>`;
+      `<div class="ac-empty">${ic('lock')}<strong>Todavía no está disponible</strong><span>El comité está preparando este apartado. Te avisarán cuando se publique.</span></div>`;
   }
-  const list = COMMITTEE.myTests;
+  const preview = !!st.is_admin && !st.is_member;
+  let list = null;
+  if(preview){
+    if(COMMITTEE.tests !== null){
+      list = COMMITTEE.tests.filter(t => t.published).map(t => ({
+        id: t.id, title: t.title, opens_at: t.opens_at, closes_at: t.closes_at, max_attempts: t.max_attempts,
+        attempts_used: 0, total_questions: t.question_count, preview: true
+      }));
+    }
+  } else {
+    list = COMMITTEE.myTests;
+  }
   const now = Date.now();
+  const previewBar = preview ? `<div class="cm-previewbar">${ic('eye')}<div><strong>Vista previa</strong><span>Así ven CTA BAGES los árbitros. Los tests se preparan y se publican desde el Panel de Formación.</span></div>
+    <button class="btn btn-yellow" data-action="committee-training">${ic('target')} Ir al Panel de Formación</button></div>` : '';
+  const group = (title, sub, items) => items.length ? `<div class="lg-section-head"><h2>${title}</h2><span>${sub}</span></div><div class="cm-testlist">${items.map(t => cmMemberTestCard(t, now)).join('')}</div>` : '';
   let body;
-  if(COMMITTEE.error) body = `<div class="ac-empty">${shellIcon('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>`;
-  else if(list === null) body = `<div class="ac-empty">${shellIcon('clock')}<strong>Cargando...</strong></div>`;
-  else if(!list.length) body = `<div class="ac-empty">${shellIcon('book')}<strong>Todavía no hay ningún test publicado</strong><span>El comité te avisará cuando haya uno.</span></div>`;
-  else body = `<div class="cm-testlist">${list.map(t => cmMemberTestCard(t, now)).join('')}</div>`;
+  if(COMMITTEE.error) body = `<div class="ac-empty">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>`;
+  else if(list === null) body = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+  else if(!list.length) body = `<div class="ac-empty">${ic('book')}<strong>Todavía no hay ningún test publicado</strong><span>${preview ? 'Cuando publiques un test desde el Panel de Formación aparecerá aquí.' : 'El comité te avisará cuando haya uno.'}</span></div>`;
+  else {
+    const isClosed = t => t.closes_at && now >= Date.parse(t.closes_at);
+    const isUpcoming = t => now < Date.parse(t.opens_at);
+    const open = list.filter(t => !isClosed(t) && !isUpcoming(t));
+    const upcoming = list.filter(t => isUpcoming(t));
+    const past = list.filter(t => isClosed(t));
+    body = group('Disponibles ahora', 'Puedes hacerlos ya', open) + group('Próximamente', 'Todavía no han abierto', upcoming) + group('Anteriores', 'Ya cerrados', past);
+  }
   const total = list ? list.length : 0;
   const done = list ? list.filter(t => t.attempts_used > 0).length : 0;
   const pct = total ? Math.round(done / total * 100) : 0;
   return `
   ${cmHero('Comité de árbitros · Bages', 'CTA BAGES',
       'Tests del comité para practicar cada mes. Tu resultado es privado: la clasificación solo la ve el comité.',
-      '', cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
+      '', preview ? '' : cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
+  ${previewBar}
   ${cmAnnouncementBanner()}
-  <div class="lg-section-head"><h2>Tus tests</h2><span>${total} ${total === 1 ? 'test' : 'tests'}</span></div>
   ${body}`;
+}
+
+/* ---------- Panel de Formación: aquí se prepara todo y se publica en CTA BAGES ---------- */
+function cmPipeline(){
+  const count = { draft: 0, sched: 0, open: 0, closed: 0 };
+  (COMMITTEE.tests || []).forEach(t => { count[cmTestState(t).cls]++; });
+  const pipe = (cls, label, n) => `<div class="tp-pipe ${cls}"><b>${n}</b><span>${label}</span></div>`;
+  return `<div class="tp-pipeline">${pipe('draft', 'Borradores', count.draft)}${pipe('sched', 'Programados', count.sched)}${pipe('open', 'Abiertos', count.open)}${pipe('closed', 'Cerrados', count.closed)}</div>`;
+}
+
+function cmSettingsTab(){
+  const ic = (n) => shellIcon(n);
+  const s = cmSettings();
+  const draftAnn = COMMITTEE.announcementDraft !== undefined ? COMMITTEE.announcementDraft : (s.announcement || '');
+  const step = (n, title, text) => `<li><span>${n}</span><div><strong>${title}</strong><small>${text}</small></div></li>`;
+  return `
+  ${COMMITTEE.settingsMissing ? `<div class="cm-draftbar" style="background:#FDECEC; border-color:#F3C4C4;">${ic('flag')}<div><strong>Falta un paso de instalación</strong><span>Ejecuta una vez el archivo supabase/cta-settings.sql en Supabase para poder usar estos ajustes.</span></div></div>` : ''}
+  <div class="tp-vis ${s.enabled ? 'on' : 'off'}">
+    <span class="tp-vis-ic">${ic(s.enabled ? 'eye' : 'lock')}</span>
+    <div class="tp-vis-text">
+      <strong>${s.enabled ? 'CTA BAGES está abierto a los árbitros' : 'CTA BAGES está cerrado a los árbitros'}</strong>
+      <small>${s.enabled ? 'Los miembros ven los tests que hayas publicado.' : 'Ningún miembro ve nada, ni siquiera los tests publicados. Úsalo si quieres cerrar todo un tiempo.'}</small>
+    </div>
+    <button class="btn ${s.enabled ? 'btn-glass' : 'btn-yellow'}" data-action="committee-set-enabled" data-value="${s.enabled ? 0 : 1}" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${ic(s.enabled ? 'lock' : 'play')} ${s.enabled ? 'Cerrar CTA BAGES' : 'Abrir CTA BAGES'}</button>
+  </div>
+  <div class="tp-layout">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('message')}</span><div><h3>Mensaje para los árbitros</h3><small>Aparece arriba en CTA BAGES</small></div></div>
+      <textarea id="cm-announcement" data-cm-field="announcementDraft" rows="4" maxlength="500" placeholder="Ej: Ya está disponible el test de octubre. ¡Mucho ánimo!" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${esc(draftAnn)}</textarea>
+      <button class="btn btn-primary" style="margin-top:12px;" data-action="committee-save-announcement" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>Guardar mensaje</button>
+    </div>
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('idea')}</span><div><h3>Cómo funciona</h3><small>Prepara aquí, publica en CTA BAGES</small></div></div>
+      <ol class="tp-steps">
+        ${step(1, 'Crea el test en borrador', 'Elige preguntas del banco o genera uno equilibrado. Los árbitros no lo ven.')}
+        ${step(2, 'Añade a los árbitros', 'Por email, cuando se hayan registrado en we-ref.com.')}
+        ${step(3, 'Publícalo en CTA BAGES', 'Pulsa "Publicar" en el test: aparece para los árbitros desde su fecha de apertura.')}
+        ${step(4, 'Revisa resultados', 'La clasificación y los puntos débiles son privados: solo los ve el comité.')}
+      </ol>
+    </div>
+  </div>`;
+}
+
+function cmTrainingView(){
+  const ic = (n) => shellIcon(n);
+  const st = COMMITTEE.status || {};
+  const tab = ['tests', 'members', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
+  const tabs = [['tests', 'Tests', 'book'], ['members', 'Miembros', 'users'], ['ranking', 'Clasificación', 'trophy'], ['stats', 'Puntos débiles', 'target'], ['settings', 'Ajustes', 'settings']];
+  let content;
+  if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+  else if(tab === 'members') content = cmMembersTab();
+  else if(tab === 'ranking') content = cmRankingTab();
+  else if(tab === 'stats') content = cmStatsTab();
+  else if(tab === 'settings') content = cmSettingsTab();
+  else content = cmPipeline() + cmTestsTab();
+  const s = cmAdminStats();
+  const drafts = (COMMITTEE.tests || []).filter(t => !t.published).length;
+  const hero = cmHero('Administración', 'Panel de Formación',
+    'Prepara aquí los tests y los árbitros, en privado. Cuando esté listo, publícalo y aparecerá en CTA BAGES.',
+    `<button class="btn btn-yellow" data-action="committee-new">${ic('plus')} Nuevo test</button>
+     <button class="btn btn-glass" data-action="committee-tab" data-tab="members">${ic('userplus')} Añadir árbitro</button>
+     <button class="btn btn-glass" data-action="committee-open">${ic('eye')} Ver CTA BAGES</button>`,
+    `<div class="lg-hero-stats">
+      <div class="lg-stat"><b>${s.members}</b><span>Miembros</span></div>
+      <div class="lg-stat"><b>${s.published}</b><span>Publicados</span></div>
+      <div class="lg-stat"><b>${drafts}</b><span>Borradores</span></div>
+    </div>`);
+  const kpi = (icon, tone, val, label, sub) => `<div class="ad-kpi ${tone}"><span class="ad-kpi-ic">${cmIc(icon)}</span><div><b>${val}</b><small>${label}${sub ? ' · ' + sub : ''}</small></div></div>`;
+  const kpis = tab === 'settings' ? '' : `<div class="ad-kpis cm-kpis">
+    ${kpi('users', '', s.members, 'Miembros', 'con acceso')}
+    ${kpi('book', 'good', s.published, 'Tests publicados', drafts + ' en borrador')}
+    ${kpi('check', '', s.participation + '%', 'Participación', 'por test')}
+    ${kpi('target', s.accuracy !== null && s.accuracy < 60 ? 'bad' : '', s.accuracy !== null ? s.accuracy + '%' : '—', 'Acierto medio')}
+  </div>`;
+  return `
+  ${hero}
+  ${cmDraftBanner()}
+  ${cmSetupWarning()}
+  ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
+  ${kpis}
+  <div class="cm-tabs" role="tablist">
+    ${tabs.map(([k, label, icon]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span></button>`).join('')}
+  </div>
+  ${content}`;
 }
 
 /* ---------- miembro: hacer el test ---------- */
@@ -307,130 +415,11 @@ function cmResultView(){
 /* ---------- administrador: panel ---------- */
 function cmDraftBanner(){
   if(cmSettings().enabled) return '';
-  return `<div class="cm-draftbar">${cmIc('lock')}<div><strong>Modo borrador</strong><span>CTA BAGES está oculto: los árbitros miembros todavía no lo ven. Tú puedes prepararlo con calma.</span></div>
-    <button class="btn btn-yellow" data-action="committee-training">Ir al Panel de Formación</button></div>`;
-}
-
-function cmAdminView(){
-  const st = COMMITTEE.status || {};
-  const tab = COMMITTEE.tab;
-  const tabs = [['tests', 'Tests', 'book'], ['members', 'Miembros', 'users'], ['ranking', 'Clasificación', 'trophy'], ['stats', 'Puntos débiles', 'target']];
-  if(st.is_member) tabs.push(['mine', 'Mis tests', 'check']);
-  let content;
-  if(COMMITTEE.tests === null) content = `<div class="ac-empty">${shellIcon('clock')}<strong>Cargando...</strong></div>`;
-  else if(tab === 'members') content = cmMembersTab();
-  else if(tab === 'ranking') content = cmRankingTab();
-  else if(tab === 'stats') content = cmStatsTab();
-  else if(tab === 'mine') content = cmMineTab();
-  else content = cmTestsTab();
-  const s = cmAdminStats();
-  const hero = cmHero('Comité de árbitros · Bages', 'CTA BAGES',
-    'Crea tests mensuales, elige quién participa y sigue la evolución del comité. La clasificación es privada: solo la ves tú.',
-    `<button class="btn btn-yellow" data-action="committee-new">${cmIc('plus')} Nuevo test</button>
-     <button class="btn btn-glass" data-action="committee-tab" data-tab="members">${cmIc('userplus')} Añadir árbitro</button>
-     <button class="btn btn-glass" data-action="committee-training">${cmIc('target')} Panel de Formación</button>`,
-    cmRingBlock(s.participation, 'Participación', 'media de los tests'));
-  const kpi = (icon, tone, val, label, sub) => `<div class="ad-kpi ${tone}"><span class="ad-kpi-ic">${cmIc(icon)}</span><div><b>${val}</b><small>${label}${sub ? ' · ' + sub : ''}</small></div></div>`;
-  const kpis = `<div class="ad-kpis cm-kpis">
-    ${kpi('users', '', s.members, 'Miembros', 'con acceso')}
-    ${kpi('book', 'good', s.published, 'Tests publicados', ((COMMITTEE.tests || []).length - s.published) + ' en borrador')}
-    ${kpi('check', '', s.participation + '%', 'Participación', 'por test')}
-    ${kpi('target', s.accuracy !== null && s.accuracy < 60 ? 'bad' : '', s.accuracy !== null ? s.accuracy + '%' : '—', 'Acierto medio')}
-  </div>`;
-  return `
-  ${hero}
-  ${cmDraftBanner()}
-  ${cmSetupWarning()}
-  ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${shellIcon('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
-  ${kpis}
-  <div class="cm-tabs" role="tablist">
-    ${tabs.map(([k, label, icon]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span></button>`).join('')}
-  </div>
-  ${content}`;
+  return `<div class="cm-draftbar">${cmIc('lock')}<div><strong>CTA BAGES está cerrado a los árbitros</strong><span>Ningún miembro lo ve ahora mismo, aunque tengas tests publicados. Puedes abrirlo en Ajustes.</span></div>
+    <button class="btn btn-yellow" data-action="committee-tab" data-tab="settings">Ir a Ajustes</button></div>`;
 }
 
 /* ---------- administración: Panel de Formación (controla CTA BAGES) ---------- */
-function cmTrainingView(){
-  const ic = (n) => shellIcon(n);
-  const s = cmSettings();
-  const tests = COMMITTEE.tests;
-  if(tests === null) return cmHero('Administración', 'Panel de Formación', 'Controla CTA BAGES: prepáralo en privado y publícalo cuando quieras.', '', '') + `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
-  const stats = cmAdminStats();
-  const count = { draft: 0, sched: 0, open: 0, closed: 0 };
-  tests.forEach(t => { count[cmTestState(t).cls]++; });
-  const drafts = tests.filter(t => !t.published);
-  const live = tests.filter(t => t.published && cmTestState(t).cls !== 'closed');
-  const row = (t) => `<div class="tp-test">
-      <div class="tp-test-info"><strong>${esc(t.title)}</strong><small>${t.month ? esc(t.month) + ' · ' : ''}${t.question_count} preguntas · ${cmFmtDate(t.opens_at)}${t.closes_at ? ' → ' + cmFmtDate(t.closes_at) : ''}</small></div>
-      ${cmStatusChip(t)}
-      <div class="tp-test-actions">
-        <button class="btn ${t.published ? 'btn-ghost' : 'btn-primary'}" data-action="committee-toggle-pub" data-tid="${t.id}">${ic(t.published ? 'lock' : 'play')} ${t.published ? 'Despublicar' : 'Publicar'}</button>
-        <button class="btn btn-ghost" data-action="committee-detail" data-tid="${t.id}">${ic('pencil')} Abrir</button>
-      </div>
-    </div>`;
-  const pipe = (cls, label, n) => `<div class="tp-pipe ${cls}"><b>${n}</b><span>${label}</span></div>`;
-  const draftAnn = COMMITTEE.announcementDraft !== undefined ? COMMITTEE.announcementDraft : (s.announcement || '');
-  const step = (n, title, text) => `<li><span>${n}</span><div><strong>${title}</strong><small>${text}</small></div></li>`;
-
-  return `
-  ${cmHero('Administración', 'Panel de Formación',
-    'Controla CTA BAGES: prepara tests y miembros en privado y súbelos a los árbitros cuando quieras.',
-    `<button class="btn btn-yellow" data-action="committee-new">${ic('plus')} Nuevo test</button>
-     <button class="btn btn-glass" data-action="committee-open">${ic('eye')} Ver CTA BAGES</button>`,
-    `<div class="lg-hero-stats">
-      <div class="lg-stat"><b>${stats.members}</b><span>Miembros</span></div>
-      <div class="lg-stat"><b>${stats.published}</b><span>Publicados</span></div>
-      <div class="lg-stat"><b>${count.draft}</b><span>Borradores</span></div>
-    </div>`)}
-  ${COMMITTEE.settingsMissing ? `<div class="cm-draftbar" style="background:#FDECEC; border-color:#F3C4C4;">${ic('flag')}<div><strong>Falta un paso de instalación</strong><span>Ejecuta una vez el archivo supabase/cta-settings.sql en Supabase para poder ocultar y mostrar CTA BAGES.</span></div></div>` : ''}
-
-  <div class="tp-vis ${s.enabled ? 'on' : 'off'}">
-    <span class="tp-vis-ic">${ic(s.enabled ? 'eye' : 'lock')}</span>
-    <div class="tp-vis-text">
-      <strong>${s.enabled ? 'CTA BAGES está visible para los miembros' : 'CTA BAGES está oculto: modo borrador'}</strong>
-      <small>${s.enabled ? 'Los árbitros miembros ven los tests que hayas publicado.' : 'Solo los administradores lo ven. Prepara todo con calma y publícalo cuando esté listo.'}</small>
-    </div>
-    <button class="btn ${s.enabled ? 'btn-glass' : 'btn-yellow'}" data-action="committee-set-enabled" data-value="${s.enabled ? 0 : 1}" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${ic(s.enabled ? 'lock' : 'play')} ${s.enabled ? 'Ocultar a los miembros' : 'Publicar para los miembros'}</button>
-  </div>
-
-  <div class="tp-pipeline">
-    ${pipe('draft', 'Borradores', count.draft)}${pipe('sched', 'Programados', count.sched)}${pipe('open', 'Abiertos', count.open)}${pipe('closed', 'Cerrados', count.closed)}
-  </div>
-
-  <div class="tp-layout">
-    <div class="tp-main">
-      <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">${ic('pencil')}</span><div><h3>Borradores</h3><small>${drafts.length ? 'Tests que todavía no ven los miembros' : 'No tienes ningún borrador'}</small></div></div>
-        ${drafts.length ? drafts.map(row).join('') : `<div class="st-note">Crea un test nuevo: se guarda como borrador hasta que lo publiques.</div>`}
-      </div>
-      <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">${ic('play')}</span><div><h3>Publicados</h3><small>${live.length ? 'Programados y abiertos' : 'Nada publicado ahora mismo'}</small></div></div>
-        ${live.length ? live.map(row).join('') : `<div class="st-note">Cuando publiques un test aparecerá aquí.</div>`}
-      </div>
-    </div>
-    <aside class="tp-side">
-      <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">${ic('message')}</span><div><h3>Mensaje para los miembros</h3><small>Se muestra arriba en CTA BAGES</small></div></div>
-        <textarea id="cm-announcement" data-cm-field="announcementDraft" rows="4" maxlength="500" placeholder="Ej: Ya está disponible el test de octubre. ¡Mucho ánimo!" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${esc(draftAnn)}</textarea>
-        <button class="btn btn-primary" style="margin-top:12px;" data-action="committee-save-announcement" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>Guardar mensaje</button>
-      </div>
-      <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">${ic('idea')}</span><div><h3>Cómo trabajar en cubierto</h3><small>Un flujo tranquilo, paso a paso</small></div></div>
-        <ol class="tp-steps">
-          ${step(1, 'Oculta CTA BAGES', 'Así los miembros no ven nada mientras preparas.')}
-          ${step(2, 'Crea los tests en borrador', 'Elige preguntas del banco o genera uno equilibrado.')}
-          ${step(3, 'Añade a los árbitros', 'Por email, cuando se hayan registrado.')}
-          ${step(4, 'Publica', 'Muestra CTA BAGES y publica cada test cuando quieras.')}
-        </ol>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
-          <button class="btn btn-ghost" data-action="committee-tab" data-tab="members">${ic('userplus')} Miembros</button>
-          <button class="btn btn-ghost" data-action="committee-tab" data-tab="ranking">${ic('trophy')} Clasificación</button>
-        </div>
-      </div>
-    </aside>
-  </div>`;
-}
-
 /* ---------- miembro: lista de tests ---------- */
 function cmMemberTestCard(t, now){
   const opens = Date.parse(t.opens_at);
@@ -443,7 +432,9 @@ function cmMemberTestCard(t, now){
   if(notOpen){ cls = 'sched'; chip = `<span class="cm-chip sched">Abre el ${cmFmtDate(t.opens_at)}</span>`; }
   else if(closed){ cls = 'closed'; chip = '<span class="cm-chip closed">Cerrado</span>'; }
   else { cls = 'open'; chip = '<span class="cm-chip open">Abierto</span>'; }
-  if(!notOpen && !closed && left > 0){
+  if(t.preview){
+    action = '<span class="cm-chip soft">Vista previa</span>';
+  } else if(!notOpen && !closed && left > 0){
     action = `<button class="btn btn-primary" data-action="committee-start" data-tid="${t.id}">${done ? 'Hacer otro intento' : 'Empezar test'}</button>`;
   } else if(done && (closed || !closes)){
     action = `<button class="btn btn-secondary" data-action="committee-review" data-tid="${t.id}">Ver respuestas</button>`;
@@ -517,7 +508,7 @@ function cmTestsTab(){
       </div>
       ${t.published ? `<div class="cm-prog"><div class="cm-prog-top"><span>Participación</span><span>${people} de ${m} miembros</span></div><div class="cm-prog-bar"><div style="width:${pct}%"></div></div></div>` : ''}
       <div class="cm-actions">
-        <button class="btn ${t.published ? 'btn-secondary' : 'btn-primary'}" data-action="committee-toggle-pub" data-tid="${t.id}">${cmIc(t.published ? 'lock' : 'play')} ${t.published ? 'Despublicar' : 'Publicar'}</button>
+        <button class="btn ${t.published ? 'btn-secondary' : 'btn-primary'}" data-action="committee-toggle-pub" data-tid="${t.id}">${cmIc(t.published ? 'lock' : 'play')} ${t.published ? 'Quitar de CTA BAGES' : 'Publicar en CTA BAGES'}</button>
         <button class="btn btn-ghost" data-action="committee-detail" data-tid="${t.id}">${cmIc('chart')} Resultados y ajustes</button>
         <button class="btn btn-ghost" data-action="committee-duplicate" data-tid="${t.id}">${cmIc('copy')} Duplicar</button>
         <button class="btn btn-ghost btn-danger-soft" data-action="committee-delete-test" data-tid="${t.id}">${cmIc('trash')} Eliminar</button>
@@ -669,7 +660,7 @@ async function cmOpenDetail(tid){
 
 function cmTestDetailView(){
   const t = (COMMITTEE.tests || []).find(x => x.id === COMMITTEE.detailTestId);
-  if(!t) return '<button class="backbtn" data-action="committee-open">&larr; Volver</button><div class="empty-state">Test no encontrado.</div>';
+  if(!t) return '<button class="backbtn" data-action="committee-training">&larr; Volver</button><div class="empty-state">Test no encontrado.</div>';
   const set = COMMITTEE.settings || { opens: '', closes: '', max: '1' };
   const attempts = (COMMITTEE.attempts || []).filter(a => a.test_id === t.id)
     .sort((a, b) => b.score - a.score || (a.duration_sec || 0) - (b.duration_sec || 0));
@@ -698,7 +689,7 @@ function cmTestDetailView(){
     </div>`;
   }).join('');
   return `
-  <button class="backbtn" data-action="committee-open">&larr; Volver al panel</button>
+  <button class="backbtn" data-action="committee-training">&larr; Volver al Panel de Formación</button>
   <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
     <h2 style="margin:0;">${esc(t.title)}</h2>${cmStatusChip(t)}
     <button class="btn btn-secondary" style="margin-left:auto; display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-test" data-tid="${t.id}">${cmIc('download')} Exportar a Excel</button>
@@ -935,7 +926,7 @@ async function cmSaveBuilder(){
   if(error){ cmToast(cmErrText(error)); return; }
   COMMITTEE.builder = null;
   COMMITTEE.tab = 'tests';
-  STATE.view = 'committeeAdmin';
+  STATE.view = 'committeeTraining';
   STATE.toast = 'Test guardado como borrador. Publícalo cuando esté listo.';
   render();
   cmLoadAdminData();
@@ -967,10 +958,12 @@ async function committeeOnAction(action, el){
   if(action === 'committee-open'){
     const st = COMMITTEE.status;
     if(!st) return;
-    if(st.is_admin){ STATE.view = 'committeeAdmin'; render(); cmLoadAdminData(); }
-    else { STATE.view = 'committee'; render(); cmLoadMyTests(); }
+    // CTA BAGES es lo que ven los árbitros; el administrador lo ve como vista previa.
+    STATE.view = 'committee'; render(); window.scrollTo(0, 0);
+    if(st.is_admin) cmLoadAdminData();
+    if(st.is_member || !st.is_admin) cmLoadMyTests();
   }
-  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeAdmin'; render(); }
+  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeTraining'; render(); }
   else if(action === 'committee-training'){
     if(!isDevUser()) return;
     COMMITTEE.announcementDraft = undefined;
@@ -980,10 +973,10 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-set-enabled'){
     if(!isDevUser()) return;
     const enable = el.dataset.value === '1';
-    if(!enable && !confirm('¿Ocultar CTA BAGES a los miembros? Dejarán de verlo hasta que lo vuelvas a publicar.')) return;
-    if(enable && !confirm('¿Publicar CTA BAGES para los miembros? Verán los tests que tengas publicados.')) return;
+    if(!enable && !confirm('¿Cerrar CTA BAGES? Ningún árbitro lo verá hasta que lo vuelvas a abrir.')) return;
+    if(enable && !confirm('¿Abrir CTA BAGES a los árbitros? Verán los tests que tengas publicados.')) return;
     const ok = await cmSaveSettings({ enabled: enable });
-    if(ok) cmToast(enable ? 'CTA BAGES ya es visible para los miembros.' : 'CTA BAGES oculto: solo los administradores lo ven.');
+    if(ok) cmToast(enable ? 'CTA BAGES abierto a los árbitros.' : 'CTA BAGES cerrado a los árbitros.');
   }
   else if(action === 'committee-save-announcement'){
     if(!isDevUser()) return;
@@ -1015,7 +1008,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-exit-run'){
     if(!confirm('¿Salir del test? No se guardará ninguna respuesta y no se gastará el intento.')) return;
     COMMITTEE.run = null;
-    STATE.view = (COMMITTEE.status && COMMITTEE.status.is_admin) ? 'committeeAdmin' : 'committee';
+    STATE.view = 'committee';
     render(); cmLoadMyTests();
   }
   else if(action === 'committee-finish'){
@@ -1066,7 +1059,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-toggle-pub'){
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
     if(!t.published && !t.question_count){ cmToast('El test no tiene preguntas.'); return; }
-    if(!t.published && !confirm('¿Publicar "' + t.title + '"? Los miembros podrán verlo y hacerlo desde la fecha de apertura.')) return;
+    if(!t.published && !confirm('¿Publicar "' + t.title + '" en CTA BAGES? Los árbitros lo verán y podrán hacerlo desde la fecha de apertura.')) return;
     const { error } = await supabaseClient.from('committee_tests').update({ published: !t.published }).eq('id', tid);
     if(error){ cmToast(cmErrText(error)); return; }
     STATE.toast = t.published ? 'Test despublicado.' : 'Test publicado.'; render();
@@ -1134,7 +1127,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-new'){ COMMITTEE.builder = cmNewBuilder(); STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-b-cancel'){
     if(b && b.selected.length && !confirm('¿Descartar este test sin guardar?')) return;
-    COMMITTEE.builder = null; STATE.view = 'committeeAdmin'; render();
+    COMMITTEE.builder = null; STATE.view = 'committeeTraining'; render();
   }
   else if(action === 'committee-b-toggle'){
     if(!b) return;

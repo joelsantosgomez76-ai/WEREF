@@ -1872,3 +1872,13 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 .tp-steps small{display:block; font-size:12.5px; color:var(--muted); line-height:1.4;}
 @media (max-width:1100px){ .tp-layout{grid-template-columns:1fr;} }
 @media (max-width:640px){ .tp-pipeline{grid-template-columns:repeat(2,minmax(0,1fr));} .tp-vis .btn{width:100%; justify-content:center;} }
+
+/* CTA BAGES: vista previa del administrador */
+.cm-previewbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:#EEF4FF; border:1px solid #C9DAF8; border-radius:16px; padding:14px 18px; margin-bottom:16px;}
+.cm-previewbar > .cm-ic{width:40px; height:40px; flex-shrink:0; border-radius:12px; background:#2A6FDB; color:#fff; display:flex; align-items:center; justify-content:center;}
+.cm-previewbar > .cm-ic svg{width:20px; height:20px;}
+.cm-previewbar > div{flex:1; min-width:200px;}
+.cm-previewbar strong{display:block; font-size:14.5px; color:#0B2A5B;}
+.cm-previewbar span{display:block; font-size:13px; color:#3C5A8A; margin-top:1px;}
+.cm-previewbar .btn{padding:9px 16px; font-size:13px; display:inline-flex; align-items:center; gap:7px;}
+.cm-previewbar .btn svg{width:15px; height:15px;}
