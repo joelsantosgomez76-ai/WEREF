@@ -331,13 +331,157 @@ function startTimer(){
   }, 1000);
 }
 
+/* ---------------- BANCO COMPARTIDO (tabla shared_questions) ----------------
+   Preguntas añadidas por el administrador + sus cambios sobre las preguntas base
+   (editar / eliminar). Lo leen todos los usuarios; solo el administrador escribe. */
+const SHARED = { ready:false, rows:{}, added:[], over:{} };
+let BASE_ID_SET = null;
+function baseIdSet(){
+  if(!BASE_ID_SET) BASE_ID_SET = new Set(BASE_QUESTIONS.concat(ASSISTANT_QUESTIONS).map(q => q.id));
+  return BASE_ID_SET;
+}
+function sharedActive(){ return SHARED.ready && isDevUser(); }
+function sharedNormRow(r){
+  return {
+    id: r.id, domain: r.domain,
+    rule: r.rule == null ? null : r.rule,
+    question: r.question == null ? null : r.question,
+    options: r.options || null,
+    correct: r.correct || null,
+    explanation: r.explanation == null ? null : r.explanation,
+    difficulty: r.difficulty || 'normal',
+    deleted: !!r.deleted,
+    created_at: r.created_at || null,
+    updated_at: r.updated_at || null
+  };
+}
+function sharedRowToQuestion(r){
+  return { id:r.id, domain:r.domain, rule: r.rule == null ? null : r.rule, num:r.id, question:r.question || '',
+    options: r.options || ['','','',''], correct: r.correct || 'a', explanation: r.explanation || '',
+    difficulty: r.difficulty || 'normal', source:'user', shared:true, createdAt: r.created_at || null, updatedAt: r.updated_at || null };
+}
+function sharedRebuild(){
+  const ids = baseIdSet();
+  SHARED.added = []; SHARED.over = {};
+  Object.values(SHARED.rows).forEach(r => {
+    if(ids.has(r.id)) SHARED.over[r.id] = r;
+    else if(!r.deleted && r.question) SHARED.added.push(sharedRowToQuestion(r));
+  });
+}
+async function loadSharedQuestions(){
+  try{
+    let all = [], from = 0;
+    while(true){
+      const { data, error } = await supabaseClient.from('shared_questions').select('*').range(from, from + 999);
+      if(error) throw error;
+      all = all.concat(data || []);
+      if(!data || data.length < 1000) break;
+      from += 1000;
+    }
+    SHARED.rows = {};
+    all.forEach(r => { SHARED.rows[r.id] = r; });
+    SHARED.ready = true;
+  }catch(e){
+    // Tabla aún sin instalar o sin conexión: la app sigue con el banco base.
+  }
+  sharedRebuild();
+}
+/* Guarda filas en el banco compartido. La parte local es inmediata (síncrona). */
+async function sharedSave(rows){
+  rows = rows.map(sharedNormRow);
+  rows.forEach(r => { SHARED.rows[r.id] = r; });
+  sharedRebuild();
+  for(let i = 0; i < rows.length; i += 200){
+    const { error } = await supabaseClient.from('shared_questions').upsert(rows.slice(i, i + 200), { onConflict: 'id' });
+    if(error){
+      STATE.toast = 'No se pudo guardar en el banco compartido. Inténtalo de nuevo.';
+      await loadSharedQuestions(); render();
+      return false;
+    }
+  }
+  return true;
+}
+async function sharedDelete(ids){
+  ids.forEach(id => { delete SHARED.rows[id]; });
+  sharedRebuild();
+  const { error } = await supabaseClient.from('shared_questions').delete().in('id', ids);
+  if(error){
+    STATE.toast = 'No se pudo eliminar del banco compartido. Inténtalo de nuevo.';
+    await loadSharedQuestions(); render();
+    return false;
+  }
+  return true;
+}
+/* Fila para una pregunta (nueva o editada) con los campos del formulario. */
+function sharedRowFor(qid, domain, f, createdAt){
+  const ex = SHARED.rows[qid];
+  return sharedNormRow({
+    id: qid, domain, rule: domain === 'law' ? f.rule : null,
+    question: f.question, options: f.options, correct: f.correct,
+    explanation: f.explanation || '', difficulty: f.difficulty || 'normal', deleted: false,
+    created_at: (ex && ex.created_at) || createdAt || Date.now(), updated_at: Date.now()
+  });
+}
+/* Pasa al banco compartido lo que el administrador tenía guardado solo en su cuenta. */
+async function sharedMigrateLocal(){
+  if(!sharedActive()) return;
+  const st = STATE.storage;
+  const edits = st.edits || {}, del = st.deleted || {};
+  const userQs = (st.userQuestions || []).concat(st.glossaryQuestions || []);
+  if(!userQs.length && !Object.keys(edits).length && !Object.keys(del).length) return;
+  const baseById = {};
+  BASE_QUESTIONS.concat(ASSISTANT_QUESTIONS).forEach(q => { baseById[q.id] = q; });
+  const rows = [];
+  userQs.forEach(q => {
+    if(del[q.id]) return;
+    const m = Object.assign({}, q, edits[q.id] || {});
+    rows.push({ id:q.id, domain:q.domain, rule: q.domain === 'law' ? m.rule : null, question:m.question, options:m.options,
+      correct:m.correct, explanation:m.explanation || '', difficulty:m.difficulty || 'normal', deleted:false,
+      created_at: q.createdAt || Date.now(), updated_at: m.updatedAt || q.createdAt || Date.now() });
+  });
+  Object.keys(edits).forEach(id => {
+    const b = baseById[id]; if(!b) return;
+    const e = edits[id];
+    rows.push({ id, domain:b.domain, rule: b.domain === 'law' ? (e.rule != null ? e.rule : b.rule) : null, question:e.question, options:e.options,
+      correct:e.correct, explanation:e.explanation || '', difficulty:e.difficulty || 'normal', deleted: !!del[id],
+      created_at: null, updated_at: e.updatedAt || Date.now() });
+  });
+  Object.keys(del).forEach(id => {
+    if(baseById[id] && !edits[id]) rows.push({ id, domain:baseById[id].domain, deleted:true, updated_at: Date.now() });
+  });
+  if(rows.length){
+    const ok = await sharedSave(rows);
+    if(!ok) return;
+  }
+  st.userQuestions = []; st.glossaryQuestions = []; st.edits = {}; st.deleted = {};
+  saveUserQuestions(); saveGlossaryQuestions(); saveEdits(); saveDeleted();
+  if(rows.length) STATE.toast = 'Tus preguntas y cambios ya están en el banco compartido: ahora los ven todos los usuarios.';
+}
+
 function allQuestions(){
-  const combined = BASE_QUESTIONS.concat(ASSISTANT_QUESTIONS).concat(STATE.storage.userQuestions || []).concat(STATE.storage.glossaryQuestions || []);
+  const combined = BASE_QUESTIONS.concat(ASSISTANT_QUESTIONS).concat(SHARED.added).concat(STATE.storage.userQuestions || []).concat(STATE.storage.glossaryQuestions || []);
   return combined
-    .filter(q => !(STATE.storage.deleted && STATE.storage.deleted[q.id]))
+    .filter(q => {
+      const o = SHARED.over[q.id];
+      if(o && o.deleted) return false;
+      return !(STATE.storage.deleted && STATE.storage.deleted[q.id]);
+    })
     .map(q => {
+      let r = q;
+      const o = SHARED.over[q.id];
+      if(o){
+        const f = {};
+        if(o.question != null) f.question = o.question;
+        if(o.options) f.options = o.options;
+        if(o.correct) f.correct = o.correct;
+        if(o.explanation != null) f.explanation = o.explanation;
+        if(o.difficulty) f.difficulty = o.difficulty;
+        if(o.domain === 'law' && o.rule != null) f.rule = o.rule;
+        if(o.updated_at) f.updatedAt = o.updated_at;
+        r = Object.assign({}, q, f);
+      }
       const e = STATE.storage.edits && STATE.storage.edits[q.id];
-      return e ? Object.assign({}, q, e) : q;
+      return e ? Object.assign({}, r, e) : r;
     });
 }
 function questionsForLaw(law){
@@ -357,6 +501,7 @@ async function storageSet(key, value){
 }
 
 async function loadStorage(){
+  await loadSharedQuestions();
   try{ const v = await storageGet('progress'); STATE.storage.progress = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.progress = {}; }
   let failedStreaksWasNew = false;
   try{ const v = await storageGet('failedStreaks'); if(v){ STATE.storage.failedStreaks = JSON.parse(v); } else { STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; } }catch(e){ STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; }
@@ -420,6 +565,7 @@ async function loadStorage(){
     STATE.storage.glossaryQuestions.forEach(q=>{ if(!q.createdAt){ q.createdAt = BACKFILL_CREATED_AT; backfilled = true; } });
     if(backfilled){ saveUserQuestions(); saveGlossaryQuestions(); }
   }
+  await sharedMigrateLocal();
   checkAndUnlockBadges();
   render();
 }
@@ -3436,8 +3582,15 @@ function saveQuestionEdit(qid, alsoUnflag){
   const edit = (domain==='glossary' || domain==='assistants')
     ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
     : { rule: selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() };
-  STATE.storage.edits[qid] = edit;
-  saveEdits();
+  if(sharedActive()){
+    // Banco compartido: el cambio lo ven todos los usuarios.
+    const cur = allQuestions().find(x => x.id === qid) || {};
+    sharedSave([sharedRowFor(qid, domain, edit, cur.createdAt)]);
+    if(STATE.storage.edits[qid]){ delete STATE.storage.edits[qid]; saveEdits(); }
+  } else {
+    STATE.storage.edits[qid] = edit;
+    saveEdits();
+  }
   if(alsoUnflag){ delete STATE.storage.flags[qid]; saveFlags(); }
   STATE.editingId = null;
   STATE.toast = 'Pregunta actualizada.';
@@ -3729,7 +3882,8 @@ function addQuestionView(){
   const isGlossaryContext = STATE.lawId === 'glossary';
   const currentLawNum = typeof STATE.lawId === 'number' ? STATE.lawId : null;
   const lawSel = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${currentLawNum===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('')
-    + `<option value="glossary" ${isGlossaryContext?'selected':''}>Glosario IFAB</option>`;
+    + `<option value="glossary" ${isGlossaryContext?'selected':''}>Glosario IFAB</option>`
+    + (sharedActive() ? `<option value="assistants" ${STATE.lawId==='assistants'?'selected':''}>Árbitros Asistentes</option>` : '');
   const backAction = STATE.cameFromDb ? 'database' : (STATE.lawId!=null ? 'open-law' : 'home');
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${STATE.lawId!=null?STATE.lawId:''}">&larr; Volver</button>
@@ -3760,7 +3914,7 @@ function addQuestionView(){
 function saveNewQuestion(){
   const lawSelEl = document.getElementById('f-law');
   const lawSelVal = lawSelEl.value;
-  const domain = lawSelVal === 'glossary' ? 'glossary' : 'law';
+  const domain = lawSelVal === 'glossary' ? 'glossary' : lawSelVal === 'assistants' ? 'assistants' : 'law';
   const selectedNum = domain === 'law' ? parseInt(lawSelVal,10) : null;
   const question = document.getElementById('f-question').value.trim();
   const a = document.getElementById('f-a').value.trim();
@@ -3779,7 +3933,16 @@ function saveNewQuestion(){
     return;
   }
 
-  if(domain==='glossary'){
+  if(sharedActive()){
+    // Banco compartido: la pregunta la ven todos los usuarios.
+    const prefix = domain === 'glossary' ? 'G' : domain === 'assistants' ? 'S' : 'U';
+    const id = prefix + Math.random().toString(36).slice(2,9);
+    sharedSave([sharedRowFor(id, domain, { rule:selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty }, Date.now())]);
+    if(domain==='glossary'){ STATE.toast='Pregunta guardada en el Glosario para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId='glossary'; STATE.view='law'; } }
+    else if(domain==='assistants'){ STATE.toast='Pregunta guardada en Árbitros Asistentes para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId='assistants'; STATE.view='law'; } }
+    else { STATE.toast='Pregunta guardada en la Regla '+selectedNum+' para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId=selectedNum; STATE.view='law'; } }
+    if(STATE.cameFromDb){ STATE.view='database'; }
+  } else if(domain==='glossary'){
     const q = { domain:'glossary', rule:null, num: 'U'+(STATE.storage.glossaryQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() };
     STATE.storage.glossaryQuestions.push(q);
     saveGlossaryQuestions();
@@ -3866,6 +4029,7 @@ function importExcelFile(file){
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
       let updated = 0, added = 0, skipped = 0, duplicates = 0;
+      const sharedRows = [];
       const seenKeys = new Set(allQuestions().map(q => questionDedupeKey(q)));
       rows.forEach(row => {
         const id = String(row['ID']||'').trim();
@@ -3891,14 +4055,19 @@ function importExcelFile(file){
           const edit = isGlossary
             ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
             : { rule, question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() };
-          STATE.storage.edits[id] = edit;
+          if(sharedActive()) sharedRows.push(sharedRowFor(id, exists.domain, edit, exists.createdAt));
+          else STATE.storage.edits[id] = edit;
           updated++;
         } else {
-          if(isAssist){ skipped++; return; }
+          if(isAssist && !sharedActive()){ skipped++; return; }
           const dedupeKey = questionDedupeKey({ question, options:[a,b,c,d] });
           if(seenKeys.has(dedupeKey)){ duplicates++; return; }
           seenKeys.add(dedupeKey);
-          if(isGlossary){
+          if(sharedActive()){
+            const dom = isAssist ? 'assistants' : isGlossary ? 'glossary' : 'law';
+            const nid = (isAssist ? 'S' : isGlossary ? 'G' : 'U') + Math.random().toString(36).slice(2,9);
+            sharedRows.push(sharedRowFor(nid, dom, { rule, question, options:[a,b,c,d], correct, explanation, difficulty }, Date.now()));
+          } else if(isGlossary){
             STATE.storage.glossaryQuestions.push({ domain:'glossary', rule:null, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() });
           } else {
             STATE.storage.userQuestions.push({ domain:'law', rule, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'U'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() });
@@ -3906,6 +4075,7 @@ function importExcelFile(file){
           added++;
         }
       });
+      if(sharedRows.length) sharedSave(sharedRows);
       saveEdits(); saveUserQuestions(); saveGlossaryQuestions();
       STATE.toast = `Importado: ${added} añadidas, ${updated} actualizadas, ${duplicates} omitidas por estar duplicadas, ${skipped} omitidas por datos incompletos.`;
       STATE.dbFilter.page = 1;
@@ -4224,8 +4394,19 @@ function onAction(e){
   else if(action==='confirm-delete'){
     const qid = STATE.confirmDeleteId;
     if(qid){
-      STATE.storage.deleted[qid] = true;
-      saveDeleted();
+      if(sharedActive() && (baseIdSet().has(qid) || SHARED.rows[qid])){
+        // Banco compartido: se elimina para todos los usuarios.
+        if(baseIdSet().has(qid)){
+          const cur = allQuestions().find(x => x.id === qid) || {};
+          const ex = SHARED.rows[qid] || {};
+          sharedSave([{ id:qid, domain:cur.domain || ex.domain || 'law', deleted:true, created_at: ex.created_at || null, updated_at: Date.now() }]);
+        } else {
+          sharedDelete([qid]);
+        }
+      } else {
+        STATE.storage.deleted[qid] = true;
+        saveDeleted();
+      }
       delete STATE.storage.flags[qid]; saveFlags();
       delete STATE.storage.reviewed[qid]; saveReviewed();
       STATE.toast = 'Pregunta eliminada.';
