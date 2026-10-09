@@ -1412,4 +1412,14 @@ input.tc-count{max-width:140px; font:700 26px 'Oswald'; text-align:center; margi
   .ad-user-date{order:3;}
   .ad-user-actions{width:100%;}
 }
-.ad-kpis .ad-kpi:last-child{grid-column:span 2;}
+.ad-kpis .ad-kpi:last-child:nth-child(odd){grid-column:span 2;}
+
+/* Roles */
+.ad-role{display:inline-block; font:700 10.5px 'JetBrains Mono'; letter-spacing:0.05em; text-transform:uppercase; border-radius:20px; padding:3px 10px; white-space:nowrap; vertical-align:middle;}
+.ad-role.master{background:var(--pitch); color:var(--yellow);}
+.ad-role.developer{background:#DFEBFC; color:#1D6FE0;}
+.ad-role.user{background:var(--chalk); color:var(--muted); border:1px solid var(--line);}
+.pr-role{font-size:11px; margin-left:8px; position:relative; top:-4px;}
+.lg-hero .pr-role.user{background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.8); border-color:rgba(255,255,255,0.25);}
+.lg-hero .pr-role.master{background:var(--yellow); color:var(--yellow-ink);}
+.ad-dev{color:#1D6FE0 !important; border-color:#BCD3F5 !important;}
