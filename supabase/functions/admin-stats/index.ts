@@ -1,7 +1,7 @@
 // Supabase Edge Function: devuelve estadísticas agregadas de usuarios para el
-// Dashboard del Usuario Maestro. Solo responde con datos si quien llama está
-// autenticado y su email coincide con ADMIN_EMAIL (mismo email que usa
-// isDevUser() en el cliente). Usa la Admin API de Supabase (service_role)
+// Dashboard de administración. Solo responde con datos si quien llama es el usuario
+// maestro (email ADMIN_EMAIL, el mismo que usa isDevUser() en el cliente) o un
+// desarrollador (fila en la tabla user_roles). Usa la Admin API de Supabase (service_role)
 // porque auth.users no es accesible desde el cliente con la anon key.
 //
 // Variables de entorno (Project Settings -> Edge Functions -> Secrets):
@@ -39,7 +39,7 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: callerData, error: callerErr } = await callerClient.auth.getUser();
-    if (callerErr || !callerData?.user || callerData.user.email !== ADMIN_EMAIL) {
+    if (callerErr || !callerData?.user) {
       return new Response(JSON.stringify({ error: "No autorizado" }), {
         status: 403,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
@@ -48,6 +48,48 @@ Deno.serve(async (req: Request) => {
 
     // Cliente admin real, con permisos para listar todos los usuarios.
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+    // Rol de quien llama: maestro (por email), desarrollador (tabla user_roles) o usuario.
+    let callerRole: "master" | "developer" | "user" = "user";
+    if (callerData.user.email === ADMIN_EMAIL) {
+      callerRole = "master";
+    } else {
+      const { data: roleRow } = await adminClient.from("user_roles").select("role").eq("user_id", callerData.user.id).maybeSingle();
+      if (roleRow && roleRow.role === "developer") callerRole = "developer";
+    }
+    if (callerRole === "user") {
+      return new Response(JSON.stringify({ error: "No autorizado" }), {
+        status: 403,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const callerId = callerData.user.id;
+
+    // Mapa de roles (solo hay filas para los desarrolladores).
+    const roleMap: Record<string, string> = {};
+    try {
+      const { data: roleRows } = await adminClient.from("user_roles").select("user_id, role");
+      (roleRows || []).forEach((r: any) => { roleMap[r.user_id] = r.role; });
+    } catch (_) { /* la tabla aún no existe: todos son usuarios normales */ }
+    const roleOf = (u: any) => (u.email === ADMIN_EMAIL ? "master" : (roleMap[u.id] || "user"));
+
+    // Quién puede actuar sobre quién: nadie sobre el maestro ni sobre sí mismo;
+    // solo el maestro sobre los desarrolladores.
+    const guardTarget = (target: any, verb: string): Response | null => {
+      if (target.id === callerId || target.email === ADMIN_EMAIL) {
+        return new Response(JSON.stringify({ error: "No puedes " + verb + " esa cuenta" }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      if (roleOf(target) === "developer" && callerRole !== "master") {
+        return new Response(JSON.stringify({ error: "Solo el usuario maestro puede " + verb + " a un desarrollador" }), {
+          status: 403,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+      return null;
+    };
 
     let body: any = {};
     try { body = await req.json(); } catch (_) { /* sin body -> estadísticas por defecto */ }
@@ -67,12 +109,8 @@ Deno.serve(async (req: Request) => {
           headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
       }
-      if (targetData.user.email === ADMIN_EMAIL) {
-        return new Response(JSON.stringify({ error: "No puedes eliminar tu propia cuenta de administrador" }), {
-          status: 400,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
-      }
+      const guardDel = guardTarget(targetData.user, "eliminar");
+      if (guardDel) return guardDel;
       const { error: delErr } = await adminClient.auth.admin.deleteUser(targetId);
       if (delErr) throw delErr;
       await adminClient.from("usernames").delete().eq("user_id", targetId); // limpieza best-effort si no hay cascade
@@ -97,12 +135,8 @@ Deno.serve(async (req: Request) => {
           headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         });
       }
-      if (targetData.user.email === ADMIN_EMAIL) {
-        return new Response(JSON.stringify({ error: "No puedes bloquear tu propia cuenta de administrador" }), {
-          status: 400,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
-      }
+      const guardBlock = guardTarget(targetData.user, body.action === "block" ? "bloquear" : "desbloquear");
+      if (guardBlock) return guardBlock;
       const { error: updErr } = await adminClient.auth.admin.updateUserById(targetId, {
         ban_duration: body.action === "block" ? "876000h" : "none", // ~100 años (bloqueo indefinido) / "none" desbloquea
       });
@@ -177,6 +211,7 @@ Deno.serve(async (req: Request) => {
         email: u.email,
         created_at: u.created_at,
         blocked: !!u.banned_until && new Date(u.banned_until) > now,
+        role: roleOf(u),
         _lastSignInAt: u.last_sign_in_at,
       }));
 
@@ -212,6 +247,8 @@ Deno.serve(async (req: Request) => {
         active,
         inactive: Math.max(0, allUsers.length - active - blocked),
         blocked,
+        developers: allUsers.filter((u) => roleOf(u) === "developer").length,
+        callerRole,
         chart,
         users,
         usersFilteredTotal: sortedUsers.length,

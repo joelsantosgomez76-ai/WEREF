@@ -1,6 +1,38 @@
 const DEV_USER_EMAIL = 'info@we-ref.com';
-function isDevUser(){
-  return typeof CURRENT_USER_EMAIL !== 'undefined' && CURRENT_USER_EMAIL === DEV_USER_EMAIL;
+
+/* ---------------- ROLES ----------------
+   master     -> info@we-ref.com (único): gestiona toda la app y asigna roles.
+   developer  -> acceso a todo (panel, base de datos, sugerencias, comité), pero no asigna roles
+                 ni puede bloquear/eliminar al maestro ni a otros desarrolladores.
+   user       -> usuario normal; es el rol por defecto de todo el mundo. */
+let USER_ROLE = null;
+function userRole(){
+  if(USER_ROLE) return USER_ROLE;
+  return (typeof CURRENT_USER_EMAIL !== 'undefined' && CURRENT_USER_EMAIL === DEV_USER_EMAIL) ? 'master' : 'user';
+}
+function isMaster(){ return userRole() === 'master'; }
+function isDevUser(){ const r = userRole(); return r === 'master' || r === 'developer'; }
+const ROLE_LABELS = { master: 'Maestro', developer: 'Desarrollador', user: 'Usuario' };
+
+async function loadUserRole(){
+  try{
+    const { data, error } = await supabaseClient.rpc('weref_role');
+    if(!error && (data === 'master' || data === 'developer' || data === 'user')){ USER_ROLE = data; return; }
+  }catch(e){}
+  USER_ROLE = null; // sin la función en el servidor: el maestro se reconoce por su email
+}
+async function setUserRole(userId, role){
+  if(!isMaster() || !userId) return;
+  try{
+    const { error } = await supabaseClient.rpc('weref_set_role', { p_user_id: userId, p_role: role });
+    if(error) throw error;
+    STATE.toast = role === 'developer' ? 'Ahora es Desarrollador.' : 'Ahora es Usuario normal.';
+    render();
+    loadAdminStats(STATE.adminUsersPage);
+  }catch(e){
+    STATE.toast = 'No se pudo cambiar el rol. ¿Has instalado el SQL de roles en Supabase?';
+    render();
+  }
 }
 
 async function reportQuestion(qid){
@@ -501,6 +533,7 @@ async function storageSet(key, value){
 }
 
 async function loadStorage(){
+  await loadUserRole();
   await loadSharedQuestions();
   try{ const v = await storageGet('progress'); STATE.storage.progress = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.progress = {}; }
   let failedStreaksWasNew = false;
@@ -2653,7 +2686,7 @@ function profileView(){
       <span class="pr-avatar">${initial}</span>
       <div class="lg-hero-main">
         <div class="home-eyebrow">Configuración de la cuenta</div>
-        <h1>${esc(username || 'Mi cuenta')}</h1>
+        <h1>${esc(username || 'Mi cuenta')} <span class="ad-role ${userRole()} pr-role">${ROLE_LABELS[userRole()]}</span></h1>
         <p>${esc(email)}${fullName ? ' · ' + esc(fullName) : ''}</p>
         <div class="ac-hero-actions">
           <button class="btn btn-yellow" data-action="profile-edit">${ic('pencil')} Editar perfil</button>
@@ -4041,7 +4074,8 @@ function adminDashboardView(){
     kpi('calendar', '', s.registeredMonth, 'Este mes'),
     kpi('flame', 'good', s.active, 'Activos (30 días)'),
     kpi('clock', 'warn', s.inactive, 'Inactivos'),
-    kpi('lock', 'bad', s.blocked, 'Bloqueados')
+    kpi('lock', 'bad', s.blocked, 'Bloqueados'),
+    (s.developers !== undefined ? kpi('award', '', s.developers, 'Desarrolladores') : '')
   ].join('');
 
   const maxCount = Math.max(1, ...s.chart.map(d => d.count));
@@ -4055,7 +4089,14 @@ function adminDashboardView(){
 
   const rowsHtml = s.users.map(u => {
     const isSelf = typeof CURRENT_USER_EMAIL !== 'undefined' && u.email === CURRENT_USER_EMAIL;
+    const role = u.email === DEV_USER_EMAIL ? 'master' : (u.role || 'user');
     const initial = esc(String(u.username || u.email || '?').trim().charAt(0).toUpperCase());
+    const canModerate = !isSelf && role !== 'master' && (role !== 'developer' || isMaster());
+    const roleBtn = (isMaster() && !isSelf && role !== 'master')
+      ? (role === 'developer'
+          ? `<button class="btn btn-ghost" data-action="admin-set-role" data-uid="${u.id}" data-role="user">${ic('userplus')} Quitar desarrollador</button>`
+          : `<button class="btn btn-ghost ad-dev" data-action="admin-set-role" data-uid="${u.id}" data-role="developer">${ic('userplus')} Hacer desarrollador</button>`)
+      : '';
     return `
     <div class="ad-user ${u.blocked ? 'blocked' : ''}">
       <span class="ad-user-av">${initial}</span>
@@ -4064,12 +4105,14 @@ function adminDashboardView(){
         <small>${esc(u.email)}</small>
       </div>
       <span class="ad-user-date">${formatEventDate(u.created_at.slice(0,10))}</span>
+      <span class="ad-role ${role}">${ROLE_LABELS[role]}</span>
       ${u.blocked ? '<span class="sg-chip bad">Bloqueado</span>' : '<span class="sg-chip done">Activo</span>'}
       <div class="ad-user-actions">${isSelf ? '<span class="ad-self">Tú</span>' : `
-        ${u.blocked
+        ${roleBtn}
+        ${canModerate ? (u.blocked
           ? `<button class="btn btn-ghost ad-ok" data-action="admin-unblock-user" data-uid="${u.id}">${ic('check')} Desbloquear</button>`
-          : `<button class="btn btn-ghost ad-warn" data-action="admin-block-user" data-uid="${u.id}">${ic('lock')} Bloquear</button>`}
-        <button class="btn btn-ghost btn-danger-soft" data-action="admin-delete-user" data-uid="${u.id}">${ic('trash')} Eliminar</button>
+          : `<button class="btn btn-ghost ad-warn" data-action="admin-block-user" data-uid="${u.id}">${ic('lock')} Bloquear</button>`) : ''}
+        ${canModerate ? `<button class="btn btn-ghost btn-danger-soft" data-action="admin-delete-user" data-uid="${u.id}">${ic('trash')} Eliminar</button>` : ''}
       `}</div>
     </div>`;
   }).join('');
@@ -4775,6 +4818,7 @@ function onAction(e){
   else if(action==='admin-delete-user'){ if(!isDevUser()) return; STATE.confirmDeleteUserId = el.dataset.uid; render(); }
   else if(action==='admin-cancel-delete-user'){ STATE.confirmDeleteUserId = null; render(); }
   else if(action==='admin-confirm-delete-user'){ if(!isDevUser()) return; deleteAdminUser(STATE.confirmDeleteUserId); }
+  else if(action==='admin-set-role'){ if(!isMaster()) return; setUserRole(el.dataset.uid, el.dataset.role); }
   else if(action==='admin-block-user'){ if(!isDevUser()) return; toggleBlockAdminUser(el.dataset.uid, true); }
   else if(action==='admin-unblock-user'){ if(!isDevUser()) return; toggleBlockAdminUser(el.dataset.uid, false); }
   else if(action==='suggestion-status'){ if(!isDevUser()) return; setSuggestionStatus(el.dataset.id, el.dataset.status); }
