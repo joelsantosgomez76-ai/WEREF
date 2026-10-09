@@ -61,7 +61,7 @@ function shellIcon(name){
 function shellSection(view){
   const v = String(view);
   if(v === 'home') return 'home';
-  if(['law', 'trainConfig', 'result', 'flagged', 'add', 'suggestForm'].includes(v)) return 'reglas';
+  if(['law', 'trainConfig', 'result', 'flagged', 'add'].includes(v)) return 'reglas';
   if(['dailyChallenge', 'leaderboard'].includes(v)) return 'league';
   if(v === 'academia' || v === 'savedBrowse' || v.startsWith('myBank') || v.startsWith('myDocs')) return 'academia';
   if(['stats', 'recentPerformance', 'streakCalendar'].includes(v)) return 'stats';
@@ -135,7 +135,7 @@ function shellFor(view, html){
   const bottomActive = moreIds.includes(active) ? 'more' : active;
   const bottom = `<nav class="shell-bottom" aria-label="Navegación">${bottomItems.map(it =>
     `<button class="${bottomActive === it.id ? 'active' : ''}" data-action="${it.action}">${shellIcon(it.icon)}<span>${it.label}</span></button>`).join('')}</nav>`;
-  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar'];
+  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin'];
   const wide = WIDE_VIEWS.includes(String(view)) || (String(view) === 'law' && typeof STATE !== 'undefined' && STATE.lawId === 'saved');
   return `<div class="shell">${side}<main class="shell-main"><div class="shell-content ${wide ? 'wide' : ''}">${html}</div></main></div>${bottom}`;
 }
