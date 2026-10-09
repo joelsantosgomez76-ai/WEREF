@@ -1,4 +1,4 @@
-/* ---------------- FORMACIÓN DEL COMITÉ (Bages) ----------------
+/* ---------------- CTA BAGES (formación del comité de árbitros del Bages) ----------------
    Tests mensuales privados para los árbitros que elige el administrador.
    Toda la seguridad vive en Supabase (ver supabase/committee.sql): aquí solo se pinta.
    Depende de app.js (STATE, render, esc, allQuestions, LAW_NAMES, isDevUser, ringSVG, scoreColor,
@@ -90,6 +90,39 @@ function cmExport(rows, sheetName, fileName){
   XLSX.writeFile(wb, fileName);
 }
 
+/* ---------- ajustes del módulo (visible / oculto, mensaje para miembros) ---------- */
+function cmSettings(){ return COMMITTEE.settings || { enabled: true, announcement: '' }; }
+function cmMemberAccess(){
+  const st = COMMITTEE.status;
+  if(!st) return false;
+  return !!(st.is_admin || (st.is_member && cmSettings().enabled));
+}
+async function cmLoadSettings(){
+  try{
+    const { data, error } = await supabaseClient.from('committee_settings').select('*').eq('id', 1).maybeSingle();
+    if(error) throw error;
+    COMMITTEE.settings = data ? { enabled: data.enabled !== false, announcement: data.announcement || '' } : { enabled: true, announcement: '' };
+    COMMITTEE.settingsMissing = false;
+  }catch(e){
+    COMMITTEE.settings = { enabled: true, announcement: '' };
+    COMMITTEE.settingsMissing = true;
+  }
+}
+async function cmSaveSettings(patch){
+  const prev = Object.assign({}, cmSettings());
+  COMMITTEE.settings = Object.assign({}, prev, patch);
+  render();
+  const { error } = await supabaseClient.from('committee_settings').upsert({
+    id: 1, enabled: COMMITTEE.settings.enabled, announcement: COMMITTEE.settings.announcement, updated_at: new Date().toISOString()
+  });
+  if(error){
+    COMMITTEE.settings = prev;
+    cmToast('No se pudo guardar. ¿Has ejecutado el SQL de CTA BAGES en Supabase?');
+    return false;
+  }
+  return true;
+}
+
 /* ---------- carga de datos ---------- */
 async function loadCommitteeStatus(){
   try{
@@ -99,6 +132,7 @@ async function loadCommitteeStatus(){
   }catch(e){
     COMMITTEE.status = { is_admin: isDevUser(), is_member: false, setupMissing: true };
   }
+  await cmLoadSettings();
   if(STATE.view === 'home') render();
 }
 
@@ -154,6 +188,7 @@ function cmUsedIn(q){
 /* ---------- enrutado de vistas ---------- */
 function committeeView(v){
   if(v === 'committeeAdmin') return cmAdminView();
+  if(v === 'committeeTraining') return cmTrainingView();
   if(v === 'committeeBuilder') return cmBuilderView();
   if(v === 'committeeTestDetail') return cmTestDetailView();
   if(v === 'committeeRun') return cmRunView();
@@ -162,43 +197,241 @@ function committeeView(v){
 }
 
 function cmHero(eyebrow, title, text, actionsHtml, rightHtml){
-  return `<section class="home-hero">
-    <div>
+  return `<section class="lg-hero ac-hero">
+    <div class="lg-hero-main">
       <div class="home-eyebrow">${eyebrow}</div>
       <h1>${title}</h1>
       <p>${text}</p>
-      ${actionsHtml ? `<div class="home-hero-actions">${actionsHtml}</div>` : ''}
+      ${actionsHtml ? `<div class="ac-hero-actions">${actionsHtml}</div>` : ''}
     </div>
     ${rightHtml || ''}
   </section>`;
 }
 function cmRingBlock(pct, label, sub){
-  return `<div class="home-hero-rank static">
-    <div class="ring">${ringSVG(pct, 84, 7)}<div class="pct" style="font-size:15px;">${pct}%</div></div>
-    <div style="text-align:center;"><div class="rank-name">${esc(label)}</div><div class="rank-sub">${esc(sub)}</div></div>
+  return `<div class="cm-ringcard">
+    <div class="cm-ringcard-ring">${ringSVG(pct, 84, 7)}<div class="pct">${pct}%</div></div>
+    <div><b>${esc(label)}</b><span>${esc(sub)}</span></div>
   </div>`;
+}
+function cmAnnouncementBanner(){
+  const a = (cmSettings().announcement || '').trim();
+  return a ? `<div class="cm-announce">${cmIc('message')}<div><strong>Mensaje del comité</strong><p>${esc(a)}</p></div></div>` : '';
 }
 
 /* ---------- miembro: lista de tests ---------- */
 function cmMemberView(){
+  if(!cmMemberAccess()){
+    return cmHero('CTA BAGES', 'CTA BAGES', 'Formación del comité de árbitros del Bages.', '', '') +
+      `<div class="ac-empty">${shellIcon('lock')}<strong>Todavía no está disponible</strong><span>El comité está preparando este apartado. Te avisarán cuando se publique.</span></div>`;
+  }
   const list = COMMITTEE.myTests;
   const now = Date.now();
   let body;
-  if(COMMITTEE.error) body = `<div class="empty-state">${esc(COMMITTEE.error)}</div>`;
-  else if(list === null) body = '<div class="empty-state">Cargando...</div>';
-  else if(!list.length) body = '<div class="empty-state">Todavía no hay ningún test publicado. El comité te avisará cuando haya uno.</div>';
-  else body = list.map(t => cmMemberTestCard(t, now)).join('');
+  if(COMMITTEE.error) body = `<div class="ac-empty">${shellIcon('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>`;
+  else if(list === null) body = `<div class="ac-empty">${shellIcon('clock')}<strong>Cargando...</strong></div>`;
+  else if(!list.length) body = `<div class="ac-empty">${shellIcon('book')}<strong>Todavía no hay ningún test publicado</strong><span>El comité te avisará cuando haya uno.</span></div>`;
+  else body = `<div class="cm-testlist">${list.map(t => cmMemberTestCard(t, now)).join('')}</div>`;
   const total = list ? list.length : 0;
   const done = list ? list.filter(t => t.attempts_used > 0).length : 0;
   const pct = total ? Math.round(done / total * 100) : 0;
   return `
-  ${cmHero('Comité de árbitros · Bages', 'Formación del comité',
+  ${cmHero('Comité de árbitros · Bages', 'CTA BAGES',
       'Tests del comité para practicar cada mes. Tu resultado es privado: la clasificación solo la ve el comité.',
       '', cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
-  <h2 style="font-size:20px; margin-bottom:12px;">Tus tests</h2>
+  ${cmAnnouncementBanner()}
+  <div class="lg-section-head"><h2>Tus tests</h2><span>${total} ${total === 1 ? 'test' : 'tests'}</span></div>
   ${body}`;
 }
 
+/* ---------- miembro: hacer el test ---------- */
+function cmRunView(){
+  const r = COMMITTEE.run;
+  if(!r) return cmMemberView();
+  const qs = r.test.questions;
+  const q = qs[r.idx];
+  const answered = Object.keys(r.answers).length;
+  const sel = r.answers[q.pos];
+  const isLast = r.idx === qs.length - 1;
+  const dots = qs.map((x, i) => `<button class="cm-dot ${r.answers[x.pos] ? 'answered' : ''} ${i === r.idx ? 'current' : ''}" data-action="committee-goto" data-idx="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('');
+  return `
+  <div class="qz">
+    <header class="qz-top">
+      <button class="qz-exit" data-action="committee-exit-run" aria-label="Salir del test">${shellIcon('chevron')}<span>Salir</span></button>
+      <div class="qz-info"><strong>${esc(r.test.title)}</strong><small>Pregunta ${r.idx + 1} de ${qs.length} · ${answered} respondidas</small></div>
+      <div class="qz-status"><span class="qz-chip soft">${shellIcon('check')} ${answered}/${qs.length}</span></div>
+    </header>
+    <div class="qz-progress"><i style="width:${Math.round(answered / qs.length * 100)}%"></i></div>
+    <article class="qz-card">
+      ${q.rule ? `<div class="qz-tag">Regla ${q.rule} · ${esc(LAW_NAMES[q.rule] || '')}</div>` : '<div class="qz-tag">CTA BAGES</div>'}
+      <h2 class="qz-text">${esc(q.question)}</h2>
+      <div class="qz-options">
+        ${q.options.map((o, i) => `<button class="option ${sel === CM_LETTERS[i] ? 'selected' : ''}" data-action="committee-answer" data-letter="${CM_LETTERS[i]}"><span class="letter">${CM_LETTERS[i].toUpperCase()}</span><span class="opt-text">${esc(o)}</span></button>`).join('')}
+      </div>
+    </article>
+    <div class="qz-actions">
+      <button class="btn btn-secondary" data-action="committee-prev" ${r.idx === 0 ? 'disabled' : ''}>&larr; Anterior</button>
+      ${isLast
+        ? `<button class="btn btn-primary" data-action="committee-finish" ${r.submitting ? 'disabled' : ''}>${r.submitting ? 'Enviando...' : 'Finalizar test'}</button>`
+        : `<button class="btn btn-primary" data-action="committee-next">Siguiente &rarr;</button>`}
+    </div>
+    <div class="cm-dots">${dots}</div>
+    ${answered < qs.length ? '' : '<div class="cm-allanswered">Has respondido todas. Cuando quieras, finaliza el test.</div>'}
+  </div>`;
+}
+
+function cmResultView(){
+  const r = COMMITTEE.result;
+  if(!r) return cmMemberView();
+  const pct = Math.round(r.score / r.total * 100);
+  const msg = pct >= 85 ? '¡Excelente resultado!' : pct >= 60 ? 'Buen trabajo, sigue así.' : 'Hay margen de mejora: repasa las reglas más flojas.';
+  const review = r.review ? r.review.map((q, idx) => `
+    <article class="ac-q">
+      <div class="ac-q-head"><span class="ac-q-num">${idx + 1}</span><div class="ac-q-text">${esc(q.question)}</div></div>
+      ${q.rule ? `<div class="qz-tag" style="margin-bottom:12px;">Regla ${q.rule} · ${esc(LAW_NAMES[q.rule] || '')}</div>` : ''}
+      <div class="ac-q-opts">${q.options.map((o, i) => {
+        const letter = CM_LETTERS[i];
+        let cls = 'option';
+        if(letter === q.correct) cls += ' correct';
+        else if(letter === q.chosen) cls += ' incorrect';
+        return `<div class="${cls}" style="cursor:default; padding:9px 12px;"><span class="letter">${letter.toUpperCase()}</span><span class="opt-text">${esc(o)}</span></div>`;
+      }).join('')}</div>
+      ${q.chosen ? '' : '<div style="font-size:12.5px; color:var(--red); margin-top:8px; font-weight:600;">Sin responder</div>'}
+      ${q.explanation ? `<div class="ac-q-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+    </article>`).join('') : '';
+  return `
+  <button class="backbtn" data-action="committee-open">&larr; Volver a mis tests</button>
+  ${acHero('CTA BAGES · Resultado', esc(r.title), msg, [[pct + '%', 'Resultado'], [r.score + '/' + r.total, 'Correctas'], [r.total - r.score, 'Falladas']])}
+  ${r.review ? `<div class="lg-section-head"><h2>Revisión</h2><span>Con las respuestas correctas</span></div><div class="ac-qlist">${review}</div>` : `<div class="ac-empty">${shellIcon('lock')}<strong>Tu resultado ya está guardado</strong><span>Las respuestas correctas se publicarán cuando cierre el test.</span></div>`}`;
+}
+
+/* ---------- administrador: panel ---------- */
+function cmDraftBanner(){
+  if(cmSettings().enabled) return '';
+  return `<div class="cm-draftbar">${cmIc('lock')}<div><strong>Modo borrador</strong><span>CTA BAGES está oculto: los árbitros miembros todavía no lo ven. Tú puedes prepararlo con calma.</span></div>
+    <button class="btn btn-yellow" data-action="committee-training">Ir al Panel de Formación</button></div>`;
+}
+
+function cmAdminView(){
+  const st = COMMITTEE.status || {};
+  const tab = COMMITTEE.tab;
+  const tabs = [['tests', 'Tests', 'book'], ['members', 'Miembros', 'users'], ['ranking', 'Clasificación', 'trophy'], ['stats', 'Puntos débiles', 'target']];
+  if(st.is_member) tabs.push(['mine', 'Mis tests', 'check']);
+  let content;
+  if(COMMITTEE.tests === null) content = `<div class="ac-empty">${shellIcon('clock')}<strong>Cargando...</strong></div>`;
+  else if(tab === 'members') content = cmMembersTab();
+  else if(tab === 'ranking') content = cmRankingTab();
+  else if(tab === 'stats') content = cmStatsTab();
+  else if(tab === 'mine') content = cmMineTab();
+  else content = cmTestsTab();
+  const s = cmAdminStats();
+  const hero = cmHero('Comité de árbitros · Bages', 'CTA BAGES',
+    'Crea tests mensuales, elige quién participa y sigue la evolución del comité. La clasificación es privada: solo la ves tú.',
+    `<button class="btn btn-yellow" data-action="committee-new">${cmIc('plus')} Nuevo test</button>
+     <button class="btn btn-glass" data-action="committee-tab" data-tab="members">${cmIc('userplus')} Añadir árbitro</button>
+     <button class="btn btn-glass" data-action="committee-training">${cmIc('target')} Panel de Formación</button>`,
+    cmRingBlock(s.participation, 'Participación', 'media de los tests'));
+  const kpi = (icon, tone, val, label, sub) => `<div class="ad-kpi ${tone}"><span class="ad-kpi-ic">${cmIc(icon)}</span><div><b>${val}</b><small>${label}${sub ? ' · ' + sub : ''}</small></div></div>`;
+  const kpis = `<div class="ad-kpis cm-kpis">
+    ${kpi('users', '', s.members, 'Miembros', 'con acceso')}
+    ${kpi('book', 'good', s.published, 'Tests publicados', ((COMMITTEE.tests || []).length - s.published) + ' en borrador')}
+    ${kpi('check', '', s.participation + '%', 'Participación', 'por test')}
+    ${kpi('target', s.accuracy !== null && s.accuracy < 60 ? 'bad' : '', s.accuracy !== null ? s.accuracy + '%' : '—', 'Acierto medio')}
+  </div>`;
+  return `
+  ${hero}
+  ${cmDraftBanner()}
+  ${cmSetupWarning()}
+  ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${shellIcon('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
+  ${kpis}
+  <div class="cm-tabs" role="tablist">
+    ${tabs.map(([k, label, icon]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span></button>`).join('')}
+  </div>
+  ${content}`;
+}
+
+/* ---------- administración: Panel de Formación (controla CTA BAGES) ---------- */
+function cmTrainingView(){
+  const ic = (n) => shellIcon(n);
+  const s = cmSettings();
+  const tests = COMMITTEE.tests;
+  if(tests === null) return cmHero('Administración', 'Panel de Formación', 'Controla CTA BAGES: prepáralo en privado y publícalo cuando quieras.', '', '') + `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+  const stats = cmAdminStats();
+  const count = { draft: 0, sched: 0, open: 0, closed: 0 };
+  tests.forEach(t => { count[cmTestState(t).cls]++; });
+  const drafts = tests.filter(t => !t.published);
+  const live = tests.filter(t => t.published && cmTestState(t).cls !== 'closed');
+  const row = (t) => `<div class="tp-test">
+      <div class="tp-test-info"><strong>${esc(t.title)}</strong><small>${t.month ? esc(t.month) + ' · ' : ''}${t.question_count} preguntas · ${cmFmtDate(t.opens_at)}${t.closes_at ? ' → ' + cmFmtDate(t.closes_at) : ''}</small></div>
+      ${cmStatusChip(t)}
+      <div class="tp-test-actions">
+        <button class="btn ${t.published ? 'btn-ghost' : 'btn-primary'}" data-action="committee-toggle-pub" data-tid="${t.id}">${ic(t.published ? 'lock' : 'play')} ${t.published ? 'Despublicar' : 'Publicar'}</button>
+        <button class="btn btn-ghost" data-action="committee-detail" data-tid="${t.id}">${ic('pencil')} Abrir</button>
+      </div>
+    </div>`;
+  const pipe = (cls, label, n) => `<div class="tp-pipe ${cls}"><b>${n}</b><span>${label}</span></div>`;
+  const draftAnn = COMMITTEE.announcementDraft !== undefined ? COMMITTEE.announcementDraft : (s.announcement || '');
+  const step = (n, title, text) => `<li><span>${n}</span><div><strong>${title}</strong><small>${text}</small></div></li>`;
+
+  return `
+  ${cmHero('Administración', 'Panel de Formación',
+    'Controla CTA BAGES: prepara tests y miembros en privado y súbelos a los árbitros cuando quieras.',
+    `<button class="btn btn-yellow" data-action="committee-new">${ic('plus')} Nuevo test</button>
+     <button class="btn btn-glass" data-action="committee-open">${ic('eye')} Ver CTA BAGES</button>`,
+    `<div class="lg-hero-stats">
+      <div class="lg-stat"><b>${stats.members}</b><span>Miembros</span></div>
+      <div class="lg-stat"><b>${stats.published}</b><span>Publicados</span></div>
+      <div class="lg-stat"><b>${count.draft}</b><span>Borradores</span></div>
+    </div>`)}
+  ${COMMITTEE.settingsMissing ? `<div class="cm-draftbar" style="background:#FDECEC; border-color:#F3C4C4;">${ic('flag')}<div><strong>Falta un paso de instalación</strong><span>Ejecuta una vez el archivo supabase/cta-settings.sql en Supabase para poder ocultar y mostrar CTA BAGES.</span></div></div>` : ''}
+
+  <div class="tp-vis ${s.enabled ? 'on' : 'off'}">
+    <span class="tp-vis-ic">${ic(s.enabled ? 'eye' : 'lock')}</span>
+    <div class="tp-vis-text">
+      <strong>${s.enabled ? 'CTA BAGES está visible para los miembros' : 'CTA BAGES está oculto: modo borrador'}</strong>
+      <small>${s.enabled ? 'Los árbitros miembros ven los tests que hayas publicado.' : 'Solo los administradores lo ven. Prepara todo con calma y publícalo cuando esté listo.'}</small>
+    </div>
+    <button class="btn ${s.enabled ? 'btn-glass' : 'btn-yellow'}" data-action="committee-set-enabled" data-value="${s.enabled ? 0 : 1}" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${ic(s.enabled ? 'lock' : 'play')} ${s.enabled ? 'Ocultar a los miembros' : 'Publicar para los miembros'}</button>
+  </div>
+
+  <div class="tp-pipeline">
+    ${pipe('draft', 'Borradores', count.draft)}${pipe('sched', 'Programados', count.sched)}${pipe('open', 'Abiertos', count.open)}${pipe('closed', 'Cerrados', count.closed)}
+  </div>
+
+  <div class="tp-layout">
+    <div class="tp-main">
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('pencil')}</span><div><h3>Borradores</h3><small>${drafts.length ? 'Tests que todavía no ven los miembros' : 'No tienes ningún borrador'}</small></div></div>
+        ${drafts.length ? drafts.map(row).join('') : `<div class="st-note">Crea un test nuevo: se guarda como borrador hasta que lo publiques.</div>`}
+      </div>
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('play')}</span><div><h3>Publicados</h3><small>${live.length ? 'Programados y abiertos' : 'Nada publicado ahora mismo'}</small></div></div>
+        ${live.length ? live.map(row).join('') : `<div class="st-note">Cuando publiques un test aparecerá aquí.</div>`}
+      </div>
+    </div>
+    <aside class="tp-side">
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('message')}</span><div><h3>Mensaje para los miembros</h3><small>Se muestra arriba en CTA BAGES</small></div></div>
+        <textarea id="cm-announcement" data-cm-field="announcementDraft" rows="4" maxlength="500" placeholder="Ej: Ya está disponible el test de octubre. ¡Mucho ánimo!" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${esc(draftAnn)}</textarea>
+        <button class="btn btn-primary" style="margin-top:12px;" data-action="committee-save-announcement" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>Guardar mensaje</button>
+      </div>
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('idea')}</span><div><h3>Cómo trabajar en cubierto</h3><small>Un flujo tranquilo, paso a paso</small></div></div>
+        <ol class="tp-steps">
+          ${step(1, 'Oculta CTA BAGES', 'Así los miembros no ven nada mientras preparas.')}
+          ${step(2, 'Crea los tests en borrador', 'Elige preguntas del banco o genera uno equilibrado.')}
+          ${step(3, 'Añade a los árbitros', 'Por email, cuando se hayan registrado.')}
+          ${step(4, 'Publica', 'Muestra CTA BAGES y publica cada test cuando quieras.')}
+        </ol>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+          <button class="btn btn-ghost" data-action="committee-tab" data-tab="members">${ic('userplus')} Miembros</button>
+          <button class="btn btn-ghost" data-action="committee-tab" data-tab="ranking">${ic('trophy')} Clasificación</button>
+        </div>
+      </div>
+    </aside>
+  </div>`;
+}
+
+/* ---------- miembro: lista de tests ---------- */
 function cmMemberTestCard(t, now){
   const opens = Date.parse(t.opens_at);
   const closes = t.closes_at ? Date.parse(t.closes_at) : null;
@@ -234,68 +467,6 @@ function cmMemberTestCard(t, now){
 }
 
 /* ---------- miembro: hacer el test ---------- */
-function cmRunView(){
-  const r = COMMITTEE.run;
-  if(!r) return cmMemberView();
-  const qs = r.test.questions;
-  const q = qs[r.idx];
-  const answered = Object.keys(r.answers).length;
-  const sel = r.answers[q.pos];
-  const isLast = r.idx === qs.length - 1;
-  const dots = qs.map((x, i) => `<button class="cm-dot ${r.answers[x.pos] ? 'answered' : ''} ${i === r.idx ? 'current' : ''}" data-action="committee-goto" data-idx="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('');
-  return `
-  <button class="backbtn" data-action="committee-exit-run">&larr; Salir</button>
-  <h2 style="margin-bottom:4px;">${esc(r.test.title)}</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:13.5px;">Pregunta ${r.idx + 1} de ${qs.length} · ${answered} respondidas</div>
-  <div class="progress-track"><div class="progress-fill" style="width:${Math.round(answered / qs.length * 100)}%"></div></div>
-  <div class="qcard">
-    ${q.rule ? `<div class="qtag">Regla ${q.rule} · ${esc(LAW_NAMES[q.rule] || '')}</div>` : ''}
-    <div class="qtext">${esc(q.question)}</div>
-    ${q.options.map((o, i) => `<button class="option ${sel === CM_LETTERS[i] ? 'selected' : ''}" data-action="committee-answer" data-letter="${CM_LETTERS[i]}"><span class="letter">${CM_LETTERS[i]})</span>${esc(o)}</button>`).join('')}
-  </div>
-  <div style="display:flex; gap:10px; justify-content:space-between; margin-top:14px;">
-    <button class="btn btn-ghost" data-action="committee-prev" ${r.idx === 0 ? 'disabled' : ''}>&larr; Anterior</button>
-    ${isLast
-      ? `<button class="btn btn-primary" data-action="committee-finish" ${r.submitting ? 'disabled' : ''}>${r.submitting ? 'Enviando...' : 'Finalizar test'}</button>`
-      : `<button class="btn btn-primary" data-action="committee-next">Siguiente &rarr;</button>`}
-  </div>
-  <div class="cm-dots">${dots}</div>
-  ${answered < qs.length ? '' : '<div style="text-align:center; margin-top:14px; font-size:13px; color:var(--green-ok); font-weight:700;">Has respondido todas. Cuando quieras, finaliza el test.</div>'}`;
-}
-
-function cmResultView(){
-  const r = COMMITTEE.result;
-  if(!r) return cmMemberView();
-  const pct = Math.round(r.score / r.total * 100);
-  const msg = pct >= 85 ? '¡Excelente resultado!' : pct >= 60 ? 'Buen trabajo, sigue así.' : 'Hay margen de mejora: repasa las reglas más flojas.';
-  const review = r.review ? r.review.map((q, idx) => `
-    <div class="qcard" style="margin-bottom:10px;">
-      ${q.rule ? `<div class="qtag">Regla ${q.rule} · ${esc(LAW_NAMES[q.rule] || '')}</div>` : ''}
-      <div class="qtext" style="font-size:14.5px;">${idx + 1}. ${esc(q.question)}</div>
-      ${q.options.map((o, i) => {
-        const letter = CM_LETTERS[i];
-        let cls = 'option';
-        if(letter === q.correct) cls += ' correct';
-        else if(letter === q.chosen) cls += ' incorrect';
-        return `<div class="${cls}" style="cursor:default; padding:9px 12px;"><span class="letter">${letter})</span>${esc(o)}</div>`;
-      }).join('')}
-      ${q.chosen ? '' : '<div style="font-size:12.5px; color:var(--red); margin-top:6px;">Sin responder</div>'}
-      ${q.explanation ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-    </div>`).join('') : '';
-  return `
-  <button class="backbtn" data-action="committee-open">&larr; Volver a mis tests</button>
-  <div class="cm-card" style="text-align:center; padding:28px 20px;">
-    <div class="home-eyebrow" style="color:var(--muted);">${esc(r.title)}</div>
-    <div class="cm-result-ring">
-      <svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="75" cy="75" r="66" fill="none" stroke="${scoreColor(pct)}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(2 * Math.PI * 66).toFixed(1)}" stroke-dashoffset="${(2 * Math.PI * 66 * (1 - pct / 100)).toFixed(1)}" transform="rotate(-90 75 75)"/></svg>
-      <div class="cm-result-pct">${pct}%</div>
-    </div>
-    <div style="font-weight:700; font-size:16px;">${r.score} de ${r.total} respuestas correctas</div>
-    <div style="font-size:13.5px; color:var(--muted); margin-top:4px;">${msg}</div>
-  </div>
-  ${r.review ? `<h2 style="font-size:20px; margin:20px 0 12px;">Revisión</h2>${review}` : `<div class="empty-state">Tu resultado ya está guardado. Las respuestas correctas se publicarán cuando cierre el test.</div>`}`;
-}
-
 /* ---------- administrador: panel ---------- */
 function cmAdminStats(){
   const members = COMMITTEE.members || [];
@@ -317,41 +488,6 @@ function cmAdminStats(){
     participation: pub.length ? Math.round(part / pub.length * 100) : 0,
     accuracy: total ? Math.round(score / total * 100) : null
   };
-}
-
-function cmAdminView(){
-  const st = COMMITTEE.status || {};
-  const tab = COMMITTEE.tab;
-  const tabs = [['tests', 'Tests', 'book'], ['members', 'Miembros', 'users'], ['ranking', 'Clasificación', 'trophy'], ['stats', 'Puntos débiles', 'target']];
-  if(st.is_member) tabs.push(['mine', 'Mis tests', 'check']);
-  let content;
-  if(COMMITTEE.tests === null) content = '<div class="empty-state">Cargando...</div>';
-  else if(tab === 'members') content = cmMembersTab();
-  else if(tab === 'ranking') content = cmRankingTab();
-  else if(tab === 'stats') content = cmStatsTab();
-  else if(tab === 'mine') content = cmMineTab();
-  else content = cmTestsTab();
-  const s = cmAdminStats();
-  const hero = cmHero('Comité de árbitros · Bages', 'Formación del comité',
-    'Crea tests mensuales, elige quién participa y sigue la evolución del comité. La clasificación es privada: solo tú la ves.',
-    `<button class="btn btn-yellow" data-action="committee-new">${cmIc('plus')} Nuevo test</button>
-     <button class="btn home-btn-light" data-action="committee-tab" data-tab="members">${cmIc('userplus')} Añadir árbitro</button>`,
-    cmRingBlock(s.participation, 'Participación', 'media de los tests'));
-  const kpis = `<div class="home-kpis">
-    <div class="kpi"><div class="kpi-top">${cmIc('users')} Miembros</div><div class="kpi-val">${s.members}</div><div class="kpi-sub">con acceso al comité</div></div>
-    <div class="kpi"><div class="kpi-top">${cmIc('book')} Tests publicados</div><div class="kpi-val">${s.published}</div><div class="kpi-sub">${(COMMITTEE.tests || []).length - s.published} en borrador</div></div>
-    <div class="kpi"><div class="kpi-top">${cmIc('check')} Participación</div><div class="kpi-val">${s.participation}<small>%</small></div><div class="kpi-sub">miembros que hacen cada test</div></div>
-    <div class="kpi"><div class="kpi-top">${cmIc('target')} Acierto medio</div><div class="kpi-val" ${s.accuracy !== null ? `style="color:${scoreColor(s.accuracy)};"` : ''}>${s.accuracy !== null ? s.accuracy + '<small>%</small>' : '—'}</div><div class="kpi-sub">mejor intento de cada árbitro</div></div>
-  </div>`;
-  return `
-  ${hero}
-  ${cmSetupWarning()}
-  ${COMMITTEE.error && !st.setupMissing ? `<div class="empty-state" style="margin-bottom:12px;">${esc(COMMITTEE.error)}</div>` : ''}
-  ${kpis}
-  <div class="cm-tabs" role="tablist">
-    ${tabs.map(([k, label, icon]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span></button>`).join('')}
-  </div>
-  ${content}`;
 }
 
 function cmTestState(t){
@@ -835,6 +971,26 @@ async function committeeOnAction(action, el){
     else { STATE.view = 'committee'; render(); cmLoadMyTests(); }
   }
   else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeAdmin'; render(); }
+  else if(action === 'committee-training'){
+    if(!isDevUser()) return;
+    COMMITTEE.announcementDraft = undefined;
+    STATE.view = 'committeeTraining'; render(); window.scrollTo(0, 0);
+    cmLoadAdminData();
+  }
+  else if(action === 'committee-set-enabled'){
+    if(!isDevUser()) return;
+    const enable = el.dataset.value === '1';
+    if(!enable && !confirm('¿Ocultar CTA BAGES a los miembros? Dejarán de verlo hasta que lo vuelvas a publicar.')) return;
+    if(enable && !confirm('¿Publicar CTA BAGES para los miembros? Verán los tests que tengas publicados.')) return;
+    const ok = await cmSaveSettings({ enabled: enable });
+    if(ok) cmToast(enable ? 'CTA BAGES ya es visible para los miembros.' : 'CTA BAGES oculto: solo los administradores lo ven.');
+  }
+  else if(action === 'committee-save-announcement'){
+    if(!isDevUser()) return;
+    const text = String(COMMITTEE.announcementDraft !== undefined ? COMMITTEE.announcementDraft : (cmSettings().announcement || '')).trim();
+    const ok = await cmSaveSettings({ announcement: text });
+    if(ok){ COMMITTEE.announcementDraft = undefined; cmToast(text ? 'Mensaje guardado.' : 'Mensaje eliminado.'); }
+  }
 
   /* miembro */
   else if(action === 'committee-start'){

@@ -3099,9 +3099,9 @@ function homeView(){
     : '';
 
   const cst = (typeof COMMITTEE !== 'undefined') ? COMMITTEE.status : null;
-  const committeeHtml = (cst && (cst.is_admin || cst.is_member))
+  const committeeHtml = (cst && (cst.is_admin || (cst.is_member && (typeof cmSettingsOn !== 'function' || cmSettingsOn()))))
     ? `<button class="qcard home-card-btn" data-action="committee-open">
-        <div class="home-card-title">${ic('users')} Formación Comité Bages</div>
+        <div class="home-card-title">${ic('users')} CTA BAGES</div>
         <div class="home-card-text" style="color:var(--muted);">${cst.is_admin ? 'Gestiona miembros, tests y clasificación.' : 'Tests mensuales del comité de árbitros.'}</div>
         <div class="home-card-link">Entrar →</div>
       </button>`
@@ -4172,7 +4172,7 @@ function adminDashboardView(){
   <div class="ad-tools">
     ${tool('database', 'Base de datos', 'Gestiona las preguntas', 'database')}
     ${tool('message', 'Sugerencias', 'Revisa lo que proponen', 'suggestions-admin')}
-    ${tool('users', 'Formación Comité', 'Miembros, tests y ranking', 'committee-open')}
+    ${tool('target', 'Panel de Formación', 'Controla CTA BAGES', 'committee-training')}
   </div>
 
   <div class="tc-card" style="margin-bottom:16px;">
