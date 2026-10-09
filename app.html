@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=2">
+<link rel="stylesheet" href="assets/css/styles.css?v=3">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -22,13 +22,15 @@
 <script src="assets/js/auth.js"></script>
 <script src="assets/js/storage-adapter.js"></script>
 <script src="assets/js/questions-data.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=committee1"></script>
+<script src="assets/js/committee.js?v=1"></script>
 <script>
 let CURRENT_USER_EMAIL = null;
 let CURRENT_USER_ID = null;
 
 function startApp(){
   loadStorage();
+  if(typeof loadCommitteeStatus==="function") loadCommitteeStatus();
   if(isDevUser()){ loadQuestionReports(); loadSuggestions(); }
 }
 
