@@ -58,7 +58,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=3">
+<link rel="stylesheet" href="assets/css/styles.css?v=36">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
   let hcaptchaApiReady = false;
@@ -90,6 +90,8 @@
 
 <!-- 1. HERO -->
 <header class="landing-hero">
+  <div class="lh-glow" aria-hidden="true"></div>
+  <div class="lh-badge"><span class="lh-dot"></span> Gratis · Basado en el reglamento oficial IFAB</div>
   <h1>La plataforma para preparar<br>los exámenes de <span class="accent">árbitro de fútbol</span></h1>
   <p class="lead">Entrena las 17 Reglas de Juego con más de 2.000 preguntas, estadísticas inteligentes, modos competitivos y una academia personal.</p>
   <div class="landing-hero-actions">
@@ -97,7 +99,7 @@
     <button type="button" class="btn btn-secondary" id="hero-quiz-btn">Probar un test gratis</button>
   </div>
   <div class="landing-hero-social-proof">
-    <span class="stars">★★★★★</span> Basado en el reglamento oficial IFAB · Más de 2.000 preguntas
+    <span class="stars">★★★★★</span> Más de 2.000 preguntas · Sin tarjeta ni compromiso
   </div>
   <div class="landing-stats">
     <div class="landing-stat"><div class="num" id="stat-questions" data-target="2000" data-suffix="+">0</div><div class="lbl">Preguntas</div></div>
@@ -105,24 +107,45 @@
     <div class="landing-stat"><div class="num" id="stat-free" data-target="100" data-suffix="%">0</div><div class="lbl">Gratis</div></div>
   </div>
 
-  <div class="landing-hero-mockup">
-    <div class="app-mockup">
-      <div class="app-mockup-bar"><span class="app-mockup-dot"></span><span class="app-mockup-dot"></span><span class="app-mockup-dot"></span></div>
-      <div class="app-mockup-body">
-        <div class="mockup-row">
-          <div class="mockup-tile mockup-tile-ring">
-            <div class="mockup-ring" style="--pct:42%;"></div>
-            <div><div class="mockup-num">42%</div><div class="mockup-lbl">Progreso</div></div>
+  <div class="landing-hero-mockup" aria-hidden="true">
+    <div class="mk">
+      <div class="mk-bar"><i></i><i></i><i></i><span>we-ref.com</span></div>
+      <div class="mk-body">
+        <aside class="mk-side">
+          <div class="mk-brand"><b></b>WEREF</div>
+          <div class="mk-nav on">Inicio</div>
+          <div class="mk-nav">Reglas de Juego</div>
+          <div class="mk-nav">WEREF League</div>
+          <div class="mk-nav">Mi Academia</div>
+          <div class="mk-nav">Estadísticas</div>
+          <div class="mk-nav">Rango e insignias</div>
+        </aside>
+        <div class="mk-main">
+          <div class="mk-hero">
+            <div>
+              <small>BUENOS DÍAS</small>
+              <b>Prepárate para tu próximo examen</b>
+              <span>Aprendiz · 120 puntos · te faltan 130 para ser Árbitro Territorial</span>
+              <div class="mk-btns"><i class="y">Empezar a entrenar</i><i>Test rápido</i></div>
+            </div>
+            <div class="mk-ring"><b>42%</b></div>
           </div>
-          <div class="mockup-tile"><div class="mockup-num">5 días</div><div class="mockup-lbl">Racha</div></div>
-          <div class="mockup-tile"><div class="mockup-num">1.240</div><div class="mockup-lbl">Puntos</div></div>
-        </div>
-        <div class="mockup-bar-track"><div class="mockup-bar-fill" style="width:42%;"></div></div>
-        <div class="mockup-grid">
-          <div class="mockup-cell on"></div><div class="mockup-cell on"></div><div class="mockup-cell"></div>
-          <div class="mockup-cell on"></div><div class="mockup-cell"></div><div class="mockup-cell on"></div>
-          <div class="mockup-cell"></div><div class="mockup-cell on"></div><div class="mockup-cell on"></div>
-          <div class="mockup-cell on"></div><div class="mockup-cell"></div><div class="mockup-cell"></div>
+          <div class="mk-kpis">
+            <div><b>42%</b><span>Progreso</span></div>
+            <div><b>78%</b><span>Acierto reciente</span></div>
+            <div><b>5 días</b><span>Racha</span></div>
+            <div><b>12/20</b><span>Objetivo de hoy</span></div>
+          </div>
+          <div class="mk-laws">
+            <div><b>1</b><span>El Terreno de Juego</span><i style="width:70%"></i></div>
+            <div><b>2</b><span>El Balón</span><i style="width:45%"></i></div>
+            <div><b>3</b><span>Los Jugadores</span><i style="width:88%"></i></div>
+            <div><b>4</b><span>El Equipamiento</span><i style="width:30%"></i></div>
+            <div><b>5</b><span>El Árbitro</span><i style="width:62%"></i></div>
+            <div><b>6</b><span>Otros Miembros del Equipo</span><i style="width:20%"></i></div>
+            <div class="red"><b>VAR</b><span>Sala VAR</span><i style="width:40%"></i></div>
+            <div class="gold"><b>R</b><span>Sala de Repaso</span><i style="width:55%"></i></div>
+          </div>
         </div>
       </div>
     </div>
