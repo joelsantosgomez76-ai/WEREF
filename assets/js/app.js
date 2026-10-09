@@ -3570,43 +3570,98 @@ function savedBrowseView(){
 }
 
 function suggestFormView(){
+  const ic = (n) => shellIcon(n);
+  const idea = (icon, title, text) => `<div class="sg-idea"><span class="sg-idea-ic">${ic(icon)}</span><div><strong>${title}</strong><small>${text}</small></div></div>`;
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Buzón de sugerencias</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Ayúdanos a mejorar WEREF. Comparte tus ideas, propuestas o funcionalidades que te gustaría ver en la plataforma. Leemos todas las sugerencias y muchas de ellas terminan convirtiéndose en nuevas mejoras.</div>
-  <div class="qcard">
-    <label>Tu sugerencia</label>
-    <textarea id="suggest-message" rows="6" style="resize:none; overflow-y:hidden;" placeholder="Ej: me gustaría que hubiera un modo..." maxlength="3000"></textarea>
-    <button class="btn btn-primary" style="margin-top:14px;" data-action="send-suggestion">Enviar sugerencia</button>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Ayúdanos a mejorar</div>
+      <h1>Buzón de sugerencias</h1>
+      <p>Comparte tus ideas, propuestas o funcionalidades que te gustaría ver en la plataforma. Leemos todas las sugerencias y muchas de ellas terminan convirtiéndose en nuevas mejoras.</p>
+    </div>
+    <div class="lg-hero-stats sg-hero-ic"><span>${ic('message')}</span></div>
+  </section>
+
+  <div class="sg-layout">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('pencil')}</span><div><h3>Tu sugerencia</h3><small>Cuéntanos con tus palabras qué te gustaría</small></div></div>
+      <textarea id="suggest-message" rows="7" class="sg-textarea" placeholder="Ej: me gustaría que hubiera un modo..." maxlength="3000"></textarea>
+      <div class="sg-foot">
+        <span class="sg-count"><b id="suggest-count">0</b> / 3000</span>
+        <button class="btn btn-yellow sg-send" data-action="send-suggestion">${ic('play')} Enviar sugerencia</button>
+      </div>
+    </div>
+
+    <aside class="tc-card sg-ideas">
+      <div class="tc-card-head"><span class="tc-step">${ic('idea')}</span><div><h3>¿Qué puedes proponer?</h3><small>Algunas ideas para empezar</small></div></div>
+      ${idea('zap', 'Nuevas funciones', 'Modos de juego, herramientas o ajustes que echas de menos.')}
+      ${idea('flag', 'Errores o mejoras', 'Algo que no funciona bien o que podría ser más cómodo.')}
+      ${idea('book', 'Contenido', 'Preguntas, reglas o materiales que te gustaría practicar.')}
+      ${idea('message', 'Lo que quieras', 'Cualquier comentario es bienvenido: lo leemos todo.')}
+    </aside>
   </div>
   `;
 }
 
 function suggestionsAdminView(){
+  const ic = (n) => shellIcon(n);
   const list = STATE.suggestions || [];
-  const pendingCount = list.filter(s=>s.status==='pending').length;
-  const statusBadge = (status) => status==='done'
-    ? ' <span class="badge" style="background:var(--green-ok); color:#fff;">Hecho</span>'
+  const filter = STATE.sugFilter || 'all';
+  const count = (s) => list.filter(x => x.status === s).length;
+  const pendingCount = count('pending');
+  const plannedCount = list.filter(x => x.status === 'planned').length;
+  const doneCount = count('done');
+  const shown = filter === 'all' ? list : list.filter(x => (x.status || 'pending') === filter);
+
+  const statusChip = (status) => status==='done'
+    ? '<span class="sg-chip done">Hecho</span>'
     : status==='planned'
-    ? ' <span class="badge" style="background:var(--yellow); color:var(--yellow-ink);">Planificado</span>'
-    : ' <span class="badge">Pendiente</span>';
-  const rows = list.map(s => `
-    <div class="qcard" style="margin-bottom:10px;">
-      <div class="qtag">${new Date(s.created_at).toLocaleDateString('es-ES')} · ${esc(s.user_email || 'anónimo')}${statusBadge(s.status)}</div>
-      <div class="qtext" style="font-size:14px; white-space:pre-wrap;">${esc(s.message)}</div>
-      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <button class="btn ${s.status==='pending'?'btn-primary':'btn-ghost'}" style="padding:6px 12px; font-size:12.5px;" data-action="suggestion-status" data-id="${s.id}" data-status="pending">Pendiente</button>
-        <button class="btn ${s.status==='planned'?'btn-primary':'btn-ghost'}" style="padding:6px 12px; font-size:12.5px;" data-action="suggestion-status" data-id="${s.id}" data-status="planned">Planificado</button>
-        <button class="btn ${s.status==='done'?'btn-primary':'btn-ghost'}" style="padding:6px 12px; font-size:12.5px;" data-action="suggestion-status" data-id="${s.id}" data-status="done">Hecho</button>
-        <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px; color:var(--red);" data-action="suggestion-delete" data-id="${s.id}">Eliminar</button>
+    ? '<span class="sg-chip planned">Planificado</span>'
+    : '<span class="sg-chip pending">Pendiente</span>';
+  const initial = (e) => esc(String(e || '?').trim().charAt(0).toUpperCase());
+
+  const cards = shown.map(s => `
+    <article class="sg-card">
+      <div class="sg-card-head">
+        <span class="sg-av">${initial(s.user_email)}</span>
+        <div class="sg-card-who"><strong>${esc(s.user_email || 'anónimo')}</strong><small>${new Date(s.created_at).toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' })}</small></div>
+        ${statusChip(s.status)}
       </div>
-    </div>
+      <div class="sg-msg">${esc(s.message)}</div>
+      <div class="sg-card-actions">
+        <div class="ac-seg">
+          <button class="${s.status==='pending'?'active':''}" data-action="suggestion-status" data-id="${s.id}" data-status="pending">Pendiente</button>
+          <button class="${s.status==='planned'?'active':''}" data-action="suggestion-status" data-id="${s.id}" data-status="planned">Planificado</button>
+          <button class="${s.status==='done'?'active':''}" data-action="suggestion-status" data-id="${s.id}" data-status="done">Hecho</button>
+        </div>
+        <button class="btn btn-ghost btn-danger-soft" data-action="suggestion-delete" data-id="${s.id}">${ic('trash')} Eliminar</button>
+      </div>
+    </article>
   `).join('');
+
+  const seg = (key, label, n) => `<button class="${filter===key?'active':''}" data-action="sug-filter" data-filter="${key}">${label} <em>${n}</em></button>`;
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Sugerencias recibidas</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${list.length} en total · ${pendingCount} pendientes</div>
-  ${rows || '<div class="empty-state">Todavía no hay sugerencias.</div>'}
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Administración</div>
+      <h1>Sugerencias recibidas</h1>
+      <p>Lo que los usuarios proponen para mejorar WEREF. Márcalas según su estado para llevar el seguimiento.</p>
+    </div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${list.length}</b><span>En total</span></div>
+      <div class="lg-stat"><b>${pendingCount}</b><span>Pendientes</span></div>
+      <div class="lg-stat"><b>${doneCount}</b><span>Hechas</span></div>
+    </div>
+  </section>
+
+  <div class="ac-bar">
+    <div class="ac-seg sg-filter">${seg('all', 'Todas', list.length)}${seg('pending', 'Pendientes', pendingCount)}${seg('planned', 'Planificadas', plannedCount)}${seg('done', 'Hechas', doneCount)}</div>
+  </div>
+
+  ${cards ? `<div class="sg-list">${cards}</div>` : `<div class="ac-empty">${ic('message')}<strong>${list.length === 0 ? 'Todavía no hay sugerencias' : 'No hay sugerencias con este estado'}</strong><span>${list.length === 0 ? 'Cuando los usuarios envíen alguna aparecerá aquí.' : 'Prueba con otro filtro.'}</span></div>`}
   `;
 }
 
@@ -4292,7 +4347,8 @@ function bindEvents(){
   if(suggestMessage){
     const autoGrow = () => { suggestMessage.style.height = 'auto'; suggestMessage.style.height = suggestMessage.scrollHeight + 'px'; };
     autoGrow();
-    suggestMessage.addEventListener('input', autoGrow);
+    const sgCount = document.getElementById('suggest-count');
+    suggestMessage.addEventListener('input', () => { autoGrow(); if(sgCount) sgCount.textContent = suggestMessage.value.length; });
   }
 
   const mybankSearch = document.getElementById('mybank-search');
@@ -4465,6 +4521,7 @@ function onAction(e){
   else if(action==='streak-calendar'){ STATE.calendarYear = null; STATE.view='streakCalendar'; render(); }
   else if(action==='recent-performance'){ STATE.view='recentPerformance'; render(); }
   else if(action==='perf-sort'){ STATE.perfSort = el.dataset.sort; render(); }
+  else if(action==='sug-filter'){ STATE.sugFilter = el.dataset.filter; render(); }
   else if(action==='calendar-year'){
     const current = STATE.calendarYear || new Date().getFullYear();
     const next = current + parseInt(el.dataset.delta,10);
