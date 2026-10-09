@@ -1585,8 +1585,13 @@ function acHero(eyebrow, title, desc, stats, actions, small){
   </section>`;
 }
 
+function myBankCatViewMode(){
+  try{ return localStorage.getItem('weref_bank_cat_view') === 'list' ? 'list' : 'cards'; }catch(e){ return 'cards'; }
+}
+
 function myBankCategoriesView(){
   const ic = (n) => shellIcon(n);
+  const viewMode = myBankCatViewMode();
   const cats = (STATE.storage.myBankCategories||[]).slice().sort((a,b)=>a.localeCompare(b));
   const counts = myBankCategoryCounts();
   const uncategorizedCount = counts[''] || 0;
@@ -1597,6 +1602,7 @@ function myBankCategoriesView(){
       <button class="ac-folder-open" data-action="mybank-open-category" data-category="${esc(cat)}">
         <span class="ac-folder-ic ${iconName === 'folder' ? '' : 'muted'}">${ic(iconName)}</span>
         <span class="ac-folder-txt"><strong>${esc(label)}</strong><small>${n} ${n === 1 ? 'pregunta' : 'preguntas'}</small></span>
+        <span class="ac-folder-count">${n}</span>
       </button>
       <span class="ac-folder-go">${ic('chevron')}</span>
     </div>`;
@@ -1622,8 +1628,12 @@ function myBankCategoriesView(){
   </div>
   ` : ''}
 
-  <div class="lg-section-head"><h2>Tus categorías</h2><span>${cats.length === 0 ? 'Crea la primera para empezar' : 'Entra en una para ver y añadir preguntas'}</span></div>
-  ${(rows || uncategorizedCount>0) ? `<div class="ac-folders">${rows}${uncategorizedCount>0 ? folder('', 'Sin categoría', uncategorizedCount, 'file') : ''}</div>` :
+  <div class="lg-section-head"><h2>Tus categorías</h2>
+    <div class="ac-seg ac-view-toggle" role="group" aria-label="Vista de categorías">
+      <button class="${viewMode==='cards'?'active':''}" data-action="mybank-cat-view" data-view="cards" title="Vista de tarjetas">${ic('grid')}<span>Tarjetas</span></button>
+      <button class="${viewMode==='list'?'active':''}" data-action="mybank-cat-view" data-view="list" title="Vista de lista">${ic('list')}<span>Lista</span></button>
+    </div></div>
+  ${(rows || uncategorizedCount>0) ? `<div class="ac-folders ${viewMode==='list'?'list':''}">${rows}${uncategorizedCount>0 ? folder('', 'Sin categoría', uncategorizedCount, 'file') : ''}</div>` :
     `<div class="ac-empty">${ic('folder')}<strong>Todavía no has creado ninguna categoría</strong><span>Crea la primera para empezar a añadir preguntas.</span></div>`}
   `;
 }
@@ -4314,6 +4324,10 @@ function onAction(e){
   else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
   else if(action==='academia'){ STATE.view='academia'; render(); }
   else if(action==='mybank'){ STATE.myBankEditingId=null; STATE.myBankViewCategory=null; STATE.myBankCreatingCategory=false; STATE.myBankSearch=''; STATE.view='myBank'; render(); }
+  else if(action==='mybank-cat-view'){
+    try{ localStorage.setItem('weref_bank_cat_view', el.dataset.view === 'list' ? 'list' : 'cards'); }catch(e){}
+    render();
+  }
   else if(action==='mybank-new-category'){ STATE.myBankCreatingCategory=true; render(); }
   else if(action==='mybank-cancel-category'){ STATE.myBankCreatingCategory=false; render(); }
   else if(action==='mybank-save-category'){ myBankAddCategory(); }

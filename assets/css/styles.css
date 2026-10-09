@@ -1120,3 +1120,16 @@ input.tc-count{max-width:140px; font:700 26px 'Oswald'; text-align:center; margi
   .ac-q.big{padding:18px 16px;}
   .ac-q.big .ac-q-text{font-size:15.5px;}
 }
+
+/* Mis propios test · categorías: modo tarjetas / lista */
+.ac-view-toggle button{display:inline-flex; align-items:center; gap:6px;}
+.ac-view-toggle svg{width:15px; height:15px;}
+.ac-folder-count{display:none; margin-left:auto; min-width:28px; text-align:center; padding:3px 9px; border-radius:20px; background:var(--chalk); border:1px solid var(--line); font:700 12px 'JetBrains Mono'; color:var(--muted); flex-shrink:0;}
+.ac-folders.list{grid-template-columns:1fr; gap:6px;}
+.ac-folders.list .ac-folder{border-radius:12px; padding:5px 10px 5px 6px; box-shadow:none;}
+.ac-folders.list .ac-folder:hover{transform:none; background:var(--chalk);}
+.ac-folders.list .ac-folder-ic{width:34px; height:34px; border-radius:10px;}
+.ac-folders.list .ac-folder-ic svg{width:18px; height:18px;}
+.ac-folders.list .ac-folder-txt small{display:none;}
+.ac-folders.list .ac-folder-count{display:inline-block;}
+@media (max-width:520px){ .ac-view-toggle button span{display:none;} }
