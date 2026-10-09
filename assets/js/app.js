@@ -2640,7 +2640,7 @@ function homeView(){
       </div>
       <div class="law-sub">${hs.total === 0 ? '<span class="law-sub-muted">Todavía no hay ninguna</span>' : lawSubLine(hs)}</div>
     </button>
-    <button class="law-card law-card-hard" data-action="open-law" data-law="assistants">
+    <button class="law-card law-card-hard law-card-assist" data-action="open-law" data-law="assistants">
       <div class="law-icon">${ic('flag')}</div>
       <div class="law-num">A</div>
       <div class="law-name">Árbitros Asistentes</div>
