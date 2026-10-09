@@ -3989,28 +3989,115 @@ function saveNewQuestion(){
 }
 
 function statsView(){
-  let rows='';
-  for(let i=1;i<=17;i++){
-    const s=lawStats(i);
-    rows += `<tr><td class="mono">R${i}</td><td>${esc(LAW_NAMES[i])}</td><td class="mono">${s.completionPct}%</td><td>${s.attempted>0 ? accuracyBadge(s.accuracyPct) : '<span class="law-sub-muted">—</span>'}</td></tr>`;
-  }
+  const ic = (n) => shellIcon(n);
   const os = overallStats();
+  const hist = STATE.storage.testHistory || [];
+  const streak = computeStreak();
+  const rp = recentPerformance(20);
+  const failedCount = allQuestions().filter(isFailedQuestion).length;
   const flaggedTotal = Object.keys(STATE.storage.flags).length;
+  const tone = (p) => p >= 80 ? 'good' : p >= 60 ? 'mid' : 'bad';
+
+  const laws = [];
+  for(let i=1;i<=17;i++) laws.push({ n:i, s:lawStats(i) });
+  const ranked = laws.filter(l => l.s.attempted >= 3);
+  const weak = ranked.slice().sort((a,b) => a.s.accuracyPct - b.s.accuracyPct).slice(0,3);
+  let strong = ranked.slice().sort((a,b) => b.s.accuracyPct - a.s.accuracyPct).slice(0,3);
+  if(ranked.length < 6) strong = strong.filter(l => !weak.includes(l));
+
+  const rows = laws.map(l => `
+    <button class="st-rule" data-action="open-law" data-law="${l.n}">
+      <span class="st-rule-n">${l.n}</span>
+      <span class="st-rule-main">
+        <span class="st-rule-name">${esc(LAW_NAMES[l.n])}</span>
+        <span class="st-rule-bar"><i style="width:${l.s.completionPct}%"></i></span>
+      </span>
+      <span class="st-rule-pct">${l.s.completionPct}%</span>
+      <span class="st-acc ${l.s.attempted>0 ? tone(l.s.accuracyPct) : 'none'}">${l.s.attempted>0 ? l.s.accuracyPct + '%' : '—'}</span>
+    </button>`).join('');
+
+  const pill = (l) => `<button class="st-pill ${tone(l.s.accuracyPct)}" data-action="open-law" data-law="${l.n}"><b>R${l.n}</b><span>${esc(LAW_NAMES[l.n])}</span><em>${l.s.accuracyPct}%</em></button>`;
+
+  const MODE = { short:'Test rápido', study25:'Modo estudio', training:'Examen personalizado', hearts:'Corazones', suddendeath:'Muerte Súbita', timeattack:'Contrarreloj', review:'Revisión' };
+  const lastBars = hist.slice(-14);
+  const bars = lastBars.map(h => `<div class="st-bar" title="${new Date(h.date).toLocaleDateString('es-ES')} · ${h.pct}%"><i class="${tone(h.pct)}" style="height:${Math.max(6, h.pct)}%"></i><span>${h.pct}</span></div>`).join('');
+  const recent = hist.slice(-5).reverse().map(h => `
+    <div class="st-test">
+      <span class="st-test-date">${new Date(h.date).toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit' })}</span>
+      <span class="st-test-mode">${esc(MODE[h.mode] || 'Test')}</span>
+      <span class="st-test-score">${h.score}/${h.total}</span>
+      <span class="st-acc ${tone(h.pct)}">${h.pct}%</span>
+    </div>`).join('');
+
+  const days = [];
+  for(let k = 13; k >= 0; k--){
+    const ts = Date.now() - k * 86400000;
+    days.push({ on: !!(STATE.storage.activeDays || {})[dayKey(ts)], label: new Date(ts).toLocaleDateString('es-ES', { weekday:'narrow' }).toUpperCase(), today: k === 0 });
+  }
+  const activeCount = days.filter(d => d.on).length;
+
+  const kpi = (icon, val, label, sub) => `<div class="lg-sum"><span class="lg-sum-ic">${ic(icon)}</span><div><b>${val}</b><small>${label}${sub ? ' · ' + sub : ''}</small></div></div>`;
+
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:6px;">Estadísticas</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px;">Progreso: ${os.completionPct}% · Acierto sobre lo respondido: ${os.attempted>0 ? os.accuracyPct+'%' : '—'}</div>
-  <div class="qcard">
-    <table class="stat-table">
-      <tr><th>Regla</th><th>Nombre</th><th>Progreso</th><th>Acierto</th></tr>
-      ${rows}
-    </table>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Tu rendimiento</div>
+      <h1>Estadísticas</h1>
+      <p>Mira cómo avanzas regla a regla, tu evolución en los últimos tests y dónde te conviene reforzar.</p>
+    </div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${os.completionPct}%</b><span>Progreso</span></div>
+      <div class="lg-stat"><b>${os.attempted>0 ? os.accuracyPct + '%' : '—'}</b><span>Acierto</span></div>
+      <div class="lg-stat"><b>${streak}</b><span>${streak === 1 ? 'Día de racha' : 'Días de racha'}</span></div>
+    </div>
+  </section>
+
+  <div class="st-kpis">
+    ${kpi('check', os.attempted, 'Preguntas respondidas', 'de ' + os.total)}
+    ${kpi('book', hist.length, hist.length === 1 ? 'Test realizado' : 'Tests realizados')}
+    ${kpi('target', rp ? rp.pct + '%' : '—', 'Acierto reciente', rp ? 'últimos ' + rp.count : '')}
+    ${kpi('repeat', failedCount, 'Falladas por repasar')}
   </div>
-  ${flaggedTotal>0 ? `<div class="section-title">Preguntas marcadas para revisar (${flaggedTotal})</div>
-  <div style="display:flex; gap:10px; flex-wrap:wrap;">
-    <button class="btn btn-secondary" data-action="flagged-list">Ver y corregir marcadas</button>
-    <button class="btn btn-ghost" data-action="review-flagged">Practicarlas como test</button>
-  </div>` : ''}
+
+  <div class="st-layout">
+    <div class="st-main">
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Rendimiento por regla</h3><small>Progreso completado y porcentaje de acierto · pulsa una regla para practicarla</small></div></div>
+        <div class="st-legend"><span><i class="good"></i> 80% o más</span><span><i class="mid"></i> 60–79%</span><span><i class="bad"></i> menos de 60%</span></div>
+        <div class="st-rules">${rows}</div>
+      </div>
+    </div>
+
+    <aside class="st-side">
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('chart')}</span><div><h3>Últimos tests</h3><small>${hist.length ? 'Tu acierto en los últimos ' + lastBars.length : 'Todavía sin datos'}</small></div></div>
+        ${hist.length ? `<div class="st-bars">${bars}</div><div class="st-tests">${recent}</div>` : `<div class="st-note">Completa tu primer test para ver aquí tu evolución.</div>`}
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('flame')}</span><div><h3>Constancia</h3><small>${activeCount} de los últimos 14 días con actividad</small></div></div>
+        <div class="st-days">${days.map(d => `<div class="st-day ${d.on ? 'on' : ''} ${d.today ? 'today' : ''}"><i></i><span>${d.label}</span></div>`).join('')}</div>
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('zap')}</span><div><h3>Qué reforzar</h3><small>Entre las reglas que ya has practicado</small></div></div>
+        ${ranked.length ? `
+          <div class="st-sub">A reforzar</div>${weak.map(pill).join('')}
+          ${strong.length ? `<div class="st-sub">Tus puntos fuertes</div>${strong.map(pill).join('')}` : ''}
+        ` : `<div class="st-note">Responde algunas preguntas de cada regla y aquí verás cuáles dominas y cuáles reforzar.</div>`}
+      </div>
+
+      ${flaggedTotal>0 ? `
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">${ic('flag')}</span><div><h3>Preguntas marcadas</h3><small>${flaggedTotal} para revisar</small></div></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" data-action="flagged-list">Ver y corregir</button>
+          <button class="btn btn-ghost" data-action="review-flagged">Practicarlas como test</button>
+        </div>
+      </div>` : ''}
+    </aside>
+  </div>
   `;
 }
 
