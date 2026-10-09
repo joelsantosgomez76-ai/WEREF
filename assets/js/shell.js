@@ -136,7 +136,7 @@ function shellFor(view, html){
   const bottom = `<nav class="shell-bottom" aria-label="Navegación">${bottomItems.map(it =>
     `<button class="${bottomActive === it.id ? 'active' : ''}" data-action="${it.action}">${shellIcon(it.icon)}<span>${it.label}</span></button>`).join('')}</nav>`;
   const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin', 'profile', 'profileEdit', 'adminDashboard', 'database'];
-  const wide = WIDE_VIEWS.includes(String(view)) || (String(view) === 'law' && typeof STATE !== 'undefined' && STATE.lawId === 'saved');
+  const wide = WIDE_VIEWS.includes(String(view)) || String(view) === 'law';
   return `<div class="shell">${side}<main class="shell-main"><div class="shell-content ${wide ? 'wide' : ''}">${html}</div></main></div>${bottom}`;
 }
 
