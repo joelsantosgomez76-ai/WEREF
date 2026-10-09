@@ -2586,6 +2586,7 @@ async function saveProfileEdit(){
 }
 
 function academiaView(){
+  const ic = (n) => shellIcon(n);
   const docs = STATE.storage.myDocs||[];
   const bank = STATE.storage.myBank||[];
   const savedMap = STATE.storage.saved||{};
@@ -2600,69 +2601,54 @@ function academiaView(){
   const overallLastTs = [docsLastTs, bankLastTs, savedLastTs].filter(Boolean);
   const overallLastText = overallLastTs.length ? formatRelativeTime(Math.max(...overallLastTs)) : null;
 
-  const DOC_COLOR = '#1D6FE0', BANK_COLOR = 'var(--accent)', SAVED_COLOR = 'var(--yellow-ink)', SAVED_BORDER = 'var(--yellow)';
-
-  const summaryHtml = hasContent ? `
-  <div class="qcard" style="margin-bottom:16px;">
-    <div class="lb-summary-row" style="margin-bottom:${overallLastText?'10px':'0'};">
-      <div class="lb-summary-stat"><div class="num">📄 ${docsCount}</div><div class="label">Documento(s)</div></div>
-      <div class="lb-summary-stat"><div class="num">✍️ ${bankCount}</div><div class="label">Preguntas creadas</div></div>
-      <div class="lb-summary-stat"><div class="num">⭐ ${savedCount}</div><div class="label">Preguntas guardadas</div></div>
+  const module = (cls, icon, title, desc, count, countLabel, emptyLabel, lastText, action, law) => `
+  <button class="ac-card ${cls}" data-action="${action}" ${law ? `data-law="${law}"` : ''}>
+    <div class="ac-card-top">
+      <span class="ac-card-ic">${ic(icon)}</span>
+      <div class="ac-card-count"><b>${count}</b><small>${countLabel}</small></div>
     </div>
-    ${overallLastText ? `<div style="font-size:12px; color:var(--muted); text-align:center;">Última actividad: ${overallLastText}</div>` : ''}
-  </div>` : '';
-
-  const motivationalHtml = hasContent ? `
-  <div class="qcard" style="margin-top:2px; text-align:center; padding:22px 18px;">
-    <div style="font-weight:700; font-size:14.5px; margin-bottom:6px;">Tu academia sigue creciendo.</div>
-    <div style="font-size:13px; color:var(--muted);">Continúa añadiendo material y crea entrenamientos cada vez más personalizados.</div>
-  </div>` : `
-  <div class="qcard" style="margin-top:2px; text-align:center; padding:22px 18px;">
-    <div style="font-weight:700; font-size:14.5px; margin-bottom:6px;">💡 Continúa construyendo tu academia</div>
-    <div style="font-size:13px; color:var(--muted);">Crea tu primera categoría personalizada o añade nuevos documentos para ampliar tu biblioteca de estudio.</div>
-  </div>`;
+    <h3>${title}</h3>
+    <p>${desc}</p>
+    <div class="ac-card-state">${count > 0 ? (lastText || '') : emptyLabel}</div>
+    <div class="ac-card-go">Entrar ${ic('chevron')}</div>
+  </button>`;
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">🎓 Mi Academia</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tu espacio personal para organizar documentos, crear tus propios test y guardar las preguntas que quieras repasar. Todo este contenido es completamente privado y nunca se mezcla con el contenido oficial de WEREF.</div>
-
-  ${summaryHtml}
-
-  <button class="qcard academia-module-card" style="border-left:4px solid ${DOC_COLOR}; margin-bottom:14px; text-align:left; cursor:pointer; width:100%;" data-action="mydocs-home">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-      <div style="font-size:26px;">📄</div>
-      <div style="font-weight:700; font-size:16px;">Documentos</div>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Tu espacio personal</div>
+      <h1>Mi Academia</h1>
+      <p>Organiza documentos, crea tus propios test y guarda las preguntas que quieras repasar. Todo este contenido es completamente privado y nunca se mezcla con el contenido oficial de WEREF.</p>
+      ${overallLastText ? `<div class="ac-last">${ic('clock')} Última actividad ${overallLastText}</div>` : ''}
     </div>
-    <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Guarda reglamentos, circulares, apuntes y cualquier material de estudio.</div>
-    <div style="font-size:12px; color:${DOC_COLOR}; font-weight:700;">📂 ${docsCount>0 ? docsCount+' documento(s) almacenado(s)' : 'Todavía no has subido ningún documento'}</div>
-    ${docsLastTs ? `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Último documento añadido ${formatRelativeTime(docsLastTs)}.</div>` : ''}
-    <div style="text-align:right; font-size:12px; color:${DOC_COLOR}; font-weight:700; margin-top:8px;">Entrar →</div>
-  </button>
-
-  <button class="qcard academia-module-card" style="border-left:4px solid ${BANK_COLOR}; margin-bottom:14px; text-align:left; cursor:pointer; width:100%;" data-action="mybank">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-      <div style="font-size:26px;">✍️</div>
-      <div style="font-weight:700; font-size:16px;">Mis propios test</div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${docsCount}</b><span>Documentos</span></div>
+      <div class="lg-stat"><b>${bankCount}</b><span>Preguntas creadas</span></div>
+      <div class="lg-stat"><b>${savedCount}</b><span>Guardadas</span></div>
     </div>
-    <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Crea categorías, añade preguntas y genera test completamente personalizados.</div>
-    <div style="font-size:12px; color:${BANK_COLOR}; font-weight:700;">📝 ${bankCount>0 ? bankCount+' pregunta(s) creada(s)' : 'Todavía no has creado ninguna pregunta'}</div>
-    ${bankLastTs ? `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Última pregunta creada ${formatRelativeTime(bankLastTs)}.</div>` : ''}
-    <div style="text-align:right; font-size:12px; color:${BANK_COLOR}; font-weight:700; margin-top:8px;">Entrar →</div>
-  </button>
+  </section>
 
-  <button class="qcard academia-module-card" style="border-left:4px solid ${SAVED_BORDER}; margin-bottom:16px; text-align:left; cursor:pointer; width:100%;" data-action="open-law" data-law="saved">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-      <div style="font-size:26px;">⭐</div>
-      <div style="font-weight:700; font-size:16px;">Preguntas guardadas</div>
+  <div class="lg-section-head"><h2>Tus herramientas</h2><span>Elige por dónde quieres empezar</span></div>
+  <div class="ac-grid">
+    ${module('docs', 'file', 'Documentos', 'Guarda reglamentos, circulares, apuntes y cualquier material de estudio.',
+      docsCount, docsCount === 1 ? 'documento' : 'documentos', 'Todavía no has subido ningún documento',
+      docsLastTs ? 'Último documento añadido ' + formatRelativeTime(docsLastTs) + '.' : '', 'mydocs-home')}
+    ${module('bank', 'pencil', 'Mis propios test', 'Crea categorías, añade preguntas y genera test completamente personalizados.',
+      bankCount, bankCount === 1 ? 'pregunta' : 'preguntas', 'Todavía no has creado ninguna pregunta',
+      bankLastTs ? 'Última pregunta creada ' + formatRelativeTime(bankLastTs) + '.' : '', 'mybank')}
+    ${module('saved', 'star', 'Preguntas guardadas', 'Accede rápidamente a todas las preguntas que has marcado para repasar más adelante.',
+      savedCount, savedCount === 1 ? 'pendiente' : 'pendientes', 'Todavía no has guardado ninguna pregunta',
+      savedLastTs ? 'Última pregunta guardada ' + formatRelativeTime(savedLastTs) + '.' : '', 'open-law', 'saved')}
+  </div>
+
+  <div class="ac-tip">
+    <span class="ac-tip-ic">${ic(hasContent ? 'award' : 'idea')}</span>
+    <div>
+      <strong>${hasContent ? 'Tu academia sigue creciendo.' : 'Continúa construyendo tu academia'}</strong>
+      <p>${hasContent ? 'Continúa añadiendo material y crea entrenamientos cada vez más personalizados.' : 'Crea tu primera categoría personalizada o añade nuevos documentos para ampliar tu biblioteca de estudio.'}</p>
     </div>
-    <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Accede rápidamente a todas las preguntas que has marcado para repasar más adelante.</div>
-    <div style="font-size:12px; color:${SAVED_COLOR}; font-weight:700;">📌 ${savedCount>0 ? savedCount+' pregunta(s) pendiente(s)' : 'Todavía no has guardado ninguna pregunta'}</div>
-    ${savedLastTs ? `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Última pregunta guardada ${formatRelativeTime(savedLastTs)}.</div>` : ''}
-    <div style="text-align:right; font-size:12px; color:${SAVED_COLOR}; font-weight:700; margin-top:8px;">Entrar →</div>
-  </button>
-
-  ${motivationalHtml}
+  </div>
   `;
 }
 
