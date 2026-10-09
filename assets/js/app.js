@@ -1014,7 +1014,10 @@ function render(){
     focusId = active.id;
     if(typeof active.selectionStart === 'number'){ selStart = active.selectionStart; selEnd = active.selectionEnd; }
   }
-  app.innerHTML = viewFor(STATE.view);
+  const viewHtml = viewFor(STATE.view);
+  const useShell = typeof shellFor==='function' && !SHELL_FOCUS_VIEWS.includes(STATE.view);
+  app.classList.toggle('has-shell', useShell);
+  app.innerHTML = useShell ? shellFor(STATE.view, viewHtml) : viewHtml;
   bindEvents();
   if(typeof committeeAfterRender==='function') committeeAfterRender();
   if(focusId){
@@ -1186,6 +1189,7 @@ function viewFor(v){
   if(v==='profileEdit') return profileEditView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
+  if(v==='menu' && typeof menuView==='function') return menuView();
   if(typeof v==='string' && v.startsWith('committee') && typeof committeeView==='function') return committeeView(v);
   return homeView();
 }
@@ -2521,76 +2525,75 @@ function homeView(){
   const points = computePoints();
   const rank = currentRank(points);
   const next = nextRankInfo(points);
-  const academiaTotal = Object.keys(STATE.storage.saved).length;
   const rp = recentPerformance(20);
-  let recentPerfHtml;
-  if(!rp){
-    recentPerfHtml = `<button class="qcard" data-action="recent-performance" style="flex:1; min-width:220px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:12px;">
-      <div style="font-size:20px;">📊</div>
-      <div style="font-size:13px; color:var(--muted);">Completa algún test para ver aquí tu rendimiento reciente.</div>
-    </button>`;
-  } else {
-    recentPerfHtml = `<button class="qcard" data-action="recent-performance" style="flex:1; min-width:220px; text-align:left; cursor:pointer;">
-      <div style="font-weight:700; font-size:14px; margin-bottom:8px;">🎯 Analiza tu rendimiento</div>
-      <div style="font-size:13px; color:${scoreColor(rp.pct)}; font-weight:700; margin-bottom:10px;">${rp.pct}% de acierto en tus últimos 20 tests</div>
-      <div style="text-align:right; font-size:12px; color:var(--pitch); font-weight:700;">Ver por regla →</div>
-    </button>`;
-  }
-
   const streak = computeStreak();
-  const todayISO = todayKeyISO();
-  const nextEvent = (STATE.storage.calendarEvents||[])
-    .filter(ev => ev.date >= todayISO)
-    .sort((a,b)=>a.date.localeCompare(b.date))[0];
-
-  let streakHtml;
-  if(nextEvent){
-    const t = CALENDAR_EVENT_TYPES[nextEvent.type] || CALENDAR_EVENT_TYPES.other;
-    const daysUntil = Math.round((new Date(nextEvent.date+'T00:00:00') - new Date(todayISO+'T00:00:00')) / 86400000);
-    const whenLabel = daysUntil===0 ? 'Es hoy' : daysUntil===1 ? 'Es mañana' : `Faltan ${daysUntil} días`;
-    streakHtml = `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer;">
-        <div style="font-weight:700; font-size:14px; margin-bottom:8px;">${t.icon} ${esc(nextEvent.title)}</div>
-        <div style="font-size:13px; color:var(--ink); margin-bottom:4px;">📅 ${formatEventDate(nextEvent.date)}</div>
-        <div style="font-size:13px; color:${t.color}; font-weight:700; margin-bottom:10px;">⏳ ${whenLabel}</div>
-        <div style="text-align:right; font-size:12px; color:var(--pitch); font-weight:700;">Ver calendario →</div>
-      </button>`;
-  } else if(streak === 0){
-    streakHtml = `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer; display:flex; align-items:center; gap:12px;">
-        <div style="font-size:20px;">🔥</div>
-        <div style="font-size:13px; color:var(--muted);">Empieza hoy tu racha de estudio.</div>
-      </button>`;
-  } else {
-    streakHtml = `<button class="qcard" data-action="streak-calendar" style="flex:1; min-width:220px; text-align:left; cursor:pointer;">
-        <div style="font-weight:700; font-size:14px; margin-bottom:8px;">🔥 Racha de estudio</div>
-        <div style="font-size:13px; color:var(--ink); margin-bottom:10px;">${streak} día${streak===1?'':'s'} seguido${streak===1?'':'s'} · ¡sigue así!</div>
-        <div style="text-align:right; font-size:12px; color:var(--pitch); font-weight:700;">Ver calendario →</div>
-      </button>`;
-  }
-
   const weak = weakestRuleRecent(20);
-  const weakHtml = !weak
-    ? `<div class="qcard" style="flex:1; min-width:220px; display:flex; align-items:center; gap:12px;">
-        <div style="font-size:20px;">🎯</div>
-        <div style="font-size:13px; color:var(--muted);">Completa más tests para ver aquí tu regla más floja.</div>
-      </div>`
-    : `<button class="qcard" data-action="open-law" data-law="${weak.rule}" style="flex:1; min-width:220px; text-align:left; cursor:pointer;">
-        <div style="font-weight:700; font-size:14px; margin-bottom:8px;">🎯 Recomendación para hoy</div>
-        <div style="font-size:13px; color:var(--ink); margin-bottom:4px;">📘 Regla ${weak.rule} · ${esc(LAW_NAMES[weak.rule])}</div>
-        <div style="font-size:13px; color:${scoreColor(weak.pct)}; font-weight:700; margin-bottom:10px;">${weak.pct}% de acierto — es tu regla más floja</div>
-        <div style="text-align:right; font-size:12px; color:var(--pitch); font-weight:700;">Practicar ahora →</div>
-      </button>`;
+  const goal = STATE.storage.dailyGoal || 20;
+  const today = todaysAnsweredCount();
+  const goalPct = Math.min(100, Math.round(today / goal * 100));
+  const name = (typeof CURRENT_USERNAME !== 'undefined' && CURRENT_USERNAME) ? CURRENT_USERNAME : '';
+  const hour = new Date().getHours();
+  const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
+  const ic = (n) => shellIcon(n);
 
-  const badgeCount = Object.keys(STATE.storage.unlockedBadges||{}).length;
-  const progressHtml = `<button class="qcard" data-action="stats" style="flex:1; min-width:220px; text-align:left; cursor:pointer;">
-    <div style="font-weight:700; font-size:14px; margin-bottom:8px;">📊 Progreso general</div>
-    <div style="font-size:13px; color:var(--ink); margin-bottom:10px;">${os.completionPct}% del temario completado</div>
-    <div style="text-align:right; font-size:12px; color:var(--pitch); font-weight:700;">Ver estadísticas →</div>
-  </button>`;
+  const heroTitle = today >= goal ? '¡Objetivo de hoy cumplido!'
+    : today > 0 ? `Llevas ${today} de ${goal} preguntas hoy`
+    : 'Prepárate para tu próximo examen';
+  const heroSub = next
+    ? `${rank.name} · ${points} puntos · te faltan ${next.remaining} para ser ${next.name}`
+    : `${rank.name} · ${points} puntos · has alcanzado el rango máximo`;
+  const heroPrimary = weak
+    ? `<button class="btn btn-yellow" data-action="open-law" data-law="${weak.rule}">${ic('play')} Reforzar Regla ${weak.rule}</button>`
+    : `<button class="btn btn-yellow" data-action="train-config">${ic('play')} Empezar a entrenar</button>`;
 
+  const hero = `
+  <section class="home-hero">
+    <div>
+      <div class="home-eyebrow">${greeting}${name ? ', ' + esc(name) : ''}</div>
+      <h1>${heroTitle}</h1>
+      <p>${heroSub}</p>
+      <div class="home-hero-actions">
+        ${heroPrimary}
+        <button class="btn home-btn-light" data-action="start-daily-goal" data-count="10">${ic('zap')} Test rápido · 10 preguntas</button>
+      </div>
+    </div>
+    <button class="home-hero-rank" data-action="achievements" title="Ver tu rango e insignias">
+      <div class="ring">${ringSVG(next ? next.progressPct : 100, 84, 7)}<div class="pct" style="font-size:14px;">${points}</div></div>
+      <div><div class="rank-name">${esc(rank.name)}</div><div class="rank-sub">${next ? next.progressPct + '% hacia ' + esc(next.name) : 'Rango máximo'}</div></div>
+    </button>
+  </section>`;
+
+  const kpis = `
+  <div class="home-kpis">
+    <button class="kpi" data-action="stats">
+      <div class="kpi-top">${ic('chart')} Progreso</div>
+      <div class="kpi-val">${os.completionPct}<small>%</small></div>
+      <div class="kpi-bar"><div style="width:${os.completionPct}%"></div></div>
+      <div class="kpi-sub">${os.attempted} de ${os.total} preguntas</div>
+    </button>
+    <button class="kpi" data-action="recent-performance">
+      <div class="kpi-top">${ic('target')} Acierto reciente</div>
+      <div class="kpi-val" ${rp ? `style="color:${scoreColor(rp.pct)};"` : ''}>${rp ? rp.pct + '<small>%</small>' : '—'}</div>
+      <div class="kpi-sub">${rp ? 'en tus últimos 20 tests' : 'Completa un test para verlo'}</div>
+    </button>
+    <button class="kpi" data-action="streak-calendar">
+      <div class="kpi-top">${ic('flame')} Racha</div>
+      <div class="kpi-val">${streak}<small> ${streak === 1 ? 'día' : 'días'}</small></div>
+      <div class="kpi-sub">${streak === 0 ? 'Empieza hoy tu racha' : `Mejor racha: ${Math.max(streak, STATE.storage.maxStreak || 0)} días`}</div>
+    </button>
+    <div class="kpi">
+      <div class="kpi-top">${ic('check')} Objetivo de hoy</div>
+      <div class="kpi-val">${today}<small> / ${goal}</small></div>
+      <div class="kpi-bar"><div style="width:${goalPct}%; ${goalPct >= 100 ? 'background:var(--green-ok);' : ''}"></div></div>
+      <div class="kpi-sub">${goalPct >= 100 ? '¡Cumplido!' : `Te faltan ${goal - today} preguntas`}</div>
+    </div>
+  </div>`;
+
+  /* Reglas de Juego */
   let cards = '';
-  for(let i=1;i<=17;i++){
+  for(let i = 1; i <= 17; i++){
     const s = lawStats(i);
-    const crownLevel = (STATE.storage.crownLevels||{})[i] || 0;
+    const crownLevel = (STATE.storage.crownLevels || {})[i] || 0;
     cards += `<button class="law-card" data-action="open-law" data-law="${i}">
       ${crownBadge(crownLevel)}
       <div class="law-icon">${LAW_ICONS[i]}</div>
@@ -2603,88 +2606,105 @@ function homeView(){
       <div class="law-sub">${lawSubLine(s)}</div>
     </button>`;
   }
+
+  /* Columna derecha */
+  const todayISO = todayKeyISO();
+  const nextEvent = (STATE.storage.calendarEvents || [])
+    .filter(ev => ev.date >= todayISO)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  let eventHtml;
+  if(nextEvent){
+    const t = CALENDAR_EVENT_TYPES[nextEvent.type] || CALENDAR_EVENT_TYPES.other;
+    const daysUntil = Math.round((new Date(nextEvent.date + 'T00:00:00') - new Date(todayISO + 'T00:00:00')) / 86400000);
+    const whenLabel = daysUntil === 0 ? 'Es hoy' : daysUntil === 1 ? 'Es mañana' : `Faltan ${daysUntil} días`;
+    eventHtml = `<button class="qcard home-card-btn" data-action="streak-calendar">
+      <div class="home-card-title">${ic('calendar')} Próximo evento</div>
+      <div class="home-card-text"><strong>${t.icon} ${esc(nextEvent.title)}</strong></div>
+      <div class="home-card-text">${formatEventDate(nextEvent.date)}</div>
+      <div class="home-card-text" style="color:${t.color}; font-weight:700;">${whenLabel}</div>
+      <div class="home-card-link">Ver calendario →</div>
+    </button>`;
+  } else {
+    eventHtml = `<button class="qcard home-card-btn" data-action="streak-calendar">
+      <div class="home-card-title">${ic('calendar')} Calendario de estudio</div>
+      <div class="home-card-text" style="color:var(--muted);">Apunta tus exámenes y fechas importantes para no perder el ritmo.</div>
+      <div class="home-card-link">Abrir calendario →</div>
+    </button>`;
+  }
+
+  const weakHtml = weak
+    ? `<button class="qcard home-card-btn" data-action="open-law" data-law="${weak.rule}">
+        <div class="home-card-title">${ic('target')} Recomendación para hoy</div>
+        <div class="home-card-text"><strong>Regla ${weak.rule} · ${esc(LAW_NAMES[weak.rule])}</strong></div>
+        <div class="home-card-text" style="color:${scoreColor(weak.pct)}; font-weight:700;">${weak.pct}% de acierto: es tu regla más floja</div>
+        <div class="home-card-link">Practicar ahora →</div>
+      </button>`
+    : `<div class="qcard">
+        <div class="home-card-title">${ic('target')} Recomendación para hoy</div>
+        <div class="home-card-text" style="color:var(--muted);">Completa algunos tests y aquí te diré qué regla conviene reforzar.</div>
+      </div>`;
+
   const gs = lawStats('glossary');
-  const glossaryCard = `<button class="law-card" data-action="open-law" data-law="glossary">
-    <div class="law-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h11a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z"/><path d="M6 4v14a2 2 0 0 0 2 2h11"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="11.5" x2="15" y2="11.5"/></svg></div>
-    <div class="law-num">G</div>
-    <div class="law-name">Preguntas Glosario</div>
-    <div class="law-meta">
-      <div class="law-bar-bg"><div class="law-bar-fill" style="width:${gs.completionPct}%"></div></div>
-      <div class="law-pct">${gs.completionPct}%</div>
-    </div>
-    <div class="law-sub">${lawSubLine(gs)}</div>
-  </button>`;
   const hs = lawStats('hard');
-  const hardCard = `<button class="law-card law-card-hard" data-action="open-law" data-law="hard">
-    <div class="law-name" style="font-size:20px; margin-top:2px;">Sala VAR</div>
-    <div class="hard-tag" style="margin-top:6px; display:inline-block;">Modo difícil</div>
-    <div class="law-meta">
-      <div class="law-bar-bg"><div class="law-bar-fill" style="width:${hs.completionPct}%; background:var(--red);"></div></div>
-      <div class="law-pct">${hs.completionPct}%</div>
-    </div>
-    <div class="law-sub">${hs.total===0 ? '<span class="law-sub-muted">Todavía no hay ninguna</span>' : lawSubLine(hs)}</div>
-  </button>`;
   const fs2 = lawStats('failed');
-  const failRatio = os.attempted>0 ? Math.round(fs2.total/os.attempted*100) : 0;
-  const failedCard = `<button class="law-card law-card-failed" data-action="open-law" data-law="failed">
-    <div class="law-name" style="font-size:20px; margin-top:2px; color:var(--yellow-ink);">Sala de Repaso</div>
-    <div class="hard-tag" style="margin-top:6px; display:inline-block; background:rgba(91,67,0,0.14); color:var(--yellow-ink);">Preguntas falladas</div>
-    <div class="law-meta">
-      <div class="law-bar-bg" style="background:rgba(91,67,0,0.18);"><div class="law-bar-fill" style="width:${failRatio}%; background:var(--yellow-ink);"></div></div>
-      <div class="law-pct" style="color:var(--yellow-ink);">${fs2.total}</div>
-    </div>
-    <div class="law-sub" style="color:var(--yellow-ink); opacity:0.8;">${fs2.total===0 ? '<span class="law-sub-muted" style="color:var(--yellow-ink);">¡Nada pendiente!</span>' : 'Preguntas por repasar'}</div>
+  const room = (law, icon, bg, fg, title, sub, val) => `<button class="room-row" data-action="open-law" data-law="${law}">
+    <span class="room-ic" style="background:${bg}; color:${fg};">${ic(icon)}</span>
+    <span><div class="room-name">${title}</div><div class="room-sub">${sub}</div></span>
+    <span class="room-val" style="color:${fg};">${val}</span>
   </button>`;
+  const rooms = `<div class="home-panel">
+    <div class="home-panel-title">Salas de práctica</div>
+    ${room('failed', 'repeat', '#FFF6DE', 'var(--yellow-ink)', 'Sala de Repaso', fs2.total === 0 ? 'Nada pendiente' : 'Preguntas por repasar', fs2.total)}
+    ${room('hard', 'shield', '#FDECEC', 'var(--red)', 'Sala VAR', hs.total === 0 ? 'Todavía no hay ninguna' : 'Modo difícil', hs.completionPct + '%')}
+    ${room('glossary', 'glossary', 'var(--chalk)', 'var(--pitch)', 'Glosario IFAB', 'Términos de las Reglas', gs.completionPct + '%')}
+  </div>`;
+
+  const flagCount = Object.keys(STATE.storage.flags || {}).length;
+  const flaggedHtml = flagCount > 0
+    ? `<button class="qcard home-card-btn" data-action="flagged-list" style="display:flex; align-items:center; gap:10px;">
+        <span style="color:var(--accent);">${ic('flag')}</span>
+        <span style="font-weight:700; font-size:14px;">Preguntas marcadas</span>
+        <span class="badge" style="margin-left:auto;">${flagCount}</span>
+      </button>`
+    : '';
+
+  const cst = (typeof COMMITTEE !== 'undefined') ? COMMITTEE.status : null;
+  const committeeHtml = (cst && (cst.is_admin || cst.is_member))
+    ? `<button class="qcard home-card-btn" data-action="committee-open">
+        <div class="home-card-title">${ic('users')} Formación Comité Bages</div>
+        <div class="home-card-text" style="color:var(--muted);">${cst.is_admin ? 'Gestiona miembros, tests y clasificación.' : 'Tests mensuales del comité de árbitros.'}</div>
+        <div class="home-card-link">Entrar →</div>
+      </button>`
+    : '';
+
+  const suggestHtml = `<div class="home-panel" style="text-align:center;">
+    <div style="font-weight:700; font-size:14px; color:var(--pitch); margin-bottom:4px;">Construyamos WEREF juntos</div>
+    <div style="font-size:12.5px; color:var(--muted); margin-bottom:12px;">¿Una idea o algo que mejorar? Cuéntanoslo.</div>
+    <button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="open-suggest">Enviar una sugerencia</button>
+  </div>`;
+
   return `
-  <div class="app-header">
-    <button class="header-logout-btn" data-action="logout" title="Cerrar sesión" aria-label="Cerrar sesión">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    </button>
-    <div class="header-row">
-      <div style="display:flex; align-items:center; gap:14px;">
-        <div style="width:52px; height:52px;">${LOGO_MARK}</div>
-        <div>
-          <h1>WEREF</h1>
-          <div class="sub" style="margin-top:2px;">Formación arbitral</div>
-        </div>
+  ${hero}
+  ${kpis}
+  <div class="home-cols">
+    <div class="home-left">
+      <div class="home-section-head">
+        <h2>Reglas de Juego</h2>
+        <button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="train-config">+ Crear test personalizado</button>
       </div>
-      <button class="ring-wrap" data-action="achievements" title="Ver tu rango e insignias" style="background:none; border:none; cursor:pointer; padding:0;">
-        <div class="ring">${ringSVG(next ? next.progressPct : 100)}<div class="pct" style="font-size:13px;">${points}</div></div>
-        <div class="ring-label" style="max-width:80px; white-space:normal; text-align:center; line-height:1.2;">${rank.name}</div>
-      </button>
+      <div class="law-grid">${cards}</div>
     </div>
-  </div>
-  <div style="display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
-    <button class="btn btn-primary" data-action="train-config">📘 Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
-    <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">🏆 WEREF League</button>
-    <button class="btn btn-primary" style="background:var(--pitch);" data-action="academia">🎓 Mi Academia${academiaTotal>0 ? ` <span class="badge">${academiaTotal}</span>` : ''}</button>
-    ${typeof cmHomeButton==='function' ? cmHomeButton() : ''}
-  </div>
-  <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
-    ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
-    ${isDevUser() ? `<button class="btn btn-ghost" data-action="suggestions-admin">📋 Sugerencias${STATE.suggestions.filter(s=>s.status==='pending').length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${STATE.suggestions.filter(s=>s.status==='pending').length}</span>` : ''}</button>` : ''}
-    ${isDevUser() ? `<button class="btn btn-ghost" data-action="admin-dashboard">📊 Panel de administración</button>` : ''}
-    ${Object.keys(STATE.storage.flags).length>0 ? `<button class="btn btn-ghost" data-action="flagged-list">Marcadas <span class="badge">${Object.keys(STATE.storage.flags).length}</span></button>` : ''}
-  </div>
-  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
-    ${progressHtml}
-    ${recentPerfHtml}
-    ${streakHtml}
-    ${weakHtml}
-  </div>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:22px; margin-bottom:10px; flex-wrap:wrap;">
-    <div class="section-title" style="margin:0;">Reglas de juego</div>
-    <button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="train-config">+ Crear test personalizado</button>
-  </div>
-  <div class="law-grid">${cards}${glossaryCard}${hardCard}${failedCard}</div>
-  <div class="qcard" style="margin-top:24px; text-align:center; padding:26px 20px;">
-    <div style="font-weight:700; font-size:15px; color:var(--pitch); margin-bottom:4px;">🚀 Construyamos WEREF juntos</div>
-    <div style="font-size:13px; color:var(--muted); margin-bottom:14px;">Esta plataforma también la crean sus usuarios. Si tienes una idea, has encontrado algo que mejorar o echas de menos alguna función, cuéntanoslo. Tu opinión puede marcar la diferencia.</div>
-    <button class="btn btn-secondary" data-action="open-suggest">Enviar una sugerencia</button>
+    <aside class="home-right">
+      ${weakHtml}
+      ${eventHtml}
+      ${rooms}
+      ${committeeHtml}
+      ${flaggedHtml}
+      ${suggestHtml}
+    </aside>
   </div>
   `;
 }
-
 
 function lawMenuView(){
   const law = STATE.lawId;
@@ -3903,6 +3923,7 @@ function onAction(e){
 
   if(action==='logout'){ stopTimer(); if(typeof handleLogout==='function') handleLogout(); }
   else if(action==='home'){ stopTimer(); STATE.view='home'; render(); }
+  else if(action==='menu'){ STATE.view='menu'; render(); }
   else if(action==='open-law'){ STATE.lawId=law; STATE.view='law'; render(); }
   else if(action==='start-quiz'){ startQuiz(law, el.dataset.mode); }
   else if(action==='train-config'){ STATE.trainCfg.scopeOverride = null; STATE.view='trainConfig'; render(); }
