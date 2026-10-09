@@ -1192,3 +1192,42 @@ input.tc-count{max-width:140px; font:700 26px 'Oswald'; text-align:center; margi
   .st-rule-pct{display:none;}
 }
 .tc-step svg{width:16px; height:16px;}
+
+/* ---------- Rango e insignias ---------- */
+.rk-hero-bar{height:8px; border-radius:6px; background:rgba(255,255,255,0.16); overflow:hidden; max-width:420px;}
+.rk-hero-bar i{display:block; height:100%; border-radius:6px; background:linear-gradient(90deg,var(--accent),var(--yellow));}
+.rk-hero-bar-label{font-size:12px; color:rgba(255,255,255,0.65); margin-top:6px;}
+.rk-layout{display:grid; grid-template-columns:minmax(0,380px) minmax(0,1fr); gap:18px; align-items:start;}
+.rk-ladder{display:flex; flex-direction:column;}
+.rk-step{position:relative; display:flex; gap:14px; padding-bottom:18px;}
+.rk-step:last-child{padding-bottom:0;}
+.rk-step::before{content:''; position:absolute; left:11px; top:24px; bottom:-2px; width:2px; background:var(--line);}
+.rk-step:last-child::before{display:none;}
+.rk-step.reached::before{background:var(--accent);}
+.rk-dot{width:24px; height:24px; flex-shrink:0; border-radius:50%; border:2px solid var(--line); background:#fff; display:flex; align-items:center; justify-content:center; position:relative; z-index:1;}
+.rk-dot svg{width:13px; height:13px; stroke-width:3; color:#fff;}
+.rk-step.reached .rk-dot{background:var(--accent); border-color:var(--accent);}
+.rk-step.current .rk-dot{background:var(--pitch); border-color:var(--pitch); box-shadow:0 0 0 4px rgba(255,106,43,0.25);}
+.rk-step-body{flex:1; min-width:0;}
+.rk-step-name{font-weight:700; font-size:14.5px; color:var(--muted); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.rk-step.reached .rk-step-name{color:var(--ink);}
+.rk-step-name em{font-style:normal; font:700 10px 'JetBrains Mono'; letter-spacing:0.06em; text-transform:uppercase; background:var(--yellow); color:var(--yellow-ink); border-radius:20px; padding:2px 8px;}
+.rk-step-min{font:500 11.5px 'JetBrains Mono'; color:var(--muted);}
+.rk-step-bar{height:6px; border-radius:4px; background:var(--line); overflow:hidden; margin-top:8px;}
+.rk-step-bar i{display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--yellow));}
+.rk-step-hint{font-size:12px; color:var(--muted); margin-top:5px;}
+.rk-badges{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+.rk-badge{display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--line); border-radius:14px; background:#fff; min-width:0;}
+.rk-badge-ic{width:46px; height:46px; flex-shrink:0; border-radius:14px; background:linear-gradient(135deg,#FFF6DE,#FFE19A); display:flex; align-items:center; justify-content:center; font-size:22px;}
+.rk-badge-body{flex:1; min-width:0; display:flex; flex-direction:column;}
+.rk-badge-body strong{font-size:13.5px; color:var(--ink);}
+.rk-badge-body small{font-size:12px; color:var(--muted); line-height:1.35; margin-top:2px;}
+.rk-badge-state{width:24px; height:24px; flex-shrink:0; border-radius:50%; display:flex; align-items:center; justify-content:center;}
+.rk-badge-state svg{width:13px; height:13px; stroke-width:2.6;}
+.rk-badge.on{border-color:#BFE6CF; background:#F6FCF8;}
+.rk-badge.on .rk-badge-state{background:var(--green-ok); color:#fff;}
+.rk-badge.off .rk-badge-ic{background:var(--chalk); filter:grayscale(1); opacity:0.55;}
+.rk-badge.off .rk-badge-body{opacity:0.6;}
+.rk-badge.off .rk-badge-state{background:var(--chalk); color:var(--muted); border:1px solid var(--line);}
+@media (max-width:1100px){ .rk-layout{grid-template-columns:1fr;} }
+@media (max-width:640px){ .rk-badges{grid-template-columns:1fr;} }
