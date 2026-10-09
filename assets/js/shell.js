@@ -164,5 +164,5 @@ function menuView(){
 
 /* ¿Está CTA BAGES visible para los miembros? (por defecto sí) */
 function cmSettingsOn(){
-  return !(typeof COMMITTEE !== 'undefined' && COMMITTEE.settings && COMMITTEE.settings.enabled === false);
+  return !(typeof COMMITTEE !== 'undefined' && COMMITTEE.cfg && COMMITTEE.cfg.enabled === false);
 }

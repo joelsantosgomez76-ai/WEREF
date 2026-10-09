@@ -17,7 +17,8 @@ const COMMITTEE = {
   rankMonth: 'all',
   newMemberEmail: '',
   detailTestId: null,
-  settings: null,
+  settings: null,     // ajustes de UN test (detalle)
+  cfg: null,          // ajustes del módulo CTA BAGES (abierto/cerrado, mensaje)
   run: null,
   result: null,
   builder: null,
@@ -91,7 +92,7 @@ function cmExport(rows, sheetName, fileName){
 }
 
 /* ---------- ajustes del módulo (visible / oculto, mensaje para miembros) ---------- */
-function cmSettings(){ return COMMITTEE.settings || { enabled: true, announcement: '' }; }
+function cmSettings(){ return COMMITTEE.cfg || { enabled: true, announcement: '' }; }
 function cmMemberAccess(){
   const st = COMMITTEE.status;
   if(!st) return false;
@@ -101,22 +102,22 @@ async function cmLoadSettings(){
   try{
     const { data, error } = await supabaseClient.from('committee_settings').select('*').eq('id', 1).maybeSingle();
     if(error) throw error;
-    COMMITTEE.settings = data ? { enabled: data.enabled !== false, announcement: data.announcement || '' } : { enabled: true, announcement: '' };
+    COMMITTEE.cfg = data ? { enabled: data.enabled !== false, announcement: data.announcement || '' } : { enabled: true, announcement: '' };
     COMMITTEE.settingsMissing = false;
   }catch(e){
-    COMMITTEE.settings = { enabled: true, announcement: '' };
+    COMMITTEE.cfg = { enabled: true, announcement: '' };
     COMMITTEE.settingsMissing = true;
   }
 }
 async function cmSaveSettings(patch){
   const prev = Object.assign({}, cmSettings());
-  COMMITTEE.settings = Object.assign({}, prev, patch);
+  COMMITTEE.cfg = Object.assign({}, prev, patch);
   render();
   const { error } = await supabaseClient.from('committee_settings').upsert({
-    id: 1, enabled: COMMITTEE.settings.enabled, announcement: COMMITTEE.settings.announcement, updated_at: new Date().toISOString()
+    id: 1, enabled: COMMITTEE.cfg.enabled, announcement: COMMITTEE.cfg.announcement, updated_at: new Date().toISOString()
   });
   if(error){
-    COMMITTEE.settings = prev;
+    COMMITTEE.cfg = prev;
     cmToast('No se pudo guardar. ¿Has ejecutado el SQL de CTA BAGES en Supabase?');
     return false;
   }
@@ -268,13 +269,6 @@ function cmMemberView(){
 }
 
 /* ---------- Panel de Formación: aquí se prepara todo y se publica en CTA BAGES ---------- */
-function cmPipeline(){
-  const count = { draft: 0, sched: 0, open: 0, closed: 0 };
-  (COMMITTEE.tests || []).forEach(t => { count[cmTestState(t).cls]++; });
-  const pipe = (cls, label, n) => `<div class="tp-pipe ${cls}"><b>${n}</b><span>${label}</span></div>`;
-  return `<div class="tp-pipeline">${pipe('draft', 'Borradores', count.draft)}${pipe('sched', 'Programados', count.sched)}${pipe('open', 'Abiertos', count.open)}${pipe('closed', 'Cerrados', count.closed)}</div>`;
-}
-
 function cmSettingsTab(){
   const ic = (n) => shellIcon(n);
   const s = cmSettings();
@@ -306,49 +300,6 @@ function cmSettingsTab(){
       </ol>
     </div>
   </div>`;
-}
-
-function cmTrainingView(){
-  const ic = (n) => shellIcon(n);
-  const st = COMMITTEE.status || {};
-  const tab = ['tests', 'members', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
-  const tabs = [['tests', 'Tests', 'book'], ['members', 'Miembros', 'users'], ['ranking', 'Clasificación', 'trophy'], ['stats', 'Puntos débiles', 'target'], ['settings', 'Ajustes', 'settings']];
-  let content;
-  if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
-  else if(tab === 'members') content = cmMembersTab();
-  else if(tab === 'ranking') content = cmRankingTab();
-  else if(tab === 'stats') content = cmStatsTab();
-  else if(tab === 'settings') content = cmSettingsTab();
-  else content = cmPipeline() + cmTestsTab();
-  const s = cmAdminStats();
-  const drafts = (COMMITTEE.tests || []).filter(t => !t.published).length;
-  const hero = cmHero('Administración', 'Panel de Formación',
-    'Prepara aquí los tests y los árbitros, en privado. Cuando esté listo, publícalo y aparecerá en CTA BAGES.',
-    `<button class="btn btn-yellow" data-action="committee-new">${ic('plus')} Nuevo test</button>
-     <button class="btn btn-glass" data-action="committee-tab" data-tab="members">${ic('userplus')} Añadir árbitro</button>
-     <button class="btn btn-glass" data-action="committee-open">${ic('eye')} Ver CTA BAGES</button>`,
-    `<div class="lg-hero-stats">
-      <div class="lg-stat"><b>${s.members}</b><span>Miembros</span></div>
-      <div class="lg-stat"><b>${s.published}</b><span>Publicados</span></div>
-      <div class="lg-stat"><b>${drafts}</b><span>Borradores</span></div>
-    </div>`);
-  const kpi = (icon, tone, val, label, sub) => `<div class="ad-kpi ${tone}"><span class="ad-kpi-ic">${cmIc(icon)}</span><div><b>${val}</b><small>${label}${sub ? ' · ' + sub : ''}</small></div></div>`;
-  const kpis = tab === 'settings' ? '' : `<div class="ad-kpis cm-kpis">
-    ${kpi('users', '', s.members, 'Miembros', 'con acceso')}
-    ${kpi('book', 'good', s.published, 'Tests publicados', drafts + ' en borrador')}
-    ${kpi('check', '', s.participation + '%', 'Participación', 'por test')}
-    ${kpi('target', s.accuracy !== null && s.accuracy < 60 ? 'bad' : '', s.accuracy !== null ? s.accuracy + '%' : '—', 'Acierto medio')}
-  </div>`;
-  return `
-  ${hero}
-  ${cmDraftBanner()}
-  ${cmSetupWarning()}
-  ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
-  ${kpis}
-  <div class="cm-tabs" role="tablist">
-    ${tabs.map(([k, label, icon]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span></button>`).join('')}
-  </div>
-  ${content}`;
 }
 
 /* ---------- miembro: hacer el test ---------- */
@@ -490,38 +441,6 @@ function cmTestState(t){
 }
 function cmStatusChip(t){ const s = cmTestState(t); return `<span class="cm-chip ${s.cls}">${s.label}</span>`; }
 
-function cmTestsTab(){
-  const tests = COMMITTEE.tests || [];
-  const attempts = COMMITTEE.attempts || [];
-  const m = (COMMITTEE.members || []).length;
-  const cards = tests.map(t => {
-    const st = cmTestState(t);
-    const people = new Set(attempts.filter(a => a.test_id === t.id).map(a => a.user_id)).size;
-    const pct = m ? Math.min(100, Math.round(people / m * 100)) : 0;
-    return `<div class="cm-test ${st.cls}">
-      <div class="cm-test-head"><div class="cm-test-title">${esc(t.title)}</div>${cmStatusChip(t)}</div>
-      <div class="cm-meta">
-        ${t.month ? `<span>${cmIc('calendar')} ${esc(t.month)}</span>` : ''}
-        <span>${cmIc('book')} ${t.question_count} preguntas</span>
-        <span>${cmIc('repeat')} ${t.max_attempts} ${t.max_attempts === 1 ? 'intento' : 'intentos'}</span>
-        <span>${cmIc('clock')} ${cmFmtDate(t.opens_at)} → ${t.closes_at ? cmFmtDate(t.closes_at) : 'sin cierre'}</span>
-      </div>
-      ${t.published ? `<div class="cm-prog"><div class="cm-prog-top"><span>Participación</span><span>${people} de ${m} miembros</span></div><div class="cm-prog-bar"><div style="width:${pct}%"></div></div></div>` : ''}
-      <div class="cm-actions">
-        <button class="btn ${t.published ? 'btn-secondary' : 'btn-primary'}" data-action="committee-toggle-pub" data-tid="${t.id}">${cmIc(t.published ? 'lock' : 'play')} ${t.published ? 'Quitar de CTA BAGES' : 'Publicar en CTA BAGES'}</button>
-        <button class="btn btn-ghost" data-action="committee-detail" data-tid="${t.id}">${cmIc('chart')} Resultados y ajustes</button>
-        <button class="btn btn-ghost" data-action="committee-duplicate" data-tid="${t.id}">${cmIc('copy')} Duplicar</button>
-        <button class="btn btn-ghost btn-danger-soft" data-action="committee-delete-test" data-tid="${t.id}">${cmIc('trash')} Eliminar</button>
-      </div>
-    </div>`;
-  }).join('');
-  return cards || `<div class="cm-card" style="text-align:center; padding:34px 20px;">
-    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">Todavía no has creado ningún test</div>
-    <div style="font-size:13.5px; color:var(--muted); margin-bottom:14px;">Crea el primero con preguntas del banco o genera uno equilibrado en un clic.</div>
-    <button class="btn btn-primary" data-action="committee-new">${cmIc('plus')} Crear el primer test</button>
-  </div>`;
-}
-
 function cmMemberStats(uid){
   const pubIds = new Set((COMMITTEE.tests || []).filter(t => t.published).map(t => t.id));
   const best = {};
@@ -529,35 +448,6 @@ function cmMemberStats(uid){
   const done = Object.values(best);
   const score = done.reduce((s, a) => s + a.score, 0), total = done.reduce((s, a) => s + a.total, 0);
   return { done: done.length, pct: total ? Math.round(score / total * 100) : null, published: pubIds.size };
-}
-
-function cmMembersTab(){
-  const members = COMMITTEE.members || [];
-  const rows = members.map(m => {
-    const s = cmMemberStats(m.user_id);
-    return `<div class="cm-member">
-      <span class="shell-avatar">${cmInitial(m)}</span>
-      <div class="cm-member-info"><strong>${esc(m.username || m.full_name || m.email || '')}</strong><small>${esc(m.full_name && m.username ? m.full_name + ' · ' : '')}${esc(m.email || '')}</small></div>
-      <div class="cm-member-stats">
-        <span class="cm-chip soft">${s.done}/${s.published} tests</span>
-        ${s.pct !== null ? accuracyBadge(s.pct) : '<span class="cm-chip soft">sin resultados</span>'}
-      </div>
-      <button class="btn btn-ghost btn-danger-soft" style="padding:6px 10px; font-size:12px;" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso">${cmIc('trash')}</button>
-    </div>`;
-  }).join('');
-  return `
-  <div class="cm-card">
-    <div class="cm-sec-title">Añadir árbitro</div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <input type="email" id="cm-new-member" data-cm-field="newMemberEmail" value="${esc(COMMITTEE.newMemberEmail)}" placeholder="correo@ejemplo.com" style="flex:1; min-width:200px;">
-      <button class="btn btn-primary" data-action="committee-add-member">${cmIc('userplus')} Añadir</button>
-    </div>
-    <div style="font-size:12.5px; color:var(--muted); margin-top:8px;">La persona tiene que haberse registrado antes en we-ref.com con ese mismo email.</div>
-  </div>
-  <div class="cm-card">
-    <div class="cm-sec-title">Miembros con acceso (${members.length})</div>
-    ${rows || '<div style="font-size:13.5px; color:var(--muted);">Todavía no hay ningún miembro. Añade el primero con su email.</div>'}
-  </div>`;
 }
 
 function cmMineTab(){
@@ -590,58 +480,193 @@ function cmComputeRanking(month){
   return { rows, testCount: tests.length };
 }
 
+/* ================== Panel de Formación: pestañas ================== */
+function cmAvatar(name, cls){
+  const n = String(name || '?').trim();
+  let h = 0; for(let k = 0; k < n.length; k++) h = (h * 31 + n.charCodeAt(k)) % 360;
+  return `<span class="lg-avatar ${cls || ''}" style="--h:${h};">${esc(n.charAt(0).toUpperCase())}</span>`;
+}
+
+/* ----- Tests ----- */
+function cmTestsTab(){
+  const ic = (n) => shellIcon(n);
+  const tests = COMMITTEE.tests || [];
+  const attempts = COMMITTEE.attempts || [];
+  const m = (COMMITTEE.members || []).length;
+  const filter = COMMITTEE.testFilter || 'all';
+  const count = { all: tests.length, draft: 0, sched: 0, open: 0, closed: 0 };
+  tests.forEach(t => { count[cmTestState(t).cls]++; });
+  const chips = [['all', 'Todos'], ['draft', 'Borradores'], ['sched', 'Programados'], ['open', 'Abiertos'], ['closed', 'Cerrados']]
+    .map(([k, label]) => `<button class="tx-filter ${k} ${filter === k ? 'active' : ''}" data-action="committee-test-filter" data-filter="${k}">${label}<em>${count[k]}</em></button>`).join('');
+  const shown = tests.filter(t => filter === 'all' || cmTestState(t).cls === filter);
+  const cards = shown.map(t => {
+    const st = cmTestState(t);
+    const people = new Set(attempts.filter(a => a.test_id === t.id).map(a => a.user_id)).size;
+    const pct = m ? Math.min(100, Math.round(people / m * 100)) : 0;
+    return `<article class="tx-card ${st.cls}">
+      <div class="tx-head">
+        <span class="tx-month">${t.month ? ic('calendar') + ' ' + esc(t.month) : 'Sin mes'}</span>
+        ${cmStatusChip(t)}
+      </div>
+      <h3>${esc(t.title)}</h3>
+      <ul class="tx-facts">
+        <li>${ic('book')}<span>${t.question_count} preguntas</span></li>
+        <li>${ic('repeat')}<span>${t.max_attempts} ${t.max_attempts === 1 ? 'intento' : 'intentos'}</span></li>
+        <li>${ic('clock')}<span>${cmFmtDate(t.opens_at)} → ${t.closes_at ? cmFmtDate(t.closes_at) : 'sin cierre'}</span></li>
+      </ul>
+      ${t.published
+        ? `<div class="tx-part"><div class="tx-part-top"><span>Participación</span><b>${people} de ${m}</b></div><div class="tx-part-bar"><i style="width:${pct}%"></i></div></div>`
+        : `<div class="tx-draftnote">${ic('lock')} Borrador: los árbitros todavía no lo ven</div>`}
+      <div class="tx-actions">
+        <button class="btn ${t.published ? 'btn-ghost' : 'btn-primary'} tx-main" data-action="committee-toggle-pub" data-tid="${t.id}">${ic(t.published ? 'lock' : 'play')} ${t.published ? 'Quitar de CTA BAGES' : 'Publicar en CTA BAGES'}</button>
+        <button class="tx-icon" data-action="committee-detail" data-tid="${t.id}" title="Resultados y ajustes" aria-label="Resultados y ajustes">${ic('chart')}</button>
+        <button class="tx-icon" data-action="committee-duplicate" data-tid="${t.id}" title="Duplicar" aria-label="Duplicar">${ic('copy')}</button>
+        <button class="tx-icon danger" data-action="committee-delete-test" data-tid="${t.id}" title="Eliminar" aria-label="Eliminar">${ic('trash')}</button>
+      </div>
+    </article>`;
+  }).join('');
+  const empty = tests.length === 0
+    ? `<div class="ac-empty">${ic('book')}<strong>Todavía no has creado ningún test</strong><span>Crea el primero con preguntas del banco o genera uno equilibrado en un clic.</span><button class="btn btn-primary" style="margin-top:10px;" data-action="committee-new">${ic('plus')} Crear el primer test</button></div>`
+    : `<div class="ac-empty">${ic('search')}<strong>No hay tests en este estado</strong><span>Prueba con otro filtro.</span></div>`;
+  return `
+  <div class="tx-toolbar">
+    <div class="tx-filters">${chips}</div>
+  </div>
+  ${cards ? `<div class="tx-grid">${cards}</div>` : empty}`;
+}
+
+/* ----- Miembros ----- */
+function cmMembersTab(){
+  const ic = (n) => shellIcon(n);
+  const members = COMMITTEE.members || [];
+  const rows = members.map(m => {
+    const s = cmMemberStats(m.user_id);
+    const pct = s.published ? Math.round(s.done / s.published * 100) : 0;
+    return `<div class="mb-row">
+      ${cmAvatar(cmWho(m))}
+      <div class="mb-info"><strong>${esc(m.username || m.full_name || m.email || '')}</strong><small>${esc(m.full_name && m.username ? m.full_name + ' · ' : '')}${esc(m.email || '')}</small></div>
+      <div class="mb-prog"><div class="mb-prog-top"><span>${s.done}/${s.published} tests</span></div><div class="mb-prog-bar"><i style="width:${pct}%"></i></div></div>
+      <div class="mb-acc">${s.pct !== null ? accuracyBadge(s.pct) : '<span class="cm-chip soft">sin resultados</span>'}</div>
+      <button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button>
+    </div>`;
+  }).join('');
+  const withRes = members.filter(m => cmMemberStats(m.user_id).pct !== null).length;
+  return `
+  <div class="tp-layout mb-layout">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small>${members.length} ${members.length === 1 ? 'miembro' : 'miembros'} · ${withRes} con resultados</small></div></div>
+      ${rows || `<div class="ac-empty" style="padding:26px 14px;">${ic('users')}<strong>Todavía no hay ningún miembro</strong><span>Añade el primero con su email.</span></div>`}
+    </div>
+    <aside class="tc-card mb-add">
+      <div class="tc-card-head"><span class="tc-step">${ic('userplus')}</span><div><h3>Añadir árbitro</h3><small>Por su correo</small></div></div>
+      <input type="email" id="cm-new-member" data-cm-field="newMemberEmail" value="${esc(COMMITTEE.newMemberEmail)}" placeholder="correo@ejemplo.com">
+      <button class="btn btn-primary" style="width:100%; margin-top:12px; display:inline-flex; align-items:center; justify-content:center; gap:8px;" data-action="committee-add-member">${ic('userplus')} Añadir</button>
+      <div class="st-note" style="margin-top:12px;">La persona tiene que haberse registrado antes en we-ref.com con ese mismo email.</div>
+    </aside>
+  </div>`;
+}
+
+/* ----- Clasificación ----- */
 function cmRankingTab(){
+  const ic = (n) => shellIcon(n);
   const months = Array.from(new Set((COMMITTEE.tests || []).filter(t => t.published && t.month).map(t => t.month))).sort().reverse();
   const { rows, testCount } = cmComputeRanking(COMMITTEE.rankMonth);
   const top = rows.filter(r => r.done > 0).slice(0, 3);
-  const podium = top.length ? `<div class="cm-podium">${top.map((r, i) => `<div class="cm-pod p${i + 1}">
-      <div class="cm-pod-pos">${i + 1}º</div>
-      <div class="cm-pod-name">${esc(r.who)}</div>
-      <div class="cm-pod-pct">${Math.round(r.pct)}%</div>
-      <div class="cm-pod-sub">${r.score}/${r.total} · ${cmFmtDur(r.avgDur)}</div>
-    </div>`).join('')}</div>` : '';
-  const body = rows.map((r, i) => `<tr>
-    <td class="mono">${r.done ? i + 1 : '—'}</td>
-    <td><strong>${esc(r.who)}</strong>${r.full_name && r.full_name !== r.who ? `<div style="font-size:11.5px; color:var(--muted);">${esc(r.full_name)}</div>` : ''}</td>
-    <td class="mono">${r.done}/${testCount}</td>
-    <td class="mono">${r.score}/${r.total}</td>
-    <td>${r.done ? accuracyBadge(Math.round(r.pct)) : '<span class="law-sub-muted">—</span>'}</td>
-    <td class="mono">${cmFmtDur(r.avgDur)}</td>
-  </tr>`).join('');
+  const medals = ['🥇', '🥈', '🥉'];
+  const pod = (r, i) => `<div class="lg-pod p${i + 1}">
+      ${i === 0 ? '<div class="lg-crown">👑</div>' : ''}
+      <div class="lg-pod-av">${cmAvatar(r.who, 'xl')}</div>
+      <div class="lg-pod-name">${esc(r.who)}</div>
+      <div class="lg-pod-meta">${r.score}/${r.total} · ${cmFmtDur(r.avgDur)}</div>
+      <div class="lg-pod-score">${Math.round(r.pct)}%</div>
+      <div class="lg-pod-step"><span>${i + 1}</span></div>
+    </div>`;
+  const podium = top.length ? `<div class="lg-podium cm-rank-podium">${[1, 0, 2].filter(i => i < top.length).map(i => pod(top[i], i)).join('')}</div>` : '';
+  const list = rows.map((r, i) => `<div class="rk-line ${r.done ? '' : 'none'}">
+      <span class="rk-pos">${r.done ? i + 1 : '—'}</span>
+      ${cmAvatar(r.who)}
+      <div class="rk-who"><strong>${esc(r.who)}</strong>${r.full_name && r.full_name !== r.who ? `<small>${esc(r.full_name)}</small>` : ''}</div>
+      <span class="rk-cell"><b>${r.done}/${testCount}</b><small>Tests</small></span>
+      <span class="rk-cell"><b>${r.score}/${r.total}</b><small>Puntos</small></span>
+      <span class="rk-cell">${r.done ? accuracyBadge(Math.round(r.pct)) : '<span class="law-sub-muted">—</span>'}<small>Acierto</small></span>
+      <span class="rk-cell"><b>${cmFmtDur(r.avgDur)}</b><small>Tiempo medio</small></span>
+    </div>`).join('');
   return `
-  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:6px;">
-    <div style="flex:1; min-width:180px;">
+  <div class="tx-toolbar">
+    <div class="rk-period">
       <label for="cm-rank-month">Periodo</label>
       <select id="cm-rank-month" data-cm-field="rankMonth" data-cm-rerender>
         <option value="all" ${COMMITTEE.rankMonth === 'all' ? 'selected' : ''}>Toda la temporada</option>
         ${months.map(m => `<option value="${esc(m)}" ${COMMITTEE.rankMonth === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
       </select>
     </div>
-    <button class="btn btn-secondary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-ranking">${cmIc('download')} Exportar a Excel</button>
+    <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-ranking">${ic('download')} Exportar a Excel</button>
   </div>
-  <div style="font-size:12.5px; color:var(--muted); margin:8px 0 14px;">Se cuenta el mejor intento de cada test publicado. Orden: % de acierto, puntos y tiempo medio. Esta clasificación solo la ves tú.</div>
+  <div class="st-note" style="margin-bottom:14px;">Se cuenta el mejor intento de cada test publicado. Orden: % de acierto, puntos y tiempo medio. Esta clasificación solo la ven los administradores.</div>
   ${podium}
-  ${rows.length ? `<div class="cm-card" style="overflow-x:auto; padding:8px 14px;"><table class="stat-table"><tr><th>#</th><th>Árbitro</th><th>Tests</th><th>Puntos</th><th>Acierto</th><th>Tiempo medio</th></tr>${body}</table></div>` : '<div class="empty-state">Todavía no hay miembros ni resultados.</div>'}`;
+  ${rows.length ? `<div class="rk-list">${list}</div>` : `<div class="ac-empty">${ic('trophy')}<strong>Todavía no hay resultados</strong><span>Cuando los árbitros hagan los tests publicados aparecerán aquí.</span></div>`}`;
 }
 
+/* ----- Puntos débiles ----- */
 function cmStatsTab(){
+  const ic = (n) => shellIcon(n);
   const stats = (COMMITTEE.ruleStats || []).map(s => Object.assign({}, s, { pct: s.answered ? Math.round(s.correct_count / s.answered * 100) : 0 })).sort((a, b) => a.pct - b.pct);
-  if(!stats.length) return '<div class="empty-state">Todavía no hay resultados para calcular los puntos débiles.</div>';
+  if(!stats.length) return `<div class="ac-empty">${ic('target')}<strong>Todavía no hay resultados</strong><span>Cuando los árbitros hagan tests se calcularán aquí los puntos débiles del comité.</span></div>`;
+  const tone = (p) => p >= 80 ? 'good' : p >= 60 ? 'mid' : 'bad';
   const weakest = stats.slice(0, 3);
-  const bars = stats.map(s => `<div class="cm-rule-row">
-    <div class="cm-rule-name"><strong>R${s.rule}</strong> ${esc(LAW_NAMES[s.rule] || '')}</div>
-    <div class="cm-rule-bar"><div style="width:${s.pct}%; background:${scoreColor(s.pct)};"></div></div>
-    <div class="cm-rule-val" style="color:${scoreColor(s.pct)};">${s.pct}%</div>
-  </div>`).join('');
+  const rows = stats.map(s => `<div class="st-rule st-rule-static">
+      <span class="st-rule-n">${s.rule}</span>
+      <span class="st-rule-main"><span class="st-rule-name">${esc(LAW_NAMES[s.rule] || '')}</span><span class="st-rule-bar"><i style="width:${s.pct}%; background:${scoreColor(s.pct)};"></i></span></span>
+      <span class="st-acc ${tone(s.pct)}">${s.pct}%</span>
+    </div>`).join('');
   return `
-  <div class="cm-card" style="border-left:4px solid var(--red);">
-    <div class="cm-sec-title" style="color:var(--red);">Reglas a reforzar con el comité</div>
-    <div class="cm-chips">${weakest.map(s => `<span class="cm-chip soft" style="font-size:12.5px;"><strong>R${s.rule}</strong> ${esc(LAW_NAMES[s.rule] || '')} · ${s.pct}%</span>`).join('')}</div>
-  </div>
-  <div class="cm-card">
-    <div class="cm-sec-title">Acierto del comité por regla (de menor a mayor)</div>
-    ${bars}
+  <div class="tp-layout">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Acierto del comité por regla</h3><small>De menor a mayor</small></div></div>
+      <div class="st-rules">${rows}</div>
+    </div>
+    <aside class="tc-card">
+      <div class="tc-card-head"><span class="tc-step" style="background:var(--red);">${ic('target')}</span><div><h3>A reforzar</h3><small>Las 3 reglas más flojas</small></div></div>
+      ${weakest.map(s => `<div class="st-pill ${tone(s.pct)}"><b>R${s.rule}</b><span>${esc(LAW_NAMES[s.rule] || '')}</span><em>${s.pct}%</em></div>`).join('')}
+    </aside>
   </div>`;
+}
+
+/* ----- Panel de Formación ----- */
+function cmTrainingView(){
+  const ic = (n) => shellIcon(n);
+  const st = COMMITTEE.status || {};
+  const tab = ['tests', 'members', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
+  const nTests = (COMMITTEE.tests || []).length;
+  const nMembers = (COMMITTEE.members || []).length;
+  const tabs = [['tests', 'Tests', 'book', nTests], ['members', 'Miembros', 'users', nMembers], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Ajustes', 'settings', null]];
+  let content;
+  if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+  else if(tab === 'members') content = cmMembersTab();
+  else if(tab === 'ranking') content = cmRankingTab();
+  else if(tab === 'stats') content = cmStatsTab();
+  else if(tab === 'settings') content = cmSettingsTab();
+  else content = cmTestsTab();
+  const s = cmAdminStats();
+  const hero = cmHero('Administración · CTA BAGES', 'Panel de Formación',
+    'Prepara aquí los tests y los árbitros, en privado. Cuando esté listo, publícalo y aparecerá en CTA BAGES.',
+    `<button class="btn btn-yellow" data-action="committee-new">${ic('plus')} Nuevo test</button>
+     <button class="btn btn-glass" data-action="committee-open">${ic('eye')} Ver CTA BAGES</button>`,
+    `<div class="lg-hero-stats cm-hero-stats">
+      <div class="lg-stat"><b>${s.members}</b><span>Miembros</span></div>
+      <div class="lg-stat"><b>${s.published}</b><span>Publicados</span></div>
+      <div class="lg-stat"><b>${s.participation}%</b><span>Participación</span></div>
+      <div class="lg-stat"><b>${s.accuracy !== null ? s.accuracy + '%' : '—'}</b><span>Acierto medio</span></div>
+    </div>`);
+  return `
+  ${hero}
+  ${cmDraftBanner()}
+  ${cmSetupWarning()}
+  ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
+  <nav class="cm-tabs" role="tablist" aria-label="Secciones del Panel de Formación">
+    ${tabs.map(([k, label, icon, n]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span>${n !== null ? `<em>${n}</em>` : ''}</button>`).join('')}
+  </nav>
+  <section class="cm-content">${content}</section>`;
 }
 
 /* ---------- administrador: resultados y ajustes de un test ---------- */
@@ -964,6 +989,7 @@ async function committeeOnAction(action, el){
     if(st.is_member || !st.is_admin) cmLoadMyTests();
   }
   else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeTraining'; render(); }
+  else if(action === 'committee-test-filter'){ COMMITTEE.testFilter = el.dataset.filter; render(); }
   else if(action === 'committee-training'){
     if(!isDevUser()) return;
     COMMITTEE.announcementDraft = undefined;
