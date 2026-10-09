@@ -3314,7 +3314,7 @@ function resultView(){
   <div class="qcard">${rows}</div>
   ` : ''}
   <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
-    <button class="btn btn-primary" data-action="home">Volver al inicio</button>
+    ${['hearts','suddendeath','timeattack'].includes(quiz.mode) ? '<button class="btn btn-primary" data-action="dailyChallenge">Volver a la League</button>' : '<button class="btn btn-primary" data-action="home">Volver al inicio</button>'}
     ${quiz.law ? `<button class="btn btn-secondary" data-action="open-law" data-law="${quiz.law}">Repetir esta regla</button>` : ''}
     ${quiz.mode==='hearts' ? `<button class="btn btn-secondary" data-action="start-hearts">Jugar de nuevo</button>` : ''}
     ${quiz.mode==='suddendeath' ? `<button class="btn btn-secondary" data-action="start-suddendeath">Jugar de nuevo</button>` : ''}
@@ -4222,6 +4222,7 @@ function onAction(e){
     const qz = STATE.quiz;
     // Vuelve a la pantalla desde la que se empezó el test, no siempre al inicio.
     if(qz && qz.mode==='training'){ STATE.view='trainConfig'; }
+    else if(qz && ['hearts','suddendeath','timeattack'].includes(qz.mode)){ STATE.view='dailyChallenge'; STATE.leagueSummary=null; render(); loadLeagueSummary(); return; }
     else if(qz && qz.law!=null && qz.law!==''){ STATE.lawId=qz.law; STATE.view='law'; }
     else { STATE.view='home'; }
     render();
