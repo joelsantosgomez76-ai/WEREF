@@ -1557,3 +1557,12 @@ input.tc-count{max-width:140px; font:700 26px 'Oswald'; text-align:center; margi
   .qz-links .flag-btn{font-size:12px; padding:6px 11px;}
 }
 .qz .option:disabled{color:var(--ink);} .qz .option:disabled:not(.correct):not(.incorrect){color:var(--muted);}
+
+/* Aviso al salir de un test */
+.qz-confirm{max-width:400px; text-align:center; padding:28px 24px 22px; border-radius:20px;}
+.qz-confirm-ic{width:56px; height:56px; margin:0 auto 14px; border-radius:16px; background:#FFF6DE; color:var(--yellow-ink); display:flex; align-items:center; justify-content:center;}
+.qz-confirm-ic svg{width:28px; height:28px;}
+.qz-confirm h3{font:700 20px 'Oswald'; margin-bottom:8px; color:var(--pitch);}
+.qz-confirm p{font-size:14px; line-height:1.5; color:var(--muted); margin:0 0 20px;}
+.qz-confirm-actions{display:flex; flex-direction:column; gap:8px;}
+.qz-confirm-actions .btn{width:100%; padding:13px;}
