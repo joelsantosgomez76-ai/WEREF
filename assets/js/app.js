@@ -174,6 +174,9 @@ const LAW_ICONS = {
 const BASE_QUESTIONS = BASE_QUESTIONS_RAW;
 BASE_QUESTIONS.forEach(q => { q.id = 'R'+q.rule+'-'+q.num; q.source = 'base'; q.domain = 'law'; if(!q.difficulty) q.difficulty = 'normal'; });
 
+const ASSISTANT_QUESTIONS = (typeof ASSISTANT_QUESTIONS_RAW !== 'undefined') ? ASSISTANT_QUESTIONS_RAW : [];
+ASSISTANT_QUESTIONS.forEach(q => { q.id = 'A-'+q.num; q.source = 'base'; q.domain = 'assistants'; q.rule = null; if(!q.difficulty) q.difficulty = 'normal'; });
+
 let STATE = {
   view: 'home',
   lawId: null,
@@ -329,7 +332,7 @@ function startTimer(){
 }
 
 function allQuestions(){
-  const combined = BASE_QUESTIONS.concat(STATE.storage.userQuestions || []).concat(STATE.storage.glossaryQuestions || []);
+  const combined = BASE_QUESTIONS.concat(ASSISTANT_QUESTIONS).concat(STATE.storage.userQuestions || []).concat(STATE.storage.glossaryQuestions || []);
   return combined
     .filter(q => !(STATE.storage.deleted && STATE.storage.deleted[q.id]))
     .map(q => {
@@ -341,6 +344,7 @@ function questionsForLaw(law){
   if(law === 'hard') return allQuestions().filter(q => q.difficulty === 'hard');
   if(law === 'failed') return allQuestions().filter(q => isFailedQuestion(q));
   if(law === 'glossary') return allQuestions().filter(q => q.domain === 'glossary');
+  if(law === 'assistants') return allQuestions().filter(q => q.domain === 'assistants');
   if(law === 'saved') return allQuestions().filter(q => !!STATE.storage.saved[q.id]);
   return allQuestions().filter(q => q.domain!=='glossary' && q.rule === law);
 }
@@ -818,7 +822,7 @@ function todaysAnsweredCount(){
 }
 
 function startCountedQuiz(count){
-  let pool = allQuestions().filter(q=>q.domain!=='federation');
+  let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
   pool = shuffle(pool.slice()).slice(0, Math.max(1,count));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'short', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null };
@@ -833,7 +837,7 @@ function isRecordMode(mode){ return mode==='hearts' || mode==='suddendeath' || m
 function formatScore(n){ return Number.isInteger(n) ? String(n) : n.toFixed(1); }
 
 function startHeartsMode(){
-  let pool = allQuestions().filter(q=>q.domain!=='federation');
+  let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
   pool = shuffle(pool.slice()).slice(0, Math.min(60, pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'hearts', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null, hearts:3, combo:0, bestCombo:0 };
@@ -843,7 +847,7 @@ function startHeartsMode(){
 }
 
 function startSuddenDeathMode(){
-  let pool = allQuestions().filter(q=>q.domain!=='federation');
+  let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
   pool = shuffle(pool.slice()).slice(0, Math.min(60, pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'suddendeath', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null, hearts:1, combo:0, bestCombo:0 };
@@ -853,7 +857,7 @@ function startSuddenDeathMode(){
 }
 
 function startTimeAttackMode(){
-  let pool = allQuestions().filter(q=>q.domain!=='federation');
+  let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
   pool = shuffle(pool.slice()).slice(0, Math.min(150, pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'timeattack', law:null, answers:{}, instantFeedback:true, timerMode:'total', timeSec:60, remainingSec:60, showFeedback:false, selected:null, combo:0, bestCombo:0 };
@@ -993,6 +997,7 @@ function questionCountsByLaw(){
 
 function scopeLabel(q){
   if(q.domain==='glossary') return 'Glosario IFAB';
+  if(q.domain==='assistants') return 'Árbitros Asistentes';
   return 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
 }
 
@@ -2607,6 +2612,56 @@ function homeView(){
     </button>`;
   }
 
+  /* Salas especiales: van en la misma cuadrícula que las 17 reglas */
+  const gs = lawStats('glossary');
+  const hs = lawStats('hard');
+  const fs2 = lawStats('failed');
+  const as2 = lawStats('assistants');
+  const failRatio = os.attempted > 0 ? Math.round(fs2.total / os.attempted * 100) : 0;
+  cards += `<button class="law-card law-card-failed" data-action="open-law" data-law="failed">
+      <div class="law-icon">${ic('repeat')}</div>
+      <div class="law-num">${fs2.total}</div>
+      <div class="law-name">Sala de Repaso</div>
+      <div class="hard-tag">Preguntas falladas</div>
+      <div class="law-meta">
+        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${failRatio}%; background:var(--yellow-ink);"></div></div>
+        <div class="law-pct">${failRatio}%</div>
+      </div>
+      <div class="law-sub">${fs2.total === 0 ? '<span class="law-sub-muted">¡Nada pendiente!</span>' : 'Preguntas por repasar'}</div>
+    </button>
+    <button class="law-card law-card-hard" data-action="open-law" data-law="hard">
+      <div class="law-icon">${ic('shield')}</div>
+      <div class="law-num">VAR</div>
+      <div class="law-name">Sala VAR</div>
+      <div class="hard-tag">Modo difícil</div>
+      <div class="law-meta">
+        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${hs.completionPct}%; background:var(--red);"></div></div>
+        <div class="law-pct">${hs.completionPct}%</div>
+      </div>
+      <div class="law-sub">${hs.total === 0 ? '<span class="law-sub-muted">Todavía no hay ninguna</span>' : lawSubLine(hs)}</div>
+    </button>
+    <button class="law-card law-card-hard" data-action="open-law" data-law="assistants">
+      <div class="law-icon">${ic('flag')}</div>
+      <div class="law-num">A</div>
+      <div class="law-name">Árbitros Asistentes</div>
+      <div class="hard-tag">Sala especial</div>
+      <div class="law-meta">
+        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${as2.completionPct}%"></div></div>
+        <div class="law-pct">${as2.completionPct}%</div>
+      </div>
+      <div class="law-sub">${as2.total === 0 ? '<span class="law-sub-muted">Próximamente</span>' : lawSubLine(as2)}</div>
+    </button>
+    <button class="law-card" data-action="open-law" data-law="glossary">
+      <div class="law-icon">${ic('glossary')}</div>
+      <div class="law-num">G</div>
+      <div class="law-name">Preguntas Glosario</div>
+      <div class="law-meta">
+        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${gs.completionPct}%"></div></div>
+        <div class="law-pct">${gs.completionPct}%</div>
+      </div>
+      <div class="law-sub">${lawSubLine(gs)}</div>
+    </button>`;
+
   /* Columna derecha */
   const todayISO = todayKeyISO();
   const nextEvent = (STATE.storage.calendarEvents || [])
@@ -2643,21 +2698,6 @@ function homeView(){
         <div class="home-card-title">${ic('target')} Recomendación para hoy</div>
         <div class="home-card-text" style="color:var(--muted);">Completa algunos tests y aquí te diré qué regla conviene reforzar.</div>
       </div>`;
-
-  const gs = lawStats('glossary');
-  const hs = lawStats('hard');
-  const fs2 = lawStats('failed');
-  const room = (law, icon, bg, fg, title, sub, val) => `<button class="room-row" data-action="open-law" data-law="${law}">
-    <span class="room-ic" style="background:${bg}; color:${fg};">${ic(icon)}</span>
-    <span><div class="room-name">${title}</div><div class="room-sub">${sub}</div></span>
-    <span class="room-val" style="color:${fg};">${val}</span>
-  </button>`;
-  const rooms = `<div class="home-panel">
-    <div class="home-panel-title">Salas de práctica</div>
-    ${room('failed', 'repeat', '#FFF6DE', 'var(--yellow-ink)', 'Sala de Repaso', fs2.total === 0 ? 'Nada pendiente' : 'Preguntas por repasar', fs2.total)}
-    ${room('hard', 'shield', '#FDECEC', 'var(--red)', 'Sala VAR', hs.total === 0 ? 'Todavía no hay ninguna' : 'Modo difícil', hs.completionPct + '%')}
-    ${room('glossary', 'glossary', 'var(--chalk)', 'var(--pitch)', 'Glosario IFAB', 'Términos de las Reglas', gs.completionPct + '%')}
-  </div>`;
 
   const flagCount = Object.keys(STATE.storage.flags || {}).length;
   const flaggedHtml = flagCount > 0
@@ -2697,7 +2737,6 @@ function homeView(){
     <aside class="home-right">
       ${weakHtml}
       ${eventHtml}
-      ${rooms}
       ${committeeHtml}
       ${flaggedHtml}
       ${suggestHtml}
@@ -2714,6 +2753,7 @@ function lawMenuView(){
   const isHard = law === 'hard';
   const isFailed = law === 'failed';
   const isGlossary = law === 'glossary';
+  const isAssistants = law === 'assistants';
   const isSaved = law === 'saved';
   const headHtml = isHard
     ? `<div class="num" style="color:var(--red);"><span class="ref-card red" style="width:22px; height:30px; display:inline-block; vertical-align:middle;"></span></div>
@@ -2724,6 +2764,9 @@ function lawMenuView(){
     : isGlossary
     ? `<div class="num">G</div>
        <div><div class="name">Preguntas Glosario <span class="mono" style="font-size:11px; color:var(--muted); font-weight:500;">IFAB</span></div><div class="stat">${s.completionPct}% completado ${s.attempted>0 ? '· '+accuracyBadge(s.accuracyPct)+' acierto' : ''}</div></div>`
+    : isAssistants
+    ? `<div class="num">A</div>
+       <div><div class="name">Árbitros Asistentes <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Sala especial</span></div><div class="stat">${s.total>0 ? s.completionPct+'% completado'+(s.attempted>0 ? ' · '+accuracyBadge(s.accuracyPct)+' acierto' : '') : 'Próximamente'}</div></div>`
     : isSaved
     ? `<div class="num">📚</div>
        <div><div class="name">Preguntas Guardadas <span class="hard-tag" style="background:rgba(22,24,29,0.08); color:var(--pitch);">Guardadas por ti</span></div><div class="stat">${s.total>0 ? s.total+' pregunta(s) guardadas' : 'Nada guardado todavía'}</div></div>`
@@ -2738,6 +2781,13 @@ function lawMenuView(){
     <div class="empty-state">¡Nada pendiente! No tienes ninguna pregunta fallada ahora mismo. Sigue haciendo tests y, si fallas alguna, aparecerá aquí para que la repases.</div>
     `;
   }
+  if(isAssistants && s.total===0){
+    return `
+    <button class="backbtn" data-action="${backAction}">${backLabel}</button>
+    <div class="big-law-head">${headHtml}</div>
+    <div class="empty-state">Estamos preparando las preguntas de Árbitros Asistentes. En cuanto estén listas podrás practicar aquí.</div>
+    `;
+  }
   if(isSaved && s.total===0){
     return `
     <button class="backbtn" data-action="${backAction}">${backLabel}</button>
@@ -2745,7 +2795,7 @@ function lawMenuView(){
     <div class="empty-state">Todavía no has guardado ninguna pregunta. Pulsa "📚 Guardar en Mi Lista" durante un test para añadirla aquí.</div>
     `;
   }
-  const scopeOf = isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isSaved?' de tu lista':' de esta regla';
+  const scopeOf = isHard?' del banco de difíciles':isFailed?' de tus falladas':isGlossary?' del glosario':isAssistants?' de árbitros asistentes':isSaved?' de tu lista':' de esta regla';
   return `
   <button class="backbtn" data-action="${backAction}">${backLabel}</button>
   <div class="big-law-head">
@@ -2798,7 +2848,7 @@ function lawMenuView(){
       <div class="arrow">›</div>
     </button>` : ''}
   </div>
-  ${(!isHard && !isFailed && !isGlossary && !isSaved && s.attempted>0) ? `
+  ${(!isHard && !isFailed && !isGlossary && !isAssistants && !isSaved && s.attempted>0) ? `
   <div style="margin-top:20px;">
     <button class="btn btn-ghost" style="color:var(--red); border-color:#F0C4C4; font-size:12.5px; padding:8px 14px;" data-action="reset-law-progress" data-law="${law}">Reiniciar progreso de esta regla</button>
     <div style="font-size:12px; color:var(--muted); margin-top:8px;">Borra tus aciertos/fallos solo de esta regla. No afecta a las demás ni a tus puntos, rango, racha o insignias.</div>
@@ -2808,7 +2858,7 @@ function lawMenuView(){
 }
 
 function pickQuestions(law, mode){
-  let pool = law ? questionsForLaw(law) : allQuestions();
+  let pool = law ? questionsForLaw(law) : allQuestions().filter(q=>q.domain!=='assistants');
   pool = shuffle(pool.slice());
   if(mode==='short') pool = pool.slice(0,10);
   if(mode==='study25') pool = pool.slice(0,25);
@@ -2832,7 +2882,7 @@ function isFailedQuestion(q){
 
 function startTraining(opts){
   let pool = opts.scopeOverride ? questionsForLaw(opts.scopeOverride)
-    : (opts.laws && opts.laws.length) ? allQuestions().filter(q => opts.laws.includes(q.rule)) : allQuestions().slice();
+    : (opts.laws && opts.laws.length) ? allQuestions().filter(q => opts.laws.includes(q.rule)) : allQuestions().filter(q => q.domain!=='assistants');
   pool = shuffle(pool.slice());
   const count = Math.max(1, Math.min(opts.count || 20, 50, pool.length));
   pool = pool.slice(0, count);
@@ -3151,7 +3201,7 @@ function trainConfigView(){
     const active = cfg.laws.includes(i);
     chips += `<button class="tab ${active?'active':''}" data-action="toggle-train-law" data-law="${i}">R${i}</button>`;
   }
-  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='saved' ? 'Preguntas Guardadas' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
+  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='assistants' ? 'Árbitros Asistentes' : scopeOverride==='saved' ? 'Preguntas Guardadas' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
   const backAction = scopeOverride ? 'open-law' : 'home';
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${scopeOverride||''}">&larr; ${scopeOverride ? scopeLabel : 'Inicio'}</button>
@@ -3302,9 +3352,9 @@ function flaggedView(){
 
 function editFormHtml(q){
   const letters=['a','b','c','d'];
-  const isGlossaryQ = q.domain === 'glossary';
+  const isGlossaryQ = q.domain === 'glossary' || q.domain === 'assistants';
   const lawOpts = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${q.rule===i?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('');
-  const tagLabel = isGlossaryQ ? 'Editando · Glosario IFAB' : 'Editando · Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
+  const tagLabel = q.domain === 'assistants' ? 'Editando · Árbitros Asistentes' : isGlossaryQ ? 'Editando · Glosario IFAB' : 'Editando · Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
   return `<div class="qcard" style="margin-bottom:10px;">
     <div class="qtag">${tagLabel}</div>
     <input type="hidden" id="e-domain" value="${q.domain}">
@@ -3343,7 +3393,7 @@ function saveQuestionEdit(qid, alsoUnflag){
   const explanation = document.getElementById('e-explanation').value.trim();
   const difficulty = document.getElementById('e-hard').checked ? 'hard' : 'normal';
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
-  const edit = domain==='glossary'
+  const edit = (domain==='glossary' || domain==='assistants')
     ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
     : { rule: selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() };
   STATE.storage.edits[qid] = edit;
@@ -3359,6 +3409,7 @@ function filteredDbList(){
   let list = allQuestions();
   if(f.law === 'hard') list = list.filter(q => q.difficulty === 'hard');
   else if(f.law === 'glossary') list = list.filter(q => q.domain === 'glossary');
+  else if(f.law === 'assistants') list = list.filter(q => q.domain === 'assistants');
   else if(f.law !== 'all') list = list.filter(q => q.domain !== 'glossary' && q.rule === parseInt(f.law,10));
   if(f.difficulty === 'hard') list = list.filter(q => q.difficulty === 'hard');
   else if(f.difficulty === 'normal') list = list.filter(q => q.difficulty !== 'hard');
@@ -3405,6 +3456,7 @@ function databaseView(){
     `<optgroup label="Reglas IFAB">` +
     Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${f.law==String(i)?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
     `<option value="glossary" ${f.law==='glossary'?'selected':''}>Preguntas Glosario</option>` +
+    `<option value="assistants" ${f.law==='assistants'?'selected':''}>Árbitros Asistentes</option>` +
     `<option value="hard" ${f.law==='hard'?'selected':''}>Sala VAR (difíciles)</option>` +
     `</optgroup>`;
 
@@ -3736,7 +3788,7 @@ function exportExcel(){
   const rows = allQuestions().map((q,i) => ({
     'Número': i+1,
     'ID': q.id,
-    'Ámbito': q.domain==='glossary' ? 'Glosario' : q.rule,
+    'Ámbito': q.domain==='glossary' ? 'Glosario' : q.domain==='assistants' ? 'Asistentes' : q.rule,
     'Pregunta': q.question,
     'Opción A': q.options[0]||'',
     'Opción B': q.options[1]||'',
@@ -3786,7 +3838,8 @@ function importExcelFile(file){
         const correct = String(row['Correcta (a/b/c/d)']||'').trim().toLowerCase();
         const explanation = String(row['Explicación']||'').trim();
         const difficulty = String(row['Difícil (SI/NO)']||'').trim().toUpperCase()==='SI' ? 'hard' : 'normal';
-        const isGlossary = ambito.toLowerCase().startsWith('glos');
+        const isAssist = ambito.toLowerCase().startsWith('asis');
+        const isGlossary = ambito.toLowerCase().startsWith('glos') || isAssist;
         const rule = isGlossary ? null : parseInt(ambito,10);
 
         if(!question || !a || !b || !c || !['a','b','c','d'].includes(correct)){ skipped++; return; }
@@ -3801,6 +3854,7 @@ function importExcelFile(file){
           STATE.storage.edits[id] = edit;
           updated++;
         } else {
+          if(isAssist){ skipped++; return; }
           const dedupeKey = questionDedupeKey({ question, options:[a,b,c,d] });
           if(seenKeys.has(dedupeKey)){ duplicates++; return; }
           seenKeys.add(dedupeKey);
@@ -3917,7 +3971,7 @@ function onAction(e){
   const el = e.currentTarget;
   const action = el.dataset.action;
   const rawLaw = el.dataset.law;
-  const law = rawLaw ? ((rawLaw==='hard' || rawLaw==='failed' || rawLaw==='glossary' || rawLaw==='saved' || /^fed-\d+$/.test(rawLaw)) ? rawLaw : parseInt(rawLaw,10)) : null;
+  const law = rawLaw ? ((rawLaw==='hard' || rawLaw==='failed' || rawLaw==='glossary' || rawLaw==='assistants' || rawLaw==='saved' || /^fed-\d+$/.test(rawLaw)) ? rawLaw : parseInt(rawLaw,10)) : null;
 
   if(typeof action==='string' && action.startsWith('committee-') && typeof committeeOnAction==='function'){ committeeOnAction(action, el); return; }
 
