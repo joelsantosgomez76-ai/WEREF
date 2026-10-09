@@ -2880,9 +2880,15 @@ function isFailedQuestion(q){
   return !!(STATE.storage.failedStreaks && Object.prototype.hasOwnProperty.call(STATE.storage.failedStreaks, q.id));
 }
 
+/* Filtra por la selección del configurador: números = reglas, 'glossary' / 'assistants' = salas especiales */
+function trainPoolForLaws(laws){
+  if(!laws || !laws.length) return allQuestions().filter(q => q.domain!=='assistants');
+  return allQuestions().filter(q => laws.some(l => typeof l === 'number' ? q.rule === l : q.domain === l));
+}
+
 function startTraining(opts){
   let pool = opts.scopeOverride ? questionsForLaw(opts.scopeOverride)
-    : (opts.laws && opts.laws.length) ? allQuestions().filter(q => opts.laws.includes(q.rule)) : allQuestions().filter(q => q.domain!=='assistants');
+    : trainPoolForLaws(opts.laws);
   pool = shuffle(pool.slice());
   const count = Math.max(1, Math.min(opts.count || 20, 50, pool.length));
   pool = pool.slice(0, count);
@@ -3194,7 +3200,7 @@ function trainConfigView(){
   const cfg = STATE.trainCfg;
   const ic = (n) => shellIcon(n);
   const scopeOverride = cfg.scopeOverride;
-  const scoped = scopeOverride ? questionsForLaw(scopeOverride) : (cfg.laws.length ? allQuestions().filter(q=>cfg.laws.includes(q.rule)) : allQuestions());
+  const scoped = scopeOverride ? questionsForLaw(scopeOverride) : trainPoolForLaws(cfg.laws);
   const totalAvail = scoped.length;
   const failedAvail = scoped.filter(q => isFailedQuestion(q)).length;
   const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='assistants' ? 'Árbitros Asistentes' : scopeOverride==='saved' ? 'Preguntas Guardadas' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
@@ -3205,12 +3211,15 @@ function trainConfigView(){
     const active = cfg.laws.includes(i);
     chips += `<button class="tc-rule ${active?'active':''}" data-action="toggle-train-law" data-law="${i}"><b>${i}</b><span>${esc(LAW_NAMES[i])}</span></button>`;
   }
+  [['glossary', 'G', 'Preguntas Glosario'], ['assistants', 'A', 'Árbitros Asistentes']].forEach(([key, letter, name]) => {
+    chips += `<button class="tc-rule special ${cfg.laws.includes(key)?'active':''}" data-action="toggle-train-law" data-law="${key}"><b>${letter}</b><span>${name}</span></button>`;
+  });
   const opt = (on, action, attrs, icon, title, text) => `<button class="tc-opt ${on?'active':''}" data-action="${action}" ${attrs}>
     <span class="tc-opt-ic">${ic(icon)}</span><span class="tc-opt-body"><strong>${title}</strong><small>${text}</small></span><span class="tc-opt-check">${ic('check')}</span>
   </button>`;
 
   const timerText = cfg.timerMode==='none' ? 'Sin límite' : cfg.timerMode==='total' ? cfg.minutes + ' min en total' : cfg.secondsPerQuestion + ' s por pregunta';
-  const lawsText = scopeOverride ? scopeLabel : (cfg.laws.length===0 ? 'Todas las reglas' : cfg.laws.length===1 ? 'Regla ' + cfg.laws[0] : cfg.laws.length + ' reglas');
+  const lawsText = scopeOverride ? scopeLabel : (cfg.laws.length===0 ? 'Todas las reglas' : cfg.laws.length===1 ? (cfg.laws[0]==='glossary' ? 'Glosario' : cfg.laws[0]==='assistants' ? 'Árbitros Asistentes' : 'Regla ' + cfg.laws[0]) : cfg.laws.length + ' secciones');
 
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${scopeOverride||''}">&larr; ${scopeOverride ? scopeLabel : 'Inicio'}</button>
@@ -3258,7 +3267,7 @@ function trainConfigView(){
 
       ${scopeOverride ? '' : `
       <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">4</span><div><h3>Reglas incluidas</h3><small>Sin selección entran las 17 reglas</small></div>
+        <div class="tc-card-head"><span class="tc-step">4</span><div><h3>Reglas incluidas</h3><small>Elige reglas, Glosario o Árbitros Asistentes · sin selección entran las 17 reglas y el Glosario</small></div>
           <button class="tc-all ${cfg.laws.length===0?'active':''}" data-action="toggle-train-law" data-law="all">Todas</button></div>
         <div class="tc-rules">${chips}</div>
       </div>`}
@@ -4019,7 +4028,7 @@ function onAction(e){
     const val = el.dataset.law;
     if(val==='all'){ STATE.trainCfg.laws = []; }
     else {
-      const num = parseInt(val,10);
+      const num = (val==='glossary' || val==='assistants') ? val : parseInt(val,10);
       const idx = STATE.trainCfg.laws.indexOf(num);
       if(idx>=0) STATE.trainCfg.laws.splice(idx,1); else STATE.trainCfg.laws.push(num);
     }
