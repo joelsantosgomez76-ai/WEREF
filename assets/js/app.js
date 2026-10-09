@@ -3192,58 +3192,89 @@ function resultView(){
 
 function trainConfigView(){
   const cfg = STATE.trainCfg;
+  const ic = (n) => shellIcon(n);
   const scopeOverride = cfg.scopeOverride;
   const scoped = scopeOverride ? questionsForLaw(scopeOverride) : (cfg.laws.length ? allQuestions().filter(q=>cfg.laws.includes(q.rule)) : allQuestions());
   const totalAvail = scoped.length;
   const failedAvail = scoped.filter(q => isFailedQuestion(q)).length;
+  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='assistants' ? 'Árbitros Asistentes' : scopeOverride==='saved' ? 'Preguntas Guardadas' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
+  const backAction = scopeOverride ? 'open-law' : 'home';
+
   let chips = '';
   for(let i=1;i<=17;i++){
     const active = cfg.laws.includes(i);
-    chips += `<button class="tab ${active?'active':''}" data-action="toggle-train-law" data-law="${i}">R${i}</button>`;
+    chips += `<button class="tc-rule ${active?'active':''}" data-action="toggle-train-law" data-law="${i}"><b>${i}</b><span>${esc(LAW_NAMES[i])}</span></button>`;
   }
-  const scopeLabel = scopeOverride==='hard' ? 'Sala VAR' : scopeOverride==='failed' ? 'Sala de Repaso' : scopeOverride==='glossary' ? 'Preguntas Glosario' : scopeOverride==='assistants' ? 'Árbitros Asistentes' : scopeOverride==='saved' ? 'Preguntas Guardadas' : (typeof scopeOverride==='number') ? 'Regla '+scopeOverride+' · '+esc(LAW_NAMES[scopeOverride]) : null;
-  const backAction = scopeOverride ? 'open-law' : 'home';
+  const opt = (on, action, attrs, icon, title, text) => `<button class="tc-opt ${on?'active':''}" data-action="${action}" ${attrs}>
+    <span class="tc-opt-ic">${ic(icon)}</span><span class="tc-opt-body"><strong>${title}</strong><small>${text}</small></span><span class="tc-opt-check">${ic('check')}</span>
+  </button>`;
+
+  const timerText = cfg.timerMode==='none' ? 'Sin límite' : cfg.timerMode==='total' ? cfg.minutes + ' min en total' : cfg.secondsPerQuestion + ' s por pregunta';
+  const lawsText = scopeOverride ? scopeLabel : (cfg.laws.length===0 ? 'Todas las reglas' : cfg.laws.length===1 ? 'Regla ' + cfg.laws[0] : cfg.laws.length + ' reglas');
+
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${scopeOverride||''}">&larr; ${scopeOverride ? scopeLabel : 'Inicio'}</button>
-  <h2 style="margin-bottom:4px;">${scopeLabel ? 'Test personalizado · '+scopeLabel : 'Reglas de Juego <span class="mono" style="font-size:12px; color:var(--muted); font-weight:500;">IFAB</span>'}</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Elige cuántas preguntas quieres y cómo quieres el tiempo. Se genera un examen aleatorio y puedes moverte libremente entre preguntas hasta finalizarlo.</div>
-  <div class="qcard">
-    <label>Número de preguntas <span class="mono" style="color:var(--muted); text-transform:none; font-weight:500;">(máximo 50)</span></label>
-    <input type="text" inputmode="numeric" id="cfg-count" value="${Math.min(cfg.count,50)}" maxlength="2">
+  <section class="tc-hero">
+    <div>
+      <div class="home-eyebrow">${scopeLabel ? 'Test personalizado' : 'Reglas de Juego · IFAB'}</div>
+      <h1>${scopeLabel ? esc(scopeLabel) : 'Diseña tu examen'}</h1>
+      <p>Elige cuántas preguntas quieres y cómo quieres el tiempo. Se genera un examen aleatorio y puedes moverte libremente entre preguntas hasta finalizarlo.</p>
+    </div>
+    <div class="tc-hero-stat"><b>${totalAvail}</b><span>preguntas<br>disponibles</span></div>
+  </section>
 
-    <label>Tipo de test</label>
-    <div class="tabs">
-      <button class="tab ${cfg.feedbackMode==='exam'?'active':''}" data-action="set-feedback-mode" data-fbmode="exam">Modo examen</button>
-      <button class="tab ${cfg.feedbackMode==='study'?'active':''}" data-action="set-feedback-mode" data-fbmode="study">Modo estudio</button>
-    </div>
-    <div style="font-size:12px; color:var(--muted); margin-top:4px;">${cfg.feedbackMode==='study' ? 'Verás si aciertas y la solución al momento de responder cada pregunta.' : 'No sabrás los resultados hasta terminar todo el test, como en un examen real.'}</div>
+  <div class="tc-layout">
+    <div class="tc-main">
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Número de preguntas</h3><small>Máximo 50 por examen</small></div></div>
+        <input type="text" inputmode="numeric" id="cfg-count" class="tc-count" value="${Math.min(cfg.count,50)}" maxlength="2">
+      </div>
 
-    <label>Temporización</label>
-    <div class="tabs">
-      <button class="tab ${cfg.timerMode==='none'?'active':''}" data-action="set-timer-mode" data-mode="none">Sin límite</button>
-      <button class="tab ${cfg.timerMode==='total'?'active':''}" data-action="set-timer-mode" data-mode="total">Tiempo total</button>
-      <button class="tab ${cfg.timerMode==='perQuestion'?'active':''}" data-action="set-timer-mode" data-mode="perQuestion">Tiempo por pregunta</button>
-    </div>
-    ${cfg.timerMode==='total' ? `
-      <label>Minutos para todo el examen</label>
-      <input type="text" inputmode="numeric" id="cfg-minutes" value="${cfg.minutes}" maxlength="4">
-    ` : ''}
-    ${cfg.timerMode==='perQuestion' ? `
-      <label>Segundos por pregunta</label>
-      <input type="text" inputmode="numeric" id="cfg-seconds-per-q" value="${cfg.secondsPerQuestion}" maxlength="4">
-      <div style="font-size:12px; color:var(--muted); margin-top:4px;">Si se acaba el tiempo de una pregunta, se pasa sola a la siguiente (sin responder si no elegiste nada).</div>
-    ` : ''}
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Tipo de test</h3><small>Cuándo quieres ver las soluciones</small></div></div>
+        <div class="tc-opts two">
+          ${opt(cfg.feedbackMode==='exam', 'set-feedback-mode', 'data-fbmode="exam"', 'target', 'Modo examen', 'No sabrás los resultados hasta terminar todo el test, como en un examen real.')}
+          ${opt(cfg.feedbackMode==='study', 'set-feedback-mode', 'data-fbmode="study"', 'book', 'Modo estudio', 'Verás si aciertas y la solución al momento de responder cada pregunta.')}
+        </div>
+      </div>
 
-    ${scopeOverride ? '' : `
-    <label>Reglas incluidas</label>
-    <div class="tabs">
-      <button class="tab ${cfg.laws.length===0?'active':''}" data-action="toggle-train-law" data-law="all">Todas</button>
-      ${chips}
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">3</span><div><h3>Temporización</h3><small>Controla el ritmo del examen</small></div></div>
+        <div class="tc-opts three">
+          ${opt(cfg.timerMode==='none', 'set-timer-mode', 'data-mode="none"', 'repeat', 'Sin límite', 'A tu ritmo.')}
+          ${opt(cfg.timerMode==='total', 'set-timer-mode', 'data-mode="total"', 'clock', 'Tiempo total', 'Un reloj para todo el examen.')}
+          ${opt(cfg.timerMode==='perQuestion', 'set-timer-mode', 'data-mode="perQuestion"', 'zap', 'Por pregunta', 'Cada pregunta con su cuenta atrás.')}
+        </div>
+        ${cfg.timerMode==='total' ? `
+          <div class="tc-field"><label for="cfg-minutes">Minutos para todo el examen</label>
+          <input type="text" inputmode="numeric" id="cfg-minutes" value="${cfg.minutes}" maxlength="4"></div>
+        ` : ''}
+        ${cfg.timerMode==='perQuestion' ? `
+          <div class="tc-field"><label for="cfg-seconds-per-q">Segundos por pregunta</label>
+          <input type="text" inputmode="numeric" id="cfg-seconds-per-q" value="${cfg.secondsPerQuestion}" maxlength="4">
+          <small>Si se acaba el tiempo de una pregunta, se pasa sola a la siguiente (sin responder si no elegiste nada).</small></div>
+        ` : ''}
+      </div>
+
+      ${scopeOverride ? '' : `
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">4</span><div><h3>Reglas incluidas</h3><small>Sin selección entran las 17 reglas</small></div>
+          <button class="tc-all ${cfg.laws.length===0?'active':''}" data-action="toggle-train-law" data-law="all">Todas</button></div>
+        <div class="tc-rules">${chips}</div>
+      </div>`}
     </div>
-    `}
-    <div style="margin-top:20px;">
-      <button class="btn btn-primary" data-action="generate-exam">Generar examen</button>
-    </div>
+
+    <aside class="tc-side">
+      <div class="tc-summary">
+        <div class="tc-summary-title">Resumen del examen</div>
+        <div class="tc-sum-row">${ic('book')}<span>Ámbito</span><b>${esc(lawsText)}</b></div>
+        <div class="tc-sum-row">${ic('target')}<span>Tipo</span><b>${cfg.feedbackMode==='study' ? 'Modo estudio' : 'Modo examen'}</b></div>
+        <div class="tc-sum-row">${ic('clock')}<span>Tiempo</span><b>${timerText}</b></div>
+        <div class="tc-sum-row">${ic('shuffle')}<span>Banco</span><b>${totalAvail} preguntas</b></div>
+        ${failedAvail > 0 ? `<div class="tc-sum-row">${ic('repeat')}<span>Falladas</span><b>${failedAvail}</b></div>` : ''}
+        <button class="btn btn-yellow tc-go" data-action="generate-exam">${ic('play')} Generar examen</button>
+      </div>
+    </aside>
   </div>
   `;
 }
