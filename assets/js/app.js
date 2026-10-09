@@ -1247,6 +1247,25 @@ function render(){
   }
   const oldModal = document.getElementById('confirm-modal');
   if(oldModal) oldModal.remove();
+  if(STATE.confirmQuit && !(STATE.view === 'quiz' || STATE.view === 'myBankQuiz')) STATE.confirmQuit = null;
+  if(STATE.confirmQuit){
+    const qz = STATE.confirmQuit === 'mybank' ? STATE.myBankQuiz : STATE.quiz;
+    const league = qz && ['hearts','suddendeath','timeattack'].includes(qz.mode);
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<div class="modal-card qz-confirm" role="dialog" aria-modal="true" aria-labelledby="qz-confirm-title">
+      <span class="qz-confirm-ic">${shellIcon('flag')}</span>
+      <h3 id="qz-confirm-title">¿Seguro que quieres salir del test?</h3>
+      <p>${league ? 'Si sales ahora, esta partida no contará para la clasificación.' : 'Si sales ahora, perderás el progreso de este test y no se guardará su resultado.'}</p>
+      <div class="qz-confirm-actions">
+        <button class="btn btn-primary" data-action="quit-cancel">Seguir con el test</button>
+        <button class="btn btn-ghost btn-danger-soft" data-action="quit-confirm">Sí, salir</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  } else
   if(STATE.confirmDeleteId){
     const q = allQuestions().find(x=>x.id===STATE.confirmDeleteId);
     const preview = q ? q.question : '';
@@ -4639,7 +4658,12 @@ function onAction(e){
     render();
   }
   else if(action==='finish-training'){ stopTimer(); recordTestResult(STATE.quiz); STATE.view='result'; render(); }
-  else if(action==='quit-quiz'){
+  else if(action==='quit-quiz'){ STATE.confirmQuit = 'quiz'; render(); }
+  else if(action==='quit-cancel'){ STATE.confirmQuit = null; render(); }
+  else if(action==='quit-confirm'){
+    const kind = STATE.confirmQuit;
+    STATE.confirmQuit = null;
+    if(kind === 'mybank'){ myBankStopTimer(); STATE.view='myBank'; render(); return; }
     stopTimer();
     const qz = STATE.quiz;
     // Vuelve a la pantalla desde la que se empezó el test, no siempre al inicio.
@@ -4752,7 +4776,7 @@ function onAction(e){
   else if(action==='mybank-advance'){ myBankAdvance(); }
   else if(action==='mybank-advance-nav'){ myBankGoToQuestion(STATE.myBankQuiz.idx+1); }
   else if(action==='mybank-finish'){ myBankFinish(); }
-  else if(action==='mybank-quit'){ myBankStopTimer(); STATE.view='myBank'; render(); }
+  else if(action==='mybank-quit'){ STATE.confirmQuit = 'mybank'; render(); }
   else if(action==='mydocs-home'){ STATE.myDocsCurrentFolder=null; STATE.myDocsSearch=''; STATE.myDocsCreatingFolder=false; STATE.view='myDocs'; render(); }
   else if(action==='mydocs'){ STATE.view='myDocs'; render(); }
   else if(action==='mydocs-open-folder'){ STATE.myDocsCurrentFolder = el.dataset.folder || null; STATE.myDocsSearch=''; render(); }
@@ -4890,4 +4914,9 @@ document.addEventListener('visibilitychange', async () => {
   const before = userRole();
   await loadUserRole();
   if(userRole() !== before) render();
+});
+
+/* Esc cierra el aviso de "¿Seguro que quieres salir del test?" y deja seguir con el test. */
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && STATE.confirmQuit){ STATE.confirmQuit = null; render(); }
 });
