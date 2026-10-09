@@ -4005,97 +4005,119 @@ function databaseView(){
 }
 
 function adminDashboardView(){
+  const ic = (n) => shellIcon(n);
   const s = STATE.adminStats;
+  const heroBase = (stats) => `
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Administración</div>
+      <h1>Panel de administración</h1>
+      <p>Estadísticas generales de la plataforma y gestión de usuarios.</p>
+    </div>
+    ${stats ? `<div class="lg-hero-stats">${stats}</div>` : ''}
+  </section>`;
 
   if(s === null){
     return `
     <button class="backbtn" data-action="home">&larr; Inicio</button>
-    <h2 style="margin-bottom:4px;">Panel de administración</h2>
-    <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Estadísticas generales de la plataforma.</div>
-    <div class="empty-state">Cargando estadísticas...</div>
+    ${heroBase('')}
+    <div class="ac-empty">${ic('clock')}<strong>Cargando estadísticas...</strong></div>
     `;
   }
 
   if(s === false){
     return `
     <button class="backbtn" data-action="home">&larr; Inicio</button>
-    <h2 style="margin-bottom:4px;">Panel de administración</h2>
-    <div class="empty-state">No se pudieron cargar las estadísticas. <button class="btn btn-ghost" data-action="admin-dashboard-retry">Reintentar</button></div>
+    ${heroBase('')}
+    <div class="ac-empty">${ic('flag')}<strong>No se pudieron cargar las estadísticas</strong><button class="btn btn-primary" style="margin-top:8px;" data-action="admin-dashboard-retry">Reintentar</button></div>
     `;
   }
 
-  const statCards = [
-    { label: 'Total usuarios', value: s.totalUsers },
-    { label: 'Registrados hoy', value: s.registeredToday },
-    { label: 'Esta semana', value: s.registeredWeek },
-    { label: 'Este mes', value: s.registeredMonth },
-    { label: 'Activos (30 días)', value: s.active },
-    { label: 'Inactivos', value: s.inactive },
-    { label: 'Bloqueados', value: s.blocked },
-  ];
-  const statsHtml = statCards.map(c => `<div class="lb-summary-stat"><div class="num">${c.value}</div><div class="label">${esc(c.label)}</div></div>`).join('');
+  const kpi = (icon, tone, value, label) => `<div class="ad-kpi ${tone}"><span class="ad-kpi-ic">${ic(icon)}</span><div><b>${value}</b><small>${esc(label)}</small></div></div>`;
+  const kpis = [
+    kpi('users', '', s.totalUsers, 'Total usuarios'),
+    kpi('userplus', 'good', s.registeredToday, 'Registrados hoy'),
+    kpi('calendar', '', s.registeredWeek, 'Esta semana'),
+    kpi('calendar', '', s.registeredMonth, 'Este mes'),
+    kpi('flame', 'good', s.active, 'Activos (30 días)'),
+    kpi('clock', 'warn', s.inactive, 'Inactivos'),
+    kpi('lock', 'bad', s.blocked, 'Bloqueados')
+  ].join('');
 
   const maxCount = Math.max(1, ...s.chart.map(d => d.count));
+  const chartTotal = s.chart.reduce((a, d) => a + d.count, 0);
   const chartHtml = s.chart.map(d => {
-    const h = Math.max(3, Math.round(d.count / maxCount * 100));
+    const h = Math.max(4, Math.round(d.count / maxCount * 100));
     const label = formatEventDate(d.date);
-    return `<div class="admin-chart-bar" style="height:${h}%;" title="${label}: ${d.count} registro${d.count===1?'':'s'}"></div>`;
+    return `<div class="ad-bar ${d.count > 0 ? 'on' : ''}" title="${label}: ${d.count} registro${d.count===1?'':'s'}"><i style="height:${h}%;"></i></div>`;
   }).join('');
+  const axis = s.chart.length ? `<div class="ad-axis"><span>${formatEventDate(s.chart[0].date)}</span><span>${formatEventDate(s.chart[s.chart.length-1].date)}</span></div>` : '';
 
   const rowsHtml = s.users.map(u => {
     const isSelf = typeof CURRENT_USER_EMAIL !== 'undefined' && u.email === CURRENT_USER_EMAIL;
+    const initial = esc(String(u.username || u.email || '?').trim().charAt(0).toUpperCase());
     return `
-    <tr>
-      <td>${u.username ? esc(u.username) : '<span style="color:var(--muted);">—</span>'}</td>
-      <td>${esc(u.email)}</td>
-      <td class="mono">${formatEventDate(u.created_at.slice(0,10))}</td>
-      <td>${u.blocked ? '<span class="badge" style="background:var(--red); color:#fff;">Bloqueado</span>' : '<span class="badge" style="background:var(--green-ok); color:#fff;">Activo</span>'}</td>
-      <td>${isSelf ? '' : `
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          ${u.blocked
-            ? `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--green-ok); border-color:#BEE3CC;" data-action="admin-unblock-user" data-uid="${u.id}">Desbloquear</button>`
-            : `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--yellow-ink); border-color:#F0E4B4;" data-action="admin-block-user" data-uid="${u.id}">Bloquear</button>`}
-          <button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--red); border-color:#F0C4C4;" data-action="admin-delete-user" data-uid="${u.id}">Eliminar</button>
-        </div>
-      `}</td>
-    </tr>
-  `;
+    <div class="ad-user ${u.blocked ? 'blocked' : ''}">
+      <span class="ad-user-av">${initial}</span>
+      <div class="ad-user-id">
+        <strong>${u.username ? esc(u.username) : '<span style="color:var(--muted); font-weight:500;">Sin usuario</span>'}</strong>
+        <small>${esc(u.email)}</small>
+      </div>
+      <span class="ad-user-date">${formatEventDate(u.created_at.slice(0,10))}</span>
+      ${u.blocked ? '<span class="sg-chip bad">Bloqueado</span>' : '<span class="sg-chip done">Activo</span>'}
+      <div class="ad-user-actions">${isSelf ? '<span class="ad-self">Tú</span>' : `
+        ${u.blocked
+          ? `<button class="btn btn-ghost ad-ok" data-action="admin-unblock-user" data-uid="${u.id}">${ic('check')} Desbloquear</button>`
+          : `<button class="btn btn-ghost ad-warn" data-action="admin-block-user" data-uid="${u.id}">${ic('lock')} Bloquear</button>`}
+        <button class="btn btn-ghost btn-danger-soft" data-action="admin-delete-user" data-uid="${u.id}">${ic('trash')} Eliminar</button>
+      `}</div>
+    </div>`;
   }).join('');
+
+  const tool = (icon, title, text, action) => `<button class="ad-tool" data-action="${action}"><span class="ad-tool-ic">${ic(icon)}</span><span><strong>${title}</strong><small>${text}</small></span><span class="ad-tool-go">${ic('chevron')}</span></button>`;
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Panel de administración</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Estadísticas generales de la plataforma.</div>
+  ${heroBase(`
+    <div class="lg-stat"><b>${s.totalUsers}</b><span>Usuarios</span></div>
+    <div class="lg-stat"><b>${s.active}</b><span>Activos 30 d</span></div>
+    <div class="lg-stat"><b>${s.registeredToday}</b><span>Nuevos hoy</span></div>`)}
 
-  <div class="lb-summary-row">${statsHtml}</div>
+  <div class="ad-kpis">${kpis}</div>
 
-  <div class="section-title">Registros de los últimos 30 días</div>
-  <div class="qcard" style="margin-bottom:20px;">
-    ${s.totalUsers === 0 ? '<div class="empty-state">Todavía no hay usuarios registrados.</div>' : `<div class="admin-chart">${chartHtml}</div>`}
+  <div class="ad-tools">
+    ${tool('database', 'Base de datos', 'Gestiona las preguntas', 'database')}
+    ${tool('message', 'Sugerencias', 'Revisa lo que proponen', 'suggestions-admin')}
+    ${tool('users', 'Formación Comité', 'Miembros, tests y ranking', 'committee-open')}
   </div>
 
-  <div class="section-title">Todos los usuarios (${s.usersFilteredTotal})</div>
-  <div class="qcard" style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
-    <input type="text" id="admin-users-search" placeholder="Buscar por usuario o correo..." value="${esc(STATE.adminUsersFilter.search)}" maxlength="100" style="flex:2; min-width:200px;">
-    <select id="admin-users-status" style="flex:1; min-width:140px;">
-      <option value="all" ${STATE.adminUsersFilter.status==='all'?'selected':''}>Todos los estados</option>
-      <option value="active" ${STATE.adminUsersFilter.status==='active'?'selected':''}>Activos</option>
-      <option value="inactive" ${STATE.adminUsersFilter.status==='inactive'?'selected':''}>Inactivos</option>
-      <option value="blocked" ${STATE.adminUsersFilter.status==='blocked'?'selected':''}>Bloqueados</option>
-    </select>
+  <div class="tc-card" style="margin-bottom:16px;">
+    <div class="tc-card-head"><span class="tc-step">${ic('chart')}</span><div><h3>Registros de los últimos 30 días</h3><small>${chartTotal} nuevos usuarios en el periodo</small></div></div>
+    ${s.totalUsers === 0 ? '<div class="st-note">Todavía no hay usuarios registrados.</div>' : `<div class="ad-chart">${chartHtml}</div>${axis}`}
   </div>
-  <div class="qcard" style="overflow-x:auto;">
-    <table class="stat-table">
-      <tr><th>Usuario</th><th>Correo</th><th>Registro</th><th>Estado</th><th></th></tr>
-      ${rowsHtml || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Ningún usuario coincide con este filtro.</td></tr>'}
-    </table>
+
+  <div class="tc-card">
+    <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Todos los usuarios</h3><small>${s.usersFilteredTotal} ${s.usersFilteredTotal === 1 ? 'resultado' : 'resultados'}</small></div></div>
+    <div class="ad-filters">
+      <div class="ac-search" style="margin:0; flex:2; min-width:200px;">
+        ${ic('search')}
+        <input type="text" id="admin-users-search" placeholder="Buscar por usuario o correo..." value="${esc(STATE.adminUsersFilter.search)}" maxlength="100" aria-label="Buscar usuarios">
+      </div>
+      <select id="admin-users-status" style="flex:1; min-width:150px; margin:0;">
+        <option value="all" ${STATE.adminUsersFilter.status==='all'?'selected':''}>Todos los estados</option>
+        <option value="active" ${STATE.adminUsersFilter.status==='active'?'selected':''}>Activos</option>
+        <option value="inactive" ${STATE.adminUsersFilter.status==='inactive'?'selected':''}>Inactivos</option>
+        <option value="blocked" ${STATE.adminUsersFilter.status==='blocked'?'selected':''}>Bloqueados</option>
+      </select>
+    </div>
+    <div class="ad-users">${rowsHtml || `<div class="st-note">Ningún usuario coincide con este filtro.</div>`}</div>
+    ${s.usersTotalPages > 1 ? `
+    <div class="ad-pager">
+      <button class="btn btn-ghost" data-action="admin-users-prev-page" ${s.usersPage<=1?'disabled':''}>&larr; Anterior</button>
+      <span>Página ${s.usersPage} / ${s.usersTotalPages}</span>
+      <button class="btn btn-ghost" data-action="admin-users-next-page" ${s.usersPage>=s.usersTotalPages?'disabled':''}>Siguiente &rarr;</button>
+    </div>` : ''}
   </div>
-  ${s.usersTotalPages > 1 ? `
-  <div style="display:flex; justify-content:center; align-items:center; gap:14px; margin-top:16px;">
-    <button class="btn btn-ghost" data-action="admin-users-prev-page" ${s.usersPage<=1?'disabled':''}>&larr; Anterior</button>
-    <span class="mono" style="font-size:13px; color:var(--muted);">Página ${s.usersPage} / ${s.usersTotalPages}</span>
-    <button class="btn btn-ghost" data-action="admin-users-next-page" ${s.usersPage>=s.usersTotalPages?'disabled':''}>Siguiente &rarr;</button>
-  </div>` : ''}
   `;
 }
 
