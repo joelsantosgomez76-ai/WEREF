@@ -2500,47 +2500,66 @@ function streakCalendarView(){
 }
 
 function achievementsView(){
+  const ic = (n) => shellIcon(n);
   const points = computePoints();
   const rank = currentRank(points);
   const next = nextRankInfo(points);
   const unlocked = STATE.storage.unlockedBadges || {};
+  const unlockedCount = BADGES.filter(b => unlocked[b.id]).length;
+  const rankIdx = Math.max(0, RANKS.findIndex(r => r.name === rank.name));
 
-  let rankRows = RANKS.map(r=>{
+  const rankRows = RANKS.map((r, i) => {
     const reached = points >= r.min;
-    return `<div class="breakdown-row"><span style="${reached?'font-weight:700;':'color:var(--muted);'}">${reached?'✓ ':''}${r.name}</span><span class="mono" style="color:var(--muted);">${r.min}+ pts</span></div>`;
+    const current = r.name === rank.name;
+    return `<div class="rk-step ${reached ? 'reached' : ''} ${current ? 'current' : ''}">
+      <span class="rk-dot">${reached ? ic('check') : ''}</span>
+      <div class="rk-step-body">
+        <div class="rk-step-name">${esc(r.name)}${current ? '<em>Tu rango</em>' : ''}</div>
+        <div class="rk-step-min">${r.min} pts</div>
+        ${current && next ? `<div class="rk-step-bar"><i style="width:${next.progressPct}%"></i></div><div class="rk-step-hint">${next.remaining} puntos para ${esc(next.name)}</div>` : ''}
+        ${current && !next ? '<div class="rk-step-hint">¡Has alcanzado el rango máximo!</div>' : ''}
+      </div>
+    </div>`;
   }).join('');
 
-  let badgeCards = BADGES.map(b=>{
+  const badgeCards = BADGES.map(b => {
     const isUnlocked = !!unlocked[b.id];
-    return `<div class="qcard" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; ${isUnlocked?'':'opacity:0.45;'}">
-      <div style="width:44px; height:44px; border-radius:50%; background:${isUnlocked?'#FFF1E8':'#F0F0F0'}; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">${b.icon}</div>
-      <div>
-        <div style="font-weight:700; font-size:13.5px;">${b.name}${isUnlocked?' <span class="badge" style="background:var(--green-ok); color:#fff;">Conseguida</span>':''}</div>
-        <div style="font-size:12px; color:var(--muted); margin-top:2px;">${b.desc}</div>
+    return `<div class="rk-badge ${isUnlocked ? 'on' : 'off'}">
+      <span class="rk-badge-ic">${b.icon}</span>
+      <div class="rk-badge-body">
+        <strong>${b.name}</strong>
+        <small>${b.desc}</small>
       </div>
+      <span class="rk-badge-state">${isUnlocked ? ic('check') : ic('lock')}</span>
     </div>`;
   }).join('');
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-    <div>
-      <h2 style="margin-bottom:4px;">Tu progreso arbitral</h2>
-      <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">Puntos por preguntas acertadas, tests completados y racha de estudio.</div>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Tu progreso arbitral</div>
+      <h1>${esc(rank.name)}</h1>
+      <p>${points} puntos por preguntas acertadas, tests completados y racha de estudio. ${next ? `Te faltan ${next.remaining} para ser ${esc(next.name)}.` : '¡Has alcanzado el rango máximo!'}</p>
+      ${next ? `<div class="rk-hero-bar"><i style="width:${next.progressPct}%"></i></div><div class="rk-hero-bar-label">${next.progressPct}% hacia ${esc(next.name)}</div>` : ''}
     </div>
-    <button class="btn btn-ghost" style="padding:8px 14px; font-size:12.5px;" data-action="profile">⚙️ Configuración de cuenta</button>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${points}</b><span>Puntos</span></div>
+      <div class="lg-stat"><b>${rankIdx + 1}/${RANKS.length}</b><span>Rango</span></div>
+      <div class="lg-stat"><b>${unlockedCount}/${BADGES.length}</b><span>Insignias</span></div>
+    </div>
+  </section>
+
+  <div class="rk-layout">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('award')}</span><div><h3>Escala de rangos</h3><small>Sube de rango sumando puntos</small></div></div>
+      <div class="rk-ladder">${rankRows}</div>
+    </div>
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('trophy')}</span><div><h3>Insignias</h3><small>${unlockedCount} de ${BADGES.length} conseguidas</small></div></div>
+      <div class="rk-badges">${badgeCards}</div>
+    </div>
   </div>
-
-  <div class="result-hero" style="margin-bottom:16px;">
-    <div class="big" style="color:var(--pitch); font-size:34px;">${rank.name}</div>
-    <div class="label">${points} puntos ${next ? '· '+next.remaining+' para '+next.name : '· ¡rango máximo!'}</div>
-  </div>
-
-  <div class="section-title">Escala de rangos</div>
-  <div class="qcard" style="margin-bottom:20px;">${rankRows}</div>
-
-  <div class="section-title">Insignias (${Object.keys(unlocked).length}/${BADGES.length})</div>
-  ${badgeCards}
   `;
 }
 
@@ -2556,7 +2575,7 @@ async function loadProfileData(){
 
 function profileView(){
   return `
-  <button class="backbtn" data-action="achievements">&larr; Tu progreso arbitral</button>
+  <button class="backbtn" data-action="home">&larr; Inicio</button>
   <h2 style="margin-bottom:4px;">⚙️ Configuración de cuenta</h2>
   <div class="sub" style="color:var(--muted); margin-bottom:18px; font-size:13.5px;">${typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL ? esc(CURRENT_USER_EMAIL) : ''}</div>
   <div class="menu-list">

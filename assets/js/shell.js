@@ -135,7 +135,7 @@ function shellFor(view, html){
   const bottomActive = moreIds.includes(active) ? 'more' : active;
   const bottom = `<nav class="shell-bottom" aria-label="Navegación">${bottomItems.map(it =>
     `<button class="${bottomActive === it.id ? 'active' : ''}" data-action="${it.action}">${shellIcon(it.icon)}<span>${it.label}</span></button>`).join('')}</nav>`;
-  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats'];
+  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements'];
   const wide = WIDE_VIEWS.includes(String(view)) || (String(view) === 'law' && typeof STATE !== 'undefined' && STATE.lawId === 'saved');
   return `<div class="shell">${side}<main class="shell-main"><div class="shell-content ${wide ? 'wide' : ''}">${html}</div></main></div>${bottom}`;
 }
