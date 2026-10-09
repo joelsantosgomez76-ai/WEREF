@@ -1016,6 +1016,7 @@ function render(){
   }
   app.innerHTML = viewFor(STATE.view);
   bindEvents();
+  if(typeof committeeAfterRender==='function') committeeAfterRender();
   if(focusId){
     const el = document.getElementById(focusId);
     if(el){
@@ -1185,6 +1186,7 @@ function viewFor(v){
   if(v==='profileEdit') return profileEditView();
   if(v==='streakCalendar') return streakCalendarView();
   if(v==='recentPerformance') return recentPerformanceView();
+  if(typeof v==='string' && v.startsWith('committee') && typeof committeeView==='function') return committeeView(v);
   return homeView();
 }
 
@@ -2656,6 +2658,7 @@ function homeView(){
     <button class="btn btn-primary" data-action="train-config">📘 Reglas de Juego <span class="mono" style="font-size:10px; opacity:0.75;">IFAB</span></button>
     <button class="btn btn-primary" style="background:var(--accent);" data-action="dailyChallenge">🏆 WEREF League</button>
     <button class="btn btn-primary" style="background:var(--pitch);" data-action="academia">🎓 Mi Academia${academiaTotal>0 ? ` <span class="badge">${academiaTotal}</span>` : ''}</button>
+    ${typeof cmHomeButton==='function' ? cmHomeButton() : ''}
   </div>
   <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
     ${isDevUser() ? `<button class="btn btn-ghost" data-action="database">Base de datos${Object.keys(STATE.reports).length>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">${Object.keys(STATE.reports).length}</span>` : ''}</button>` : ''}
@@ -3895,6 +3898,8 @@ function onAction(e){
   const action = el.dataset.action;
   const rawLaw = el.dataset.law;
   const law = rawLaw ? ((rawLaw==='hard' || rawLaw==='failed' || rawLaw==='glossary' || rawLaw==='saved' || /^fed-\d+$/.test(rawLaw)) ? rawLaw : parseInt(rawLaw,10)) : null;
+
+  if(typeof action==='string' && action.startsWith('committee-') && typeof committeeOnAction==='function'){ committeeOnAction(action, el); return; }
 
   if(action==='logout'){ stopTimer(); if(typeof handleLogout==='function') handleLogout(); }
   else if(action==='home'){ stopTimer(); STATE.view='home'; render(); }
