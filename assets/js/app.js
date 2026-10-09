@@ -3915,6 +3915,7 @@ function filteredDbList(){
 }
 
 function databaseView(){
+  const ic = (n) => shellIcon(n);
   const f = STATE.dbFilter;
   const pageSize = 15;
   const list = filteredDbList();
@@ -3924,8 +3925,9 @@ function databaseView(){
   const pageItems = list.slice(startIdx, startIdx + pageSize);
   const letters = ['a','b','c','d'];
 
+  const all = allQuestions();
   const numberMap = {};
-  allQuestions().forEach((q,i) => { numberMap[q.id] = i+1; });
+  all.forEach((q,i) => { numberMap[q.id] = i+1; });
   const dupIds = duplicateQuestionIds();
 
   const lawOptions = `<option value="all">Todas (todo el banco)</option>` +
@@ -3936,131 +3938,128 @@ function databaseView(){
     `<option value="hard" ${f.law==='hard'?'selected':''}>Sala VAR (difíciles)</option>` +
     `</optgroup>`;
 
+  const chip = (cls, text) => `<span class="db-tag ${cls}">${text}</span>`;
   let rows = pageItems.map(q => {
     if(STATE.editingId === q.id) return editFormHtml(q);
     const isReviewed = !!STATE.storage.reviewed[q.id];
     const reportCount = STATE.reports[q.id] || 0;
-    const calSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px; height:11px; flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
-    const dateChips = [];
-    if(q.createdAt) dateChips.push(`<span class="qdate-chip">${calSvg}Creada ${new Date(q.createdAt).toLocaleDateString('es-ES')}</span>`);
-    if(q.updatedAt) dateChips.push(`<span class="qdate-chip">${calSvg}Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}</span>`);
-    return `<div class="qcard" style="margin-bottom:10px; ${reportCount>0?'border-color:#F0C4C4;':(isReviewed?'border-color:#BEE3CC;':'')}">
-      <div class="qtag" style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
-        <div>
-          <span class="mono" style="color:var(--muted); font-weight:700;">#${numberMap[q.id]}</span> ·
-          ${scopeLabel(q)}
-          ${q.difficulty==='hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}
-          ${STATE.storage.flags[q.id] ? ' <span class="badge">Marcada</span>' : ''}
-          ${q.source==='user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Tu pregunta</span>' : ''}
-          ${isReviewed ? ' <span class="badge" style="background:var(--green-ok); color:#fff;">Revisada</span>' : ''}
-          ${reportCount>0 ? ` <span class="badge" style="background:var(--red); color:#fff;">🚩 Reportada x${reportCount}</span>` : ''}
-          ${dupIds.has(q.id) ? ' <span class="badge" style="background:#B87333; color:#fff;">Duplicada</span>' : ''}
-        </div>
-        ${dateChips.length ? `<div class="qdate-chips">${dateChips.join('')}</div>` : ''}
+    const tags = [
+      q.difficulty==='hard' ? chip('hard', 'Difícil') : '',
+      STATE.storage.flags[q.id] ? chip('flag', 'Marcada') : '',
+      q.source==='user' ? chip('mine', 'Añadida') : '',
+      isReviewed ? chip('ok', 'Revisada') : '',
+      reportCount>0 ? chip('bad', 'Reportada x' + reportCount) : '',
+      dupIds.has(q.id) ? chip('dup', 'Duplicada') : ''
+    ].join('');
+    const dates = [];
+    if(q.createdAt) dates.push(`Creada ${new Date(q.createdAt).toLocaleDateString('es-ES')}`);
+    if(q.updatedAt) dates.push(`Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}`);
+    return `<article class="ac-q db-q ${reportCount>0 ? 'reported' : (isReviewed ? 'reviewed' : '')}">
+      <div class="db-q-head">
+        <span class="db-q-num">#${numberMap[q.id]}</span>
+        <span class="db-q-scope">${scopeLabel(q)}</span>
+        <div class="db-tags">${tags}</div>
+        ${dates.length ? `<span class="db-q-dates">${dates.join(' · ')}</span>` : ''}
       </div>
-      <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
-      ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
-      ${q.explanation ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <button class="btn ${isReviewed?'btn-secondary':'btn-primary'}" style="padding:7px 14px; font-size:13px;" data-action="toggle-reviewed" data-qid="${q.id}">${isReviewed ? '✓ Revisada' : 'Marcar como revisada'}</button>
-        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="edit-question" data-qid="${q.id}">Editar</button>
-        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="delete-question" data-qid="${q.id}">Eliminar</button>
-        ${reportCount>0 ? `<button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="dismiss-reports" data-qid="${q.id}">Descartar reportes</button>` : ''}
+      <div class="ac-q-text" style="margin-bottom:12px;">${esc(q.question)}</div>
+      <div class="ac-q-opts">${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}</div>
+      ${q.explanation ? `<div class="ac-q-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+      <div class="ac-q-actions">
+        <button class="btn ${isReviewed?'btn-secondary':'btn-primary'}" data-action="toggle-reviewed" data-qid="${q.id}">${ic('check')} ${isReviewed ? 'Revisada' : 'Marcar como revisada'}</button>
+        <button class="btn btn-ghost" data-action="edit-question" data-qid="${q.id}">${ic('pencil')} Editar</button>
+        <button class="btn btn-ghost btn-danger-soft" data-action="delete-question" data-qid="${q.id}">${ic('trash')} Eliminar</button>
+        ${reportCount>0 ? `<button class="btn btn-ghost" data-action="dismiss-reports" data-qid="${q.id}">${ic('flag')} Descartar reportes</button>` : ''}
       </div>
-    </div>`;
+    </article>`;
   }).join('');
 
-  const reviewedCount = allQuestions().filter(q => STATE.storage.reviewed[q.id]).length;
+  const reviewedCount = all.filter(q => STATE.storage.reviewed[q.id]).length;
   const reportedCount = Object.keys(STATE.reports).length;
   const dupTotal = dupIds.size;
 
   const LOW_COUNT_THRESHOLD = 30;
   const { counts: lawCounts, glossary: glossaryCount } = questionCountsByLaw();
-  const lawCountChipsHtml = Array.from({length:17},(_,i)=>i+1).map(i => {
-    const n = lawCounts[i] || 0;
-    const low = n < LOW_COUNT_THRESHOLD;
-    return `<button class="btn btn-ghost" style="padding:6px 10px; font-size:12.5px; ${f.law===String(i)?'background:var(--pitch); color:#fff;':(low?'color:var(--red); border-color:#F0C4C4;':'')}" data-action="db-view-law-questions" data-law="${i}">R${i}: ${n}</button>`;
-  }).join('') + `<button class="btn btn-ghost" style="padding:6px 10px; font-size:12.5px; ${f.law==='glossary'?'background:var(--pitch); color:#fff;':(glossaryCount<LOW_COUNT_THRESHOLD?'color:var(--red); border-color:#F0C4C4;':'')}" data-action="db-view-law-questions" data-law="glossary">Glosario: ${glossaryCount}</button>`;
+  const assistantsCount = all.filter(q => q.domain === 'assistants').length;
+  const lawChip = (law, label, n, extra) => {
+    const low = n < LOW_COUNT_THRESHOLD && !extra;
+    return `<button class="db-lawchip ${String(f.law)===String(law) ? 'active' : ''} ${low ? 'low' : ''}" data-action="db-view-law-questions" data-law="${law}"><b>${label}</b><span>${n}</span></button>`;
+  };
+  const lawCountChipsHtml = Array.from({length:17},(_,i)=>i+1).map(i => lawChip(i, 'R' + i, lawCounts[i] || 0)).join('')
+    + lawChip('glossary', 'Glosario', glossaryCount)
+    + lawChip('assistants', 'Asistentes', assistantsCount, true);
+
+  const check = (id, checked, label) => `<label class="db-check ${checked ? 'on' : ''}"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span>${label}</span></label>`;
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Base de datos</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${allQuestions().length} preguntas en total · ${reviewedCount} revisadas · ${reportedCount} con reportes de usuarios · ${list.length} coinciden con el filtro</div>
-
-  <div class="section-title">Preguntas por regla <span style="text-transform:none; font-weight:400; letter-spacing:normal;">(en rojo, menos de ${LOW_COUNT_THRESHOLD})</span></div>
-  <div class="qcard" style="margin-bottom:14px; display:flex; flex-wrap:wrap; gap:6px;">
-    ${lawCountChipsHtml}
-  </div>
-
-  <div style="margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap;">
-    <button class="btn btn-primary" data-action="add-from-db">+ Añadir pregunta nueva</button>
-    <button class="btn btn-secondary" data-action="export-excel">📊 Exportar a Excel</button>
-    <label class="btn btn-secondary" style="cursor:pointer; margin:0;">
-      📥 Importar desde Excel
-      <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none;">
-    </label>
-  </div>
-
-  <div class="qcard" style="margin-bottom:14px;">
-    <label>Buscar texto</label>
-    <input type="text" id="db-search" placeholder="Busca por palabra en la pregunta o en las respuestas..." value="${esc(f.search)}" maxlength="100">
-    <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-      <div style="flex:1; min-width:180px;">
-        <label>Regla</label>
-        <select id="db-law">${lawOptions}</select>
+  <section class="lg-hero">
+    <div class="lg-hero-main">
+      <div class="home-eyebrow">Administración</div>
+      <h1>Base de datos</h1>
+      <p>Revisa, edita y añade las preguntas de toda la plataforma. Los cambios que hagas los ven todos los usuarios.</p>
+      <div class="ac-hero-actions">
+        <button class="btn btn-yellow" data-action="add-from-db">${ic('plus')} Añadir pregunta</button>
+        <button class="btn btn-glass" data-action="export-excel">${ic('download')} Exportar Excel</button>
+        <label class="btn btn-glass" style="cursor:pointer; margin:0;">
+          ${ic('fileplus')} Importar Excel
+          <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none;">
+        </label>
       </div>
-      <div style="flex:1; min-width:140px;">
-        <label>Dificultad</label>
+    </div>
+    <div class="lg-hero-stats">
+      <div class="lg-stat"><b>${all.length}</b><span>Preguntas</span></div>
+      <div class="lg-stat"><b>${reviewedCount}</b><span>Revisadas</span></div>
+      <div class="lg-stat"><b>${reportedCount}</b><span>Con reportes</span></div>
+    </div>
+  </section>
+
+  <div class="tc-card" style="margin-bottom:16px;">
+    <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Preguntas por regla</h3><small>Pulsa una para filtrar · en rojo, las que tienen menos de ${LOW_COUNT_THRESHOLD}</small></div></div>
+    <div class="db-lawchips">${lawCountChipsHtml}</div>
+  </div>
+
+  <div class="tc-card" style="margin-bottom:16px;">
+    <div class="tc-card-head"><span class="tc-step">${ic('search')}</span><div><h3>Buscar y filtrar</h3><small>${list.length} ${list.length === 1 ? 'pregunta coincide' : 'preguntas coinciden'} con el filtro</small></div></div>
+    <div class="ac-search" style="margin-bottom:14px;">
+      ${ic('search')}
+      <input type="text" id="db-search" placeholder="Busca por palabra en la pregunta o en las respuestas..." value="${esc(f.search)}" maxlength="100" aria-label="Buscar texto">
+    </div>
+    <div class="db-filters">
+      <div><label for="db-law">Regla</label><select id="db-law">${lawOptions}</select></div>
+      <div><label for="db-difficulty">Dificultad</label>
         <select id="db-difficulty">
           <option value="all" ${f.difficulty==='all'?'selected':''}>Todas</option>
           <option value="normal" ${f.difficulty==='normal'?'selected':''}>Normal</option>
           <option value="hard" ${f.difficulty==='hard'?'selected':''}>Difícil</option>
-        </select>
-      </div>
-      <div style="flex:1; min-width:140px;">
-        <label>Revisión</label>
+        </select></div>
+      <div><label for="db-review-status">Revisión</label>
         <select id="db-review-status">
           <option value="all" ${f.reviewStatus==='all'?'selected':''}>Todas</option>
           <option value="pending" ${f.reviewStatus==='pending'?'selected':''}>Pendientes</option>
           <option value="reviewed" ${f.reviewStatus==='reviewed'?'selected':''}>Revisadas</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-      <div style="flex:1; min-width:140px;">
-        <label>Filtrar por fecha de</label>
+        </select></div>
+      <div><label for="db-date-field">Filtrar por fecha de</label>
         <select id="db-date-field">
           <option value="created" ${f.dateField==='created'?'selected':''}>Creación</option>
           <option value="updated" ${f.dateField==='updated'?'selected':''}>Última modificación</option>
-        </select>
-      </div>
-      <div style="flex:1; min-width:130px;">
-        <label>Desde</label>
-        <input type="date" id="db-date-from" value="${esc(f.dateFrom)}">
-      </div>
-      <div style="flex:1; min-width:130px;">
-        <label>Hasta</label>
-        <input type="date" id="db-date-to" value="${esc(f.dateTo)}">
-      </div>
+        </select></div>
+      <div><label for="db-date-from">Desde</label><input type="date" id="db-date-from" value="${esc(f.dateFrom)}"></div>
+      <div><label for="db-date-to">Hasta</label><input type="date" id="db-date-to" value="${esc(f.dateTo)}"></div>
     </div>
-    ${(f.dateFrom || f.dateTo) ? `<div style="font-size:12px; color:var(--muted); margin-top:8px;">La fecha solo se registra desde esta actualización: las preguntas que ya existían antes y nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>` : ''}
-    <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:12px;">
-      <input type="checkbox" id="db-flagged-only" style="width:auto;" ${f.flaggedOnly?'checked':''}> Mostrar solo las marcadas para revisar
-    </label>
-    <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:8px;">
-      <input type="checkbox" id="db-reported-only" style="width:auto;" ${f.reportedOnly?'checked':''}> Mostrar solo las reportadas por usuarios (${reportedCount})
-    </label>
-    <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:8px;">
-      <input type="checkbox" id="db-duplicates-only" style="width:auto;" ${f.duplicatesOnly?'checked':''}> Mostrar solo las duplicadas (${dupTotal})
-    </label>
+    ${(f.dateFrom || f.dateTo) ? `<div class="st-note" style="margin-top:12px;">La fecha solo se registra desde esta actualización: las preguntas que ya existían antes y nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>` : ''}
+    <div class="db-checks">
+      ${check('db-flagged-only', f.flaggedOnly, 'Solo marcadas para revisar')}
+      ${check('db-reported-only', f.reportedOnly, `Solo reportadas por usuarios (${reportedCount})`)}
+      ${check('db-duplicates-only', f.duplicatesOnly, `Solo duplicadas (${dupTotal})`)}
+    </div>
   </div>
 
-  ${rows || '<div class="empty-state">Ninguna pregunta coincide con este filtro.</div>'}
+  ${rows ? `<div class="ac-qlist">${rows}</div>` : `<div class="ac-empty">${ic('search')}<strong>Ninguna pregunta coincide con este filtro</strong><span>Prueba a quitar algún filtro.</span></div>`}
 
   ${list.length>pageSize ? `
-  <div style="display:flex; justify-content:center; align-items:center; gap:14px; margin-top:16px;">
+  <div class="ad-pager">
     <button class="btn btn-ghost" data-action="db-prev-page" ${f.page<=1?'disabled':''}>&larr; Anterior</button>
-    <span class="mono" style="font-size:13px; color:var(--muted);">Página ${f.page} / ${totalPages}</span>
+    <span>Página ${f.page} / ${totalPages}</span>
     <button class="btn btn-ghost" data-action="db-next-page" ${f.page>=totalPages?'disabled':''}>Siguiente &rarr;</button>
   </div>` : ''}
   `;
