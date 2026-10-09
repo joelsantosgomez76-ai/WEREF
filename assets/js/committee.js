@@ -18,7 +18,9 @@ const COMMITTEE = {
   newMemberEmail: '',
   detailTestId: null,
   settings: null,     // ajustes de UN test (detalle)
-  cfg: null,          // ajustes del módulo CTA BAGES (abierto/cerrado, mensaje)
+  messages: null,     // admin: mensajes del comité (borradores y publicados)
+  myMessages: null,   // miembro: mensajes publicados
+  msgDraft: { id: null, title: '', body: '' },
   run: null,
   result: null,
   builder: null,
@@ -91,37 +93,36 @@ function cmExport(rows, sheetName, fileName){
   XLSX.writeFile(wb, fileName);
 }
 
-/* ---------- ajustes del módulo (visible / oculto, mensaje para miembros) ---------- */
-function cmSettings(){ return COMMITTEE.cfg || { enabled: true, announcement: '' }; }
+/* ---------- CTA BAGES siempre abierto: los árbitros ven lo que se va publicando ---------- */
 function cmMemberAccess(){
   const st = COMMITTEE.status;
-  if(!st) return false;
-  return !!(st.is_admin || (st.is_member && cmSettings().enabled));
+  return !!(st && (st.is_admin || st.is_member));
 }
-async function cmLoadSettings(){
+/* Mensajes del comité (tabla committee_messages): borradores o publicados */
+async function cmLoadMessages(){
   try{
-    const { data, error } = await supabaseClient.from('committee_settings').select('*').eq('id', 1).maybeSingle();
+    const { data, error } = await supabaseClient.from('committee_messages').select('*').order('created_at', { ascending: false });
     if(error) throw error;
-    COMMITTEE.cfg = data ? { enabled: data.enabled !== false, announcement: data.announcement || '' } : { enabled: true, announcement: '' };
-    COMMITTEE.settingsMissing = false;
+    COMMITTEE.messages = data || [];
+    COMMITTEE.messagesMissing = false;
   }catch(e){
-    COMMITTEE.cfg = { enabled: true, announcement: '' };
-    COMMITTEE.settingsMissing = true;
+    COMMITTEE.messages = COMMITTEE.messages || [];
+    COMMITTEE.messagesMissing = true;
   }
 }
-async function cmSaveSettings(patch){
-  const prev = Object.assign({}, cmSettings());
-  COMMITTEE.cfg = Object.assign({}, prev, patch);
-  render();
-  const { error } = await supabaseClient.from('committee_settings').upsert({
-    id: 1, enabled: COMMITTEE.cfg.enabled, announcement: COMMITTEE.cfg.announcement, updated_at: new Date().toISOString()
-  });
-  if(error){
-    COMMITTEE.cfg = prev;
-    cmToast('No se pudo guardar. ¿Has ejecutado el SQL de CTA BAGES en Supabase?');
-    return false;
+async function cmLoadMyMessages(){
+  try{
+    const { data, error } = await supabaseClient.from('committee_messages').select('*').eq('published', true).order('published_at', { ascending: false });
+    if(error) throw error;
+    COMMITTEE.myMessages = data || [];
+  }catch(e){
+    COMMITTEE.myMessages = COMMITTEE.myMessages || [];
   }
-  return true;
+}
+function cmPublishedMessages(){
+  const st = COMMITTEE.status || {};
+  if(st.is_admin && !st.is_member) return (COMMITTEE.messages || []).filter(m => m.published).sort((a, b) => Date.parse(b.published_at || b.created_at) - Date.parse(a.published_at || a.created_at));
+  return COMMITTEE.myMessages || [];
 }
 
 /* ---------- carga de datos ---------- */
@@ -133,12 +134,12 @@ async function loadCommitteeStatus(){
   }catch(e){
     COMMITTEE.status = { is_admin: isDevUser(), is_member: false, setupMissing: true };
   }
-  await cmLoadSettings();
   if(STATE.view === 'home') render();
 }
 
 async function cmLoadMyTests(){
   COMMITTEE.error = null;
+  await cmLoadMyMessages();
   const { data, error } = await supabaseClient.rpc('committee_my_tests');
   if(error){ COMMITTEE.error = cmErrText(error); COMMITTEE.myTests = []; }
   else { COMMITTEE.myTests = data || []; }
@@ -147,6 +148,7 @@ async function cmLoadMyTests(){
 
 async function cmLoadAdminData(){
   COMMITTEE.error = null;
+  await cmLoadMessages();
   const results = await Promise.all([
     supabaseClient.from('committee_tests').select('*, committee_test_questions(count)').order('created_at', { ascending: false }),
     supabaseClient.rpc('committee_admin_list_members'),
@@ -214,20 +216,36 @@ function cmRingBlock(pct, label, sub){
     <div><b>${esc(label)}</b><span>${esc(sub)}</span></div>
   </div>`;
 }
-function cmAnnouncementBanner(){
-  const a = (cmSettings().announcement || '').trim();
-  return a ? `<div class="cm-announce">${cmIc('message')}<div><strong>Mensaje del comité</strong><p>${esc(a)}</p></div></div>` : '';
+/* ---------- miembro: lista de tests ---------- */
+/* ---------- CTA BAGES: lo que ven los árbitros (el administrador lo ve como vista previa) ---------- */
+function cmFmtMsgDate(iso){
+  return iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 }
 
-/* ---------- miembro: lista de tests ---------- */
+/* Novedades: mensajes publicados por el comité (los más recientes primero) */
+function cmMessagesFeed(){
+  const list = cmPublishedMessages();
+  if(!list.length) return '';
+  const week = 7 * 86400000;
+  return `<div class="lg-section-head"><h2>Novedades del comité</h2><span>${list.length} ${list.length === 1 ? 'mensaje' : 'mensajes'}</span></div>
+  <div class="cm-feed">${list.map(m => {
+    const when = m.published_at || m.created_at;
+    const isNew = when && (Date.now() - Date.parse(when)) < week;
+    return `<article class="cm-msg">
+      <span class="cm-msg-ic">${shellIcon('message')}</span>
+      <div class="cm-msg-body">
+        <div class="cm-msg-top"><strong>${esc(m.title)}</strong>${isNew ? '<em>Nuevo</em>' : ''}</div>
+        <p>${esc(m.body)}</p>
+        <small>${cmFmtMsgDate(when)}</small>
+      </div>
+    </article>`;
+  }).join('')}</div>`;
+}
+
 /* ---------- CTA BAGES: lo que ven los árbitros (el administrador lo ve como vista previa) ---------- */
 function cmMemberView(){
   const ic = (n) => shellIcon(n);
   const st = COMMITTEE.status || {};
-  if(!cmMemberAccess()){
-    return cmHero('CTA BAGES', 'CTA BAGES', 'Formación del comité de árbitros del Bages.', '', '') +
-      `<div class="ac-empty">${ic('lock')}<strong>Todavía no está disponible</strong><span>El comité está preparando este apartado. Te avisarán cuando se publique.</span></div>`;
-  }
   const preview = !!st.is_admin && !st.is_member;
   let list = null;
   if(preview){
@@ -241,67 +259,75 @@ function cmMemberView(){
     list = COMMITTEE.myTests;
   }
   const now = Date.now();
-  const previewBar = preview ? `<div class="cm-previewbar">${ic('eye')}<div><strong>Vista previa</strong><span>Así ven CTA BAGES los árbitros. Los tests se preparan y se publican desde el Panel de Formación.</span></div>
+  const previewBar = preview ? `<div class="cm-previewbar">${cmIc('eye')}<div><strong>Vista previa</strong><span>Así ven CTA BAGES los árbitros. Los tests y los mensajes se preparan y se publican desde el Panel de Formación.</span></div>
     <button class="btn btn-yellow" data-action="committee-training">${ic('target')} Ir al Panel de Formación</button></div>` : '';
   const group = (title, sub, items) => items.length ? `<div class="lg-section-head"><h2>${title}</h2><span>${sub}</span></div><div class="cm-testlist">${items.map(t => cmMemberTestCard(t, now)).join('')}</div>` : '';
   let body;
   if(COMMITTEE.error) body = `<div class="ac-empty">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>`;
   else if(list === null) body = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
-  else if(!list.length) body = `<div class="ac-empty">${ic('book')}<strong>Todavía no hay ningún test publicado</strong><span>${preview ? 'Cuando publiques un test desde el Panel de Formación aparecerá aquí.' : 'El comité te avisará cuando haya uno.'}</span></div>`;
+  else if(!list.length && !cmPublishedMessages().length) body = `<div class="ac-empty">${ic('book')}<strong>Todavía no hay nada publicado</strong><span>${preview ? 'Cuando publiques un test o un mensaje desde el Panel de Formación aparecerá aquí.' : 'El comité irá publicando aquí tests y mensajes. Te llegarán en cuanto estén listos.'}</span></div>`;
+  else if(!list.length) body = '';
   else {
     const isClosed = t => t.closes_at && now >= Date.parse(t.closes_at);
     const isUpcoming = t => now < Date.parse(t.opens_at);
     const open = list.filter(t => !isClosed(t) && !isUpcoming(t));
     const upcoming = list.filter(t => isUpcoming(t));
     const past = list.filter(t => isClosed(t));
-    body = group('Disponibles ahora', 'Puedes hacerlos ya', open) + group('Próximamente', 'Todavía no han abierto', upcoming) + group('Anteriores', 'Ya cerrados', past);
+    body = group('Tests disponibles ahora', 'Puedes hacerlos ya', open) + group('Próximamente', 'Todavía no han abierto', upcoming) + group('Anteriores', 'Ya cerrados', past);
   }
   const total = list ? list.length : 0;
   const done = list ? list.filter(t => t.attempts_used > 0).length : 0;
   const pct = total ? Math.round(done / total * 100) : 0;
   return `
   ${cmHero('Comité de árbitros · Bages', 'CTA BAGES',
-      'Tests del comité para practicar cada mes. Tu resultado es privado: la clasificación solo la ve el comité.',
+      'Aquí irán apareciendo los tests y los mensajes del comité. Tu resultado es privado: la clasificación solo la ven los administradores.',
       '', preview ? '' : cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
   ${previewBar}
-  ${cmAnnouncementBanner()}
+  ${cmMessagesFeed()}
   ${body}`;
 }
 
-/* ---------- Panel de Formación: aquí se prepara todo y se publica en CTA BAGES ---------- */
-function cmSettingsTab(){
+/* ---------- Panel de Formación · Mensajes: se preparan y se publican en CTA BAGES ---------- */
+function cmMessagesTab(){
   const ic = (n) => shellIcon(n);
-  const s = cmSettings();
-  const draftAnn = COMMITTEE.announcementDraft !== undefined ? COMMITTEE.announcementDraft : (s.announcement || '');
-  const step = (n, title, text) => `<li><span>${n}</span><div><strong>${title}</strong><small>${text}</small></div></li>`;
+  const list = COMMITTEE.messages || [];
+  const d = COMMITTEE.msgDraft || { id: null, title: '', body: '' };
+  const editing = !!d.id;
+  const rows = list.map(m => `<article class="ms-card ${m.published ? 'pub' : 'draft'}">
+      <div class="ms-head">
+        <span class="cm-chip ${m.published ? 'open' : 'draft'}">${m.published ? 'Publicado' : 'Borrador'}</span>
+        <small>${cmFmtMsgDate(m.published ? (m.published_at || m.created_at) : m.created_at)}</small>
+      </div>
+      <h3>${esc(m.title)}</h3>
+      <p>${esc(m.body)}</p>
+      <div class="tx-actions">
+        <button class="btn ${m.published ? 'btn-ghost' : 'btn-primary'} tx-main" data-action="committee-msg-publish" data-mid="${m.id}">${ic(m.published ? 'lock' : 'play')} ${m.published ? 'Quitar de CTA BAGES' : 'Publicar en CTA BAGES'}</button>
+        <button class="tx-icon" data-action="committee-msg-edit" data-mid="${m.id}" title="Editar" aria-label="Editar">${ic('pencil')}</button>
+        <button class="tx-icon danger" data-action="committee-msg-delete" data-mid="${m.id}" title="Eliminar" aria-label="Eliminar">${ic('trash')}</button>
+      </div>
+    </article>`).join('');
   return `
-  ${COMMITTEE.settingsMissing ? `<div class="cm-draftbar" style="background:#FDECEC; border-color:#F3C4C4;">${ic('flag')}<div><strong>Falta un paso de instalación</strong><span>Ejecuta una vez el archivo supabase/cta-settings.sql en Supabase para poder usar estos ajustes.</span></div></div>` : ''}
-  <div class="tp-vis ${s.enabled ? 'on' : 'off'}">
-    <span class="tp-vis-ic">${ic(s.enabled ? 'eye' : 'lock')}</span>
-    <div class="tp-vis-text">
-      <strong>${s.enabled ? 'CTA BAGES está abierto a los árbitros' : 'CTA BAGES está cerrado a los árbitros'}</strong>
-      <small>${s.enabled ? 'Los miembros ven los tests que hayas publicado.' : 'Ningún miembro ve nada, ni siquiera los tests publicados. Úsalo si quieres cerrar todo un tiempo.'}</small>
+  ${COMMITTEE.messagesMissing ? `<div class="cm-draftbar" style="background:#FDECEC; border-color:#F3C4C4;">${ic('flag')}<div><strong>Falta un paso de instalación</strong><span>Ejecuta una vez el archivo supabase/committee-messages.sql en Supabase para poder publicar mensajes.</span></div></div>` : ''}
+  <div class="tp-layout mb-layout">
+    <div class="ms-list">
+      ${rows || `<div class="ac-empty">${ic('message')}<strong>Todavía no hay mensajes</strong><span>Escribe el primero a la derecha. Se guarda como borrador hasta que lo publiques en CTA BAGES.</span></div>`}
     </div>
-    <button class="btn ${s.enabled ? 'btn-glass' : 'btn-yellow'}" data-action="committee-set-enabled" data-value="${s.enabled ? 0 : 1}" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${ic(s.enabled ? 'lock' : 'play')} ${s.enabled ? 'Cerrar CTA BAGES' : 'Abrir CTA BAGES'}</button>
-  </div>
-  <div class="tp-layout">
-    <div class="tc-card">
-      <div class="tc-card-head"><span class="tc-step">${ic('message')}</span><div><h3>Mensaje para los árbitros</h3><small>Aparece arriba en CTA BAGES</small></div></div>
-      <textarea id="cm-announcement" data-cm-field="announcementDraft" rows="4" maxlength="500" placeholder="Ej: Ya está disponible el test de octubre. ¡Mucho ánimo!" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>${esc(draftAnn)}</textarea>
-      <button class="btn btn-primary" style="margin-top:12px;" data-action="committee-save-announcement" ${COMMITTEE.settingsMissing ? 'disabled' : ''}>Guardar mensaje</button>
-    </div>
-    <div class="tc-card">
-      <div class="tc-card-head"><span class="tc-step">${ic('idea')}</span><div><h3>Cómo funciona</h3><small>Prepara aquí, publica en CTA BAGES</small></div></div>
-      <ol class="tp-steps">
-        ${step(1, 'Crea el test en borrador', 'Elige preguntas del banco o genera uno equilibrado. Los árbitros no lo ven.')}
-        ${step(2, 'Añade a los árbitros', 'Por email, cuando se hayan registrado en we-ref.com.')}
-        ${step(3, 'Publícalo en CTA BAGES', 'Pulsa "Publicar" en el test: aparece para los árbitros desde su fecha de apertura.')}
-        ${step(4, 'Revisa resultados', 'La clasificación y los puntos débiles son privados: solo los ve el comité.')}
-      </ol>
-    </div>
+    <aside class="tc-card mb-add">
+      <div class="tc-card-head"><span class="tc-step">${ic(editing ? 'pencil' : 'plus')}</span><div><h3>${editing ? 'Editar mensaje' : 'Nuevo mensaje'}</h3><small>Para los árbitros de CTA BAGES</small></div></div>
+      <label for="cm-msg-title">Título</label>
+      <input type="text" id="cm-msg-title" data-cm-field="msgDraft.title" maxlength="120" value="${esc(d.title)}" placeholder="Ej: Ya está el test de octubre">
+      <label for="cm-msg-body">Mensaje</label>
+      <textarea id="cm-msg-body" data-cm-field="msgDraft.body" rows="6" maxlength="1500" placeholder="Escribe aquí lo que quieres contar a los árbitros...">${esc(d.body)}</textarea>
+      <div class="ms-form-actions">
+        <button class="btn btn-primary" data-action="committee-msg-save" data-publish="0" ${COMMITTEE.messagesMissing ? 'disabled' : ''}>${ic('check')} Guardar borrador</button>
+        <button class="btn btn-yellow" data-action="committee-msg-save" data-publish="1" ${COMMITTEE.messagesMissing ? 'disabled' : ''}>${ic('play')} Guardar y publicar</button>
+        ${editing ? `<button class="btn btn-ghost" data-action="committee-msg-cancel">Cancelar</button>` : ''}
+      </div>
+    </aside>
   </div>`;
 }
 
+/* ---------- Panel de Formación: aquí se prepara todo y se publica en CTA BAGES ---------- */
 /* ---------- miembro: hacer el test ---------- */
 function cmRunView(){
   const r = COMMITTEE.run;
@@ -364,12 +390,6 @@ function cmResultView(){
 }
 
 /* ---------- administrador: panel ---------- */
-function cmDraftBanner(){
-  if(cmSettings().enabled) return '';
-  return `<div class="cm-draftbar">${cmIc('lock')}<div><strong>CTA BAGES está cerrado a los árbitros</strong><span>Ningún miembro lo ve ahora mismo, aunque tengas tests publicados. Puedes abrirlo en Ajustes.</span></div>
-    <button class="btn btn-yellow" data-action="committee-tab" data-tab="settings">Ir a Ajustes</button></div>`;
-}
-
 /* ---------- administración: Panel de Formación (controla CTA BAGES) ---------- */
 /* ---------- miembro: lista de tests ---------- */
 function cmMemberTestCard(t, now){
@@ -636,16 +656,16 @@ function cmStatsTab(){
 function cmTrainingView(){
   const ic = (n) => shellIcon(n);
   const st = COMMITTEE.status || {};
-  const tab = ['tests', 'members', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
+  const tab = ['tests', 'messages', 'members', 'ranking', 'stats'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
   const nTests = (COMMITTEE.tests || []).length;
   const nMembers = (COMMITTEE.members || []).length;
-  const tabs = [['tests', 'Tests', 'book', nTests], ['members', 'Miembros', 'users', nMembers], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Ajustes', 'settings', null]];
+  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null]];
   let content;
   if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
   else if(tab === 'members') content = cmMembersTab();
   else if(tab === 'ranking') content = cmRankingTab();
   else if(tab === 'stats') content = cmStatsTab();
-  else if(tab === 'settings') content = cmSettingsTab();
+  else if(tab === 'messages') content = cmMessagesTab();
   else content = cmTestsTab();
   const s = cmAdminStats();
   const hero = cmHero('Administración · CTA BAGES', 'Panel de Formación',
@@ -660,7 +680,6 @@ function cmTrainingView(){
     </div>`);
   return `
   ${hero}
-  ${cmDraftBanner()}
   ${cmSetupWarning()}
   ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
   <nav class="cm-tabs" role="tablist" aria-label="Secciones del Panel de Formación">
@@ -992,23 +1011,55 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-test-filter'){ COMMITTEE.testFilter = el.dataset.filter; render(); }
   else if(action === 'committee-training'){
     if(!isDevUser()) return;
-    COMMITTEE.announcementDraft = undefined;
     STATE.view = 'committeeTraining'; render(); window.scrollTo(0, 0);
     cmLoadAdminData();
   }
-  else if(action === 'committee-set-enabled'){
+  else if(action === 'committee-msg-save'){
     if(!isDevUser()) return;
-    const enable = el.dataset.value === '1';
-    if(!enable && !confirm('¿Cerrar CTA BAGES? Ningún árbitro lo verá hasta que lo vuelvas a abrir.')) return;
-    if(enable && !confirm('¿Abrir CTA BAGES a los árbitros? Verán los tests que tengas publicados.')) return;
-    const ok = await cmSaveSettings({ enabled: enable });
-    if(ok) cmToast(enable ? 'CTA BAGES abierto a los árbitros.' : 'CTA BAGES cerrado a los árbitros.');
+    const d = COMMITTEE.msgDraft || { id: null, title: '', body: '' };
+    const title = String(d.title || '').trim(), body = String(d.body || '').trim();
+    if(!title || !body){ cmToast('Escribe un título y un mensaje.'); return; }
+    const publish = el.dataset.publish === '1';
+    const nowIso = new Date().toISOString();
+    let error;
+    if(d.id){
+      const cur = (COMMITTEE.messages || []).find(m => m.id === d.id) || {};
+      const patch = { title, body };
+      if(publish && !cur.published){ patch.published = true; patch.published_at = nowIso; }
+      ({ error } = await supabaseClient.from('committee_messages').update(patch).eq('id', d.id));
+    } else {
+      ({ error } = await supabaseClient.from('committee_messages').insert({ title, body, published: publish, published_at: publish ? nowIso : null }));
+    }
+    if(error){ cmToast(cmErrText(error)); return; }
+    COMMITTEE.msgDraft = { id: null, title: '', body: '' };
+    cmToast(publish ? 'Mensaje publicado en CTA BAGES.' : 'Mensaje guardado como borrador.');
+    cmLoadAdminData();
   }
-  else if(action === 'committee-save-announcement'){
+  else if(action === 'committee-msg-publish'){
     if(!isDevUser()) return;
-    const text = String(COMMITTEE.announcementDraft !== undefined ? COMMITTEE.announcementDraft : (cmSettings().announcement || '')).trim();
-    const ok = await cmSaveSettings({ announcement: text });
-    if(ok){ COMMITTEE.announcementDraft = undefined; cmToast(text ? 'Mensaje guardado.' : 'Mensaje eliminado.'); }
+    const m = (COMMITTEE.messages || []).find(x => x.id === el.dataset.mid); if(!m) return;
+    if(!m.published && !confirm('¿Publicar "' + m.title + '" en CTA BAGES? Los árbitros lo verán.')) return;
+    const patch = m.published ? { published: false } : { published: true, published_at: new Date().toISOString() };
+    const { error } = await supabaseClient.from('committee_messages').update(patch).eq('id', m.id);
+    if(error){ cmToast(cmErrText(error)); return; }
+    cmToast(m.published ? 'Mensaje quitado de CTA BAGES.' : 'Mensaje publicado en CTA BAGES.');
+    cmLoadAdminData();
+  }
+  else if(action === 'committee-msg-edit'){
+    const m = (COMMITTEE.messages || []).find(x => x.id === el.dataset.mid); if(!m) return;
+    COMMITTEE.msgDraft = { id: m.id, title: m.title, body: m.body };
+    render(); window.scrollTo(0, 0);
+  }
+  else if(action === 'committee-msg-cancel'){ COMMITTEE.msgDraft = { id: null, title: '', body: '' }; render(); }
+  else if(action === 'committee-msg-delete'){
+    if(!isDevUser()) return;
+    const m = (COMMITTEE.messages || []).find(x => x.id === el.dataset.mid); if(!m) return;
+    if(!confirm('¿Eliminar el mensaje "' + m.title + '"? No se puede deshacer.')) return;
+    const { error } = await supabaseClient.from('committee_messages').delete().eq('id', m.id);
+    if(error){ cmToast(cmErrText(error)); return; }
+    if(COMMITTEE.msgDraft && COMMITTEE.msgDraft.id === m.id) COMMITTEE.msgDraft = { id: null, title: '', body: '' };
+    cmToast('Mensaje eliminado.');
+    cmLoadAdminData();
   }
 
   /* miembro */

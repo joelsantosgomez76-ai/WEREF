@@ -1977,3 +1977,27 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
   .rk-who{min-width:100px;}
 }
 .mb-add .btn svg, .tx-toolbar .btn svg, .rk-list svg{width:16px; height:16px;} .tc-card .btn svg{width:16px; height:16px;}
+
+/* ---------- Mensajes del comité ---------- */
+.cm-feed{display:flex; flex-direction:column; gap:12px; margin-bottom:22px;}
+.cm-msg{display:flex; gap:14px; background:linear-gradient(135deg,#FFF9E8,#FFF3CF); border:1px solid #F0E0A8; border-radius:18px; padding:16px 20px;}
+.cm-msg-ic{width:42px; height:42px; flex-shrink:0; border-radius:13px; background:var(--yellow); color:var(--yellow-ink); display:flex; align-items:center; justify-content:center;}
+.cm-msg-ic svg{width:21px; height:21px;}
+.cm-msg-body{flex:1; min-width:0;}
+.cm-msg-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.cm-msg-top strong{font:700 17px 'Oswald'; color:var(--pitch); letter-spacing:0.01em;}
+.cm-msg-top em{font-style:normal; font:700 10px 'JetBrains Mono'; letter-spacing:0.08em; text-transform:uppercase; background:var(--accent); color:#fff; border-radius:20px; padding:2px 9px;}
+.cm-msg-body p{margin:4px 0 6px; font-size:14px; line-height:1.55; color:var(--ink); white-space:pre-wrap;}
+.cm-msg-body small{font-size:12px; color:var(--muted);}
+
+.ms-list{display:flex; flex-direction:column; gap:14px; min-width:0;}
+.ms-card{background:#fff; border:1px solid var(--line); border-left:5px solid #B5B5BA; border-radius:18px; padding:16px 20px 14px; box-shadow:var(--shadow);}
+.ms-card.pub{border-left-color:var(--green-ok);}
+.ms-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;}
+.ms-head small{font-size:12px; color:var(--muted);}
+.ms-card h3{font:700 19px 'Oswald'; letter-spacing:0.01em; margin:0 0 6px; color:var(--pitch);}
+.ms-card p{margin:0 0 12px; font-size:13.5px; line-height:1.5; color:var(--muted); white-space:pre-wrap; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+.ms-form-actions{display:flex; flex-direction:column; gap:8px; margin-top:14px;}
+.ms-form-actions .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px;}
+.ms-form-actions .btn svg{width:16px; height:16px;}
+.cm-previewbar > svg{width:40px; height:40px; flex-shrink:0; border-radius:12px; background:#2A6FDB; color:#fff; padding:9px;}

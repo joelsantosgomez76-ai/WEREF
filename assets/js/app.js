@@ -3099,10 +3099,10 @@ function homeView(){
     : '';
 
   const cst = (typeof COMMITTEE !== 'undefined') ? COMMITTEE.status : null;
-  const committeeHtml = (cst && (cst.is_admin || (cst.is_member && (typeof cmSettingsOn !== 'function' || cmSettingsOn()))))
+  const committeeHtml = (cst && (cst.is_admin || cst.is_member))
     ? `<button class="qcard home-card-btn" data-action="committee-open">
         <div class="home-card-title">${ic('users')} CTA BAGES</div>
-        <div class="home-card-text" style="color:var(--muted);">${cst.is_admin ? 'Así lo ven los árbitros. Se prepara desde el Panel de Formación.' : 'Tests mensuales del comité de árbitros.'}</div>
+        <div class="home-card-text" style="color:var(--muted);">${cst.is_admin ? 'Tests y mensajes del comité. Se preparan en el Panel de Formación.' : 'Tests mensuales del comité de árbitros.'}</div>
         <div class="home-card-link">Entrar →</div>
       </button>`
     : '';
