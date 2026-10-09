@@ -1,7 +1,8 @@
 /* ---------------- FORMACIÓN DEL COMITÉ (Bages) ----------------
    Tests mensuales privados para los árbitros que elige el administrador.
    Toda la seguridad vive en Supabase (ver supabase/committee.sql): aquí solo se pinta.
-   Depende de app.js (STATE, render, esc, allQuestions, LAW_NAMES, isDevUser). */
+   Depende de app.js (STATE, render, esc, allQuestions, LAW_NAMES, isDevUser, ringSVG, scoreColor,
+   accuracyBadge, normalizeQuestionText) y de shell.js (shellIcon). */
 
 const COMMITTEE = {
   status: null,       // null = sin cargar · {is_admin, is_member, setupMissing?}
@@ -11,10 +12,12 @@ const COMMITTEE = {
   attempts: null,
   ruleStats: null,
   qStats: null,
+  usedMap: null,      // texto normalizado de pregunta -> títulos de los tests donde ya salió
   tab: 'tests',
   rankMonth: 'all',
   newMemberEmail: '',
   detailTestId: null,
+  settings: null,
   run: null,
   result: null,
   builder: null,
@@ -22,9 +25,10 @@ const COMMITTEE = {
 };
 
 const CM_LETTERS = ['a', 'b', 'c', 'd'];
-const CM_PAGE_SIZE = 12;
+const CM_PAGE_SIZE = 10;
 
 /* ---------- utilidades ---------- */
+function cmIc(name){ return `<span class="cm-ic">${shellIcon(name)}</span>`; }
 function cmErrText(err){
   const m = String((err && (err.message || err.code)) || err || '');
   const known = {
@@ -47,32 +51,42 @@ function cmFmtDate(iso){
   if(!iso) return '—';
   return new Date(iso).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
-function cmFmtDay(iso){
-  if(!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-ES');
-}
+function cmFmtDay(iso){ return iso ? new Date(iso).toLocaleDateString('es-ES') : '—'; }
 function cmFmtDur(sec){
   if(sec === null || sec === undefined) return '—';
-  const m = Math.floor(sec / 60), s = sec % 60;
-  return m + ':' + String(s).padStart(2, '0');
+  return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+}
+function cmToLocalInput(iso){
+  if(!iso) return '';
+  const d = new Date(iso), p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 function cmWho(r){ return r.username || r.full_name || r.email || '—'; }
+function cmInitial(r){ return esc(String(cmWho(r)).charAt(0).toUpperCase() || '?'); }
 function cmToast(msg){ STATE.toast = msg; render(); }
 function cmInCommittee(){ return typeof STATE.view === 'string' && STATE.view.startsWith('committee'); }
 function cmRefresh(){ if(cmInCommittee()) render(); }
+function cmRuleLabel(q){
+  if(q.domain === 'glossary') return 'Glosario';
+  return q.rule ? 'Regla ' + q.rule : 'Sin regla';
+}
+function cmRuleShort(q){ return q.domain === 'glossary' ? 'G' : (q.rule ? 'R' + q.rule : '—'); }
+function cmShuffle(arr){
+  for(let i = arr.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
 function cmSetupWarning(){
   if(!(COMMITTEE.status && COMMITTEE.status.setupMissing)) return '';
-  return `<div class="qcard" style="border-color:#F0C4C4; margin-bottom:14px;">
+  return `<div class="cm-card" style="border-color:#F0C4C4;">
     <div style="font-weight:700; margin-bottom:6px;">Falta un paso de instalación</div>
-    <div style="font-size:13.5px; color:var(--ink);">Hay que ejecutar una vez el archivo <span class="mono">supabase/committee.sql</span> en Supabase (SQL Editor). Hasta entonces este apartado no funcionará.</div>
+    <div style="font-size:13.5px;">Hay que ejecutar una vez el archivo <span class="mono">supabase/committee.sql</span> en Supabase (SQL Editor). Hasta entonces este apartado no funcionará.</div>
   </div>`;
 }
 function cmExport(rows, sheetName, fileName){
   if(typeof XLSX === 'undefined'){ cmToast('No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'); return; }
   if(!rows.length){ cmToast('No hay datos que exportar.'); return; }
-  const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), sheetName);
   XLSX.writeFile(wb, fileName);
 }
 
@@ -102,7 +116,8 @@ async function cmLoadAdminData(){
     supabaseClient.from('committee_tests').select('*, committee_test_questions(count)').order('created_at', { ascending: false }),
     supabaseClient.rpc('committee_admin_list_members'),
     supabaseClient.rpc('committee_admin_all_attempts'),
-    supabaseClient.rpc('committee_admin_rule_stats')
+    supabaseClient.rpc('committee_admin_rule_stats'),
+    supabaseClient.from('committee_test_questions').select('question, committee_tests(title)')
   ]);
   const firstErr = results.map(r => r.error).find(Boolean);
   if(firstErr){
@@ -111,6 +126,7 @@ async function cmLoadAdminData(){
     COMMITTEE.members = COMMITTEE.members || [];
     COMMITTEE.attempts = COMMITTEE.attempts || [];
     COMMITTEE.ruleStats = COMMITTEE.ruleStats || [];
+    COMMITTEE.usedMap = COMMITTEE.usedMap || {};
   } else {
     COMMITTEE.tests = (results[0].data || []).map(t => Object.assign({}, t, {
       question_count: (t.committee_test_questions && t.committee_test_questions[0]) ? t.committee_test_questions[0].count : 0
@@ -118,15 +134,21 @@ async function cmLoadAdminData(){
     COMMITTEE.members = results[1].data || [];
     COMMITTEE.attempts = results[2].data || [];
     COMMITTEE.ruleStats = results[3].data || [];
+    const used = {};
+    (results[4].data || []).forEach(r => {
+      const k = normalizeQuestionText(r.question);
+      const title = r.committee_tests && r.committee_tests.title;
+      if(!k || !title) return;
+      (used[k] = used[k] || []);
+      if(!used[k].includes(title)) used[k].push(title);
+    });
+    COMMITTEE.usedMap = used;
   }
   cmRefresh();
 }
 
-/* ---------- entrada desde la pantalla de inicio ---------- */
-function cmHomeButton(){
-  const st = COMMITTEE.status;
-  if(!st || !(st.is_admin || st.is_member)) return '';
-  return `<button class="btn btn-yellow" data-action="committee-open">🏅 Formación Comité Bages</button>`;
+function cmUsedIn(q){
+  return (COMMITTEE.usedMap && COMMITTEE.usedMap[normalizeQuestionText(q.question)]) || [];
 }
 
 /* ---------- enrutado de vistas ---------- */
@@ -139,6 +161,24 @@ function committeeView(v){
   return cmMemberView();
 }
 
+function cmHero(eyebrow, title, text, actionsHtml, rightHtml){
+  return `<section class="home-hero">
+    <div>
+      <div class="home-eyebrow">${eyebrow}</div>
+      <h1>${title}</h1>
+      <p>${text}</p>
+      ${actionsHtml ? `<div class="home-hero-actions">${actionsHtml}</div>` : ''}
+    </div>
+    ${rightHtml || ''}
+  </section>`;
+}
+function cmRingBlock(pct, label, sub){
+  return `<div class="home-hero-rank static">
+    <div class="ring">${ringSVG(pct, 84, 7)}<div class="pct" style="font-size:15px;">${pct}%</div></div>
+    <div style="text-align:center;"><div class="rank-name">${esc(label)}</div><div class="rank-sub">${esc(sub)}</div></div>
+  </div>`;
+}
+
 /* ---------- miembro: lista de tests ---------- */
 function cmMemberView(){
   const list = COMMITTEE.myTests;
@@ -148,11 +188,14 @@ function cmMemberView(){
   else if(list === null) body = '<div class="empty-state">Cargando...</div>';
   else if(!list.length) body = '<div class="empty-state">Todavía no hay ningún test publicado. El comité te avisará cuando haya uno.</div>';
   else body = list.map(t => cmMemberTestCard(t, now)).join('');
-  const back = (COMMITTEE.status && COMMITTEE.status.is_admin) ? 'committee-open' : 'home';
+  const total = list ? list.length : 0;
+  const done = list ? list.filter(t => t.attempts_used > 0).length : 0;
+  const pct = total ? Math.round(done / total * 100) : 0;
   return `
-  <button class="backbtn" data-action="${back}">&larr; ${back === 'home' ? 'Inicio' : 'Volver'}</button>
-  <h2 style="margin-bottom:4px;">Formación Comité Bages</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">Tests del comité. Tu resultado es privado: la clasificación solo la ve el comité.</div>
+  ${cmHero('Comité de árbitros · Bages', 'Formación del comité',
+      'Tests del comité para practicar cada mes. Tu resultado es privado: la clasificación solo la ve el comité.',
+      '', cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
+  <h2 style="font-size:20px; margin-bottom:12px;">Tus tests</h2>
   ${body}`;
 }
 
@@ -163,25 +206,30 @@ function cmMemberTestCard(t, now){
   const closed = closes !== null && now >= closes;
   const left = t.max_attempts - t.attempts_used;
   const done = t.attempts_used > 0;
-  let status, action = '';
-  if(notOpen) status = `<span class="badge" style="background:var(--line); color:var(--ink);">Abre el ${cmFmtDate(t.opens_at)}</span>`;
-  else if(closed) status = `<span class="badge" style="background:var(--line); color:var(--ink);">Cerrado</span>`;
-  else status = `<span class="badge" style="background:var(--green-ok); color:#fff;">Abierto${closes ? ' hasta el ' + cmFmtDate(t.closes_at) : ''}</span>`;
+  let cls, chip, action = '';
+  if(notOpen){ cls = 'sched'; chip = `<span class="cm-chip sched">Abre el ${cmFmtDate(t.opens_at)}</span>`; }
+  else if(closed){ cls = 'closed'; chip = '<span class="cm-chip closed">Cerrado</span>'; }
+  else { cls = 'open'; chip = '<span class="cm-chip open">Abierto</span>'; }
   if(!notOpen && !closed && left > 0){
     action = `<button class="btn btn-primary" data-action="committee-start" data-tid="${t.id}">${done ? 'Hacer otro intento' : 'Empezar test'}</button>`;
   } else if(done && (closed || !closes)){
     action = `<button class="btn btn-secondary" data-action="committee-review" data-tid="${t.id}">Ver respuestas</button>`;
   }
   const result = done
-    ? `<div style="margin-top:8px; font-size:13.5px;"><strong>Tu mejor resultado:</strong> ${t.best_score} / ${t.best_total} <span class="mono" style="color:var(--muted);">(${Math.round(t.best_score / t.best_total * 100)}%)</span> · intentos: ${t.attempts_used}/${t.max_attempts}</div>`
-    : `<div style="margin-top:8px; font-size:13px; color:var(--muted);">${t.total_questions} preguntas · intentos: ${t.attempts_used}/${t.max_attempts}</div>`;
-  return `<div class="qcard" style="margin-bottom:10px;">
-    <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-      <div style="font-weight:700; font-size:16px;">${esc(t.title)}</div>
-      ${status}
+    ? `<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+         ${accuracyBadge(Math.round(t.best_score / t.best_total * 100))}
+         <span style="font-size:13.5px;"><strong>Tu mejor resultado:</strong> ${t.best_score} / ${t.best_total}</span>
+       </div>`
+    : '';
+  return `<div class="cm-test ${cls}">
+    <div class="cm-test-head"><div class="cm-test-title">${esc(t.title)}</div>${chip}</div>
+    <div class="cm-meta">
+      <span>${cmIc('book')} ${t.total_questions} preguntas</span>
+      <span>${cmIc('repeat')} Intentos: ${t.attempts_used}/${t.max_attempts}</span>
+      ${t.closes_at ? `<span>${cmIc('clock')} Cierra el ${cmFmtDate(t.closes_at)}</span>` : ''}
     </div>
     ${result}
-    ${action ? `<div style="margin-top:12px;">${action}</div>` : ''}
+    ${action ? `<div class="cm-actions">${action}</div>` : ''}
   </div>`;
 }
 
@@ -194,6 +242,7 @@ function cmRunView(){
   const answered = Object.keys(r.answers).length;
   const sel = r.answers[q.pos];
   const isLast = r.idx === qs.length - 1;
+  const dots = qs.map((x, i) => `<button class="cm-dot ${r.answers[x.pos] ? 'answered' : ''} ${i === r.idx ? 'current' : ''}" data-action="committee-goto" data-idx="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('');
   return `
   <button class="backbtn" data-action="committee-exit-run">&larr; Salir</button>
   <h2 style="margin-bottom:4px;">${esc(r.test.title)}</h2>
@@ -209,13 +258,16 @@ function cmRunView(){
     ${isLast
       ? `<button class="btn btn-primary" data-action="committee-finish" ${r.submitting ? 'disabled' : ''}>${r.submitting ? 'Enviando...' : 'Finalizar test'}</button>`
       : `<button class="btn btn-primary" data-action="committee-next">Siguiente &rarr;</button>`}
-  </div>`;
+  </div>
+  <div class="cm-dots">${dots}</div>
+  ${answered < qs.length ? '' : '<div style="text-align:center; margin-top:14px; font-size:13px; color:var(--green-ok); font-weight:700;">Has respondido todas. Cuando quieras, finaliza el test.</div>'}`;
 }
 
 function cmResultView(){
   const r = COMMITTEE.result;
   if(!r) return cmMemberView();
   const pct = Math.round(r.score / r.total * 100);
+  const msg = pct >= 85 ? '¡Excelente resultado!' : pct >= 60 ? 'Buen trabajo, sigue así.' : 'Hay margen de mejora: repasa las reglas más flojas.';
   const review = r.review ? r.review.map((q, idx) => `
     <div class="qcard" style="margin-bottom:10px;">
       ${q.rule ? `<div class="qtag">Regla ${q.rule} · ${esc(LAW_NAMES[q.rule] || '')}</div>` : ''}
@@ -231,21 +283,47 @@ function cmResultView(){
       ${q.explanation ? `<div style="margin-top:8px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
     </div>`).join('') : '';
   return `
-  <button class="backbtn" data-action="committee-open">&larr; Volver</button>
-  <h2 style="margin-bottom:4px;">${esc(r.title)}</h2>
-  <div class="result-hero">
-    <div class="big" style="color:${scoreColor(pct)};">${pct}%</div>
-    <div class="label">${r.score} de ${r.total} respuestas correctas</div>
+  <button class="backbtn" data-action="committee-open">&larr; Volver a mis tests</button>
+  <div class="cm-card" style="text-align:center; padding:28px 20px;">
+    <div class="home-eyebrow" style="color:var(--muted);">${esc(r.title)}</div>
+    <div class="cm-result-ring">
+      <svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="75" cy="75" r="66" fill="none" stroke="${scoreColor(pct)}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(2 * Math.PI * 66).toFixed(1)}" stroke-dashoffset="${(2 * Math.PI * 66 * (1 - pct / 100)).toFixed(1)}" transform="rotate(-90 75 75)"/></svg>
+      <div class="cm-result-pct">${pct}%</div>
+    </div>
+    <div style="font-weight:700; font-size:16px;">${r.score} de ${r.total} respuestas correctas</div>
+    <div style="font-size:13.5px; color:var(--muted); margin-top:4px;">${msg}</div>
   </div>
-  ${r.review ? `<div class="section-title">Revisión</div>${review}` : `<div class="empty-state">Tu resultado ya está guardado. Las respuestas correctas se publicarán cuando cierre el test.</div>`}`;
+  ${r.review ? `<h2 style="font-size:20px; margin:20px 0 12px;">Revisión</h2>${review}` : `<div class="empty-state">Tu resultado ya está guardado. Las respuestas correctas se publicarán cuando cierre el test.</div>`}`;
 }
 
 /* ---------- administrador: panel ---------- */
+function cmAdminStats(){
+  const members = COMMITTEE.members || [];
+  const pub = (COMMITTEE.tests || []).filter(t => t.published);
+  const att = COMMITTEE.attempts || [];
+  const pubIds = new Set(pub.map(t => t.id));
+  let part = 0;
+  pub.forEach(t => {
+    const users = new Set(att.filter(a => a.test_id === t.id).map(a => a.user_id));
+    part += members.length ? Math.min(1, users.size / members.length) : 0;
+  });
+  const best = {};
+  att.forEach(a => { if(!pubIds.has(a.test_id)) return; const k = a.test_id + '|' + a.user_id; if(!best[k] || a.score > best[k].score) best[k] = a; });
+  let score = 0, total = 0;
+  Object.values(best).forEach(a => { score += a.score; total += a.total; });
+  return {
+    members: members.length,
+    published: pub.length,
+    participation: pub.length ? Math.round(part / pub.length * 100) : 0,
+    accuracy: total ? Math.round(score / total * 100) : null
+  };
+}
+
 function cmAdminView(){
   const st = COMMITTEE.status || {};
-  const tabs = [['tests', 'Tests'], ['members', 'Miembros'], ['ranking', 'Clasificación'], ['stats', 'Puntos débiles']];
-  if(st.is_member) tabs.push(['mine', 'Mis tests']);
   const tab = COMMITTEE.tab;
+  const tabs = [['tests', 'Tests', 'book'], ['members', 'Miembros', 'users'], ['ranking', 'Clasificación', 'trophy'], ['stats', 'Puntos débiles', 'target']];
+  if(st.is_member) tabs.push(['mine', 'Mis tests', 'check']);
   let content;
   if(COMMITTEE.tests === null) content = '<div class="empty-state">Cargando...</div>';
   else if(tab === 'members') content = cmMembersTab();
@@ -253,73 +331,106 @@ function cmAdminView(){
   else if(tab === 'stats') content = cmStatsTab();
   else if(tab === 'mine') content = cmMineTab();
   else content = cmTestsTab();
+  const s = cmAdminStats();
+  const hero = cmHero('Comité de árbitros · Bages', 'Formación del comité',
+    'Crea tests mensuales, elige quién participa y sigue la evolución del comité. La clasificación es privada: solo tú la ves.',
+    `<button class="btn btn-yellow" data-action="committee-new">${cmIc('plus')} Nuevo test</button>
+     <button class="btn home-btn-light" data-action="committee-tab" data-tab="members">${cmIc('userplus')} Añadir árbitro</button>`,
+    cmRingBlock(s.participation, 'Participación', 'media de los tests'));
+  const kpis = `<div class="home-kpis">
+    <div class="kpi"><div class="kpi-top">${cmIc('users')} Miembros</div><div class="kpi-val">${s.members}</div><div class="kpi-sub">con acceso al comité</div></div>
+    <div class="kpi"><div class="kpi-top">${cmIc('book')} Tests publicados</div><div class="kpi-val">${s.published}</div><div class="kpi-sub">${(COMMITTEE.tests || []).length - s.published} en borrador</div></div>
+    <div class="kpi"><div class="kpi-top">${cmIc('check')} Participación</div><div class="kpi-val">${s.participation}<small>%</small></div><div class="kpi-sub">miembros que hacen cada test</div></div>
+    <div class="kpi"><div class="kpi-top">${cmIc('target')} Acierto medio</div><div class="kpi-val" ${s.accuracy !== null ? `style="color:${scoreColor(s.accuracy)};"` : ''}>${s.accuracy !== null ? s.accuracy + '<small>%</small>' : '—'}</div><div class="kpi-sub">mejor intento de cada árbitro</div></div>
+  </div>`;
   return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Formación Comité Bages</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:14px; font-size:13.5px;">Panel del comité: tests mensuales, miembros y clasificación (privada).</div>
+  ${hero}
   ${cmSetupWarning()}
-  ${COMMITTEE.error && !(st.setupMissing) ? `<div class="empty-state" style="margin-bottom:12px;">${esc(COMMITTEE.error)}</div>` : ''}
-  <div class="tabs" style="margin-bottom:14px;">
-    ${tabs.map(([k, label]) => `<button class="tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${label}</button>`).join('')}
+  ${COMMITTEE.error && !st.setupMissing ? `<div class="empty-state" style="margin-bottom:12px;">${esc(COMMITTEE.error)}</div>` : ''}
+  ${kpis}
+  <div class="cm-tabs" role="tablist">
+    ${tabs.map(([k, label, icon]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span></button>`).join('')}
   </div>
   ${content}`;
 }
 
-function cmTestStatus(t){
+function cmTestState(t){
   const now = Date.now();
-  if(!t.published) return '<span class="badge" style="background:var(--line); color:var(--ink);">Borrador</span>';
-  if(Date.parse(t.opens_at) > now) return '<span class="badge" style="background:var(--yellow); color:var(--yellow-ink);">Programado</span>';
-  if(t.closes_at && Date.parse(t.closes_at) <= now) return '<span class="badge" style="background:var(--pitch); color:#fff;">Cerrado</span>';
-  return '<span class="badge" style="background:var(--green-ok); color:#fff;">Abierto</span>';
+  if(!t.published) return { cls: 'draft', label: 'Borrador' };
+  if(Date.parse(t.opens_at) > now) return { cls: 'sched', label: 'Programado' };
+  if(t.closes_at && Date.parse(t.closes_at) <= now) return { cls: 'closed', label: 'Cerrado' };
+  return { cls: 'open', label: 'Abierto' };
 }
+function cmStatusChip(t){ const s = cmTestState(t); return `<span class="cm-chip ${s.cls}">${s.label}</span>`; }
 
 function cmTestsTab(){
   const tests = COMMITTEE.tests || [];
   const attempts = COMMITTEE.attempts || [];
+  const m = (COMMITTEE.members || []).length;
   const cards = tests.map(t => {
-    const mine = attempts.filter(a => a.test_id === t.id);
-    const people = new Set(mine.map(a => a.user_id)).size;
-    return `<div class="qcard" style="margin-bottom:10px;">
-      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-        <div style="font-weight:700; font-size:16px;">${esc(t.title)}</div>
-        ${cmTestStatus(t)}
+    const st = cmTestState(t);
+    const people = new Set(attempts.filter(a => a.test_id === t.id).map(a => a.user_id)).size;
+    const pct = m ? Math.min(100, Math.round(people / m * 100)) : 0;
+    return `<div class="cm-test ${st.cls}">
+      <div class="cm-test-head"><div class="cm-test-title">${esc(t.title)}</div>${cmStatusChip(t)}</div>
+      <div class="cm-meta">
+        ${t.month ? `<span>${cmIc('calendar')} ${esc(t.month)}</span>` : ''}
+        <span>${cmIc('book')} ${t.question_count} preguntas</span>
+        <span>${cmIc('repeat')} ${t.max_attempts} ${t.max_attempts === 1 ? 'intento' : 'intentos'}</span>
+        <span>${cmIc('clock')} ${cmFmtDate(t.opens_at)} → ${t.closes_at ? cmFmtDate(t.closes_at) : 'sin cierre'}</span>
       </div>
-      <div style="font-size:12.5px; color:var(--muted); margin-top:6px;">
-        ${t.month ? esc(t.month) + ' · ' : ''}${t.question_count} preguntas · ${t.max_attempts} ${t.max_attempts === 1 ? 'intento' : 'intentos'} ·
-        abre ${cmFmtDate(t.opens_at)} · ${t.closes_at ? 'cierra ' + cmFmtDate(t.closes_at) : 'sin fecha de cierre'} · ${people} ${people === 1 ? 'persona lo ha hecho' : 'personas lo han hecho'}
-      </div>
-      <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
-        <button class="btn ${t.published ? 'btn-secondary' : 'btn-primary'}" style="padding:7px 14px; font-size:13px;" data-action="committee-toggle-pub" data-tid="${t.id}">${t.published ? 'Despublicar' : 'Publicar'}</button>
-        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px;" data-action="committee-detail" data-tid="${t.id}">Resultados</button>
-        <button class="btn btn-ghost" style="padding:7px 14px; font-size:13px; color:var(--red); border-color:#F0C4C4;" data-action="committee-delete-test" data-tid="${t.id}">Eliminar</button>
+      ${t.published ? `<div class="cm-prog"><div class="cm-prog-top"><span>Participación</span><span>${people} de ${m} miembros</span></div><div class="cm-prog-bar"><div style="width:${pct}%"></div></div></div>` : ''}
+      <div class="cm-actions">
+        <button class="btn ${t.published ? 'btn-secondary' : 'btn-primary'}" data-action="committee-toggle-pub" data-tid="${t.id}">${cmIc(t.published ? 'lock' : 'play')} ${t.published ? 'Despublicar' : 'Publicar'}</button>
+        <button class="btn btn-ghost" data-action="committee-detail" data-tid="${t.id}">${cmIc('chart')} Resultados y ajustes</button>
+        <button class="btn btn-ghost" data-action="committee-duplicate" data-tid="${t.id}">${cmIc('copy')} Duplicar</button>
+        <button class="btn btn-ghost btn-danger-soft" data-action="committee-delete-test" data-tid="${t.id}">${cmIc('trash')} Eliminar</button>
       </div>
     </div>`;
   }).join('');
-  return `
-  <div style="margin-bottom:14px;"><button class="btn btn-primary" data-action="committee-new">+ Nuevo test</button></div>
-  ${cards || '<div class="empty-state">Todavía no has creado ningún test.</div>'}`;
+  return cards || `<div class="cm-card" style="text-align:center; padding:34px 20px;">
+    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">Todavía no has creado ningún test</div>
+    <div style="font-size:13.5px; color:var(--muted); margin-bottom:14px;">Crea el primero con preguntas del banco o genera uno equilibrado en un clic.</div>
+    <button class="btn btn-primary" data-action="committee-new">${cmIc('plus')} Crear el primer test</button>
+  </div>`;
+}
+
+function cmMemberStats(uid){
+  const pubIds = new Set((COMMITTEE.tests || []).filter(t => t.published).map(t => t.id));
+  const best = {};
+  (COMMITTEE.attempts || []).filter(a => a.user_id === uid && pubIds.has(a.test_id)).forEach(a => { if(!best[a.test_id] || a.score > best[a.test_id].score) best[a.test_id] = a; });
+  const done = Object.values(best);
+  const score = done.reduce((s, a) => s + a.score, 0), total = done.reduce((s, a) => s + a.total, 0);
+  return { done: done.length, pct: total ? Math.round(score / total * 100) : null, published: pubIds.size };
 }
 
 function cmMembersTab(){
   const members = COMMITTEE.members || [];
-  const rows = members.map(m => `<tr>
-    <td>${esc(m.username || '—')}</td>
-    <td>${esc(m.full_name || '—')}</td>
-    <td style="word-break:break-all;">${esc(m.email || '')}</td>
-    <td class="mono">${cmFmtDay(m.added_at)}</td>
-    <td><button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--red); border-color:#F0C4C4;" data-action="committee-remove-member" data-uid="${m.user_id}">Quitar</button></td>
-  </tr>`).join('');
+  const rows = members.map(m => {
+    const s = cmMemberStats(m.user_id);
+    return `<div class="cm-member">
+      <span class="shell-avatar">${cmInitial(m)}</span>
+      <div class="cm-member-info"><strong>${esc(m.username || m.full_name || m.email || '')}</strong><small>${esc(m.full_name && m.username ? m.full_name + ' · ' : '')}${esc(m.email || '')}</small></div>
+      <div class="cm-member-stats">
+        <span class="cm-chip soft">${s.done}/${s.published} tests</span>
+        ${s.pct !== null ? accuracyBadge(s.pct) : '<span class="cm-chip soft">sin resultados</span>'}
+      </div>
+      <button class="btn btn-ghost btn-danger-soft" style="padding:6px 10px; font-size:12px;" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso">${cmIc('trash')}</button>
+    </div>`;
+  }).join('');
   return `
-  <div class="qcard" style="margin-bottom:14px;">
-    <label for="cm-new-member">Añadir árbitro por su email</label>
+  <div class="cm-card">
+    <div class="cm-sec-title">Añadir árbitro</div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <input type="email" id="cm-new-member" data-cm-field="newMemberEmail" value="${esc(COMMITTEE.newMemberEmail)}" placeholder="correo@ejemplo.com" style="flex:1; min-width:200px;">
-      <button class="btn btn-primary" data-action="committee-add-member">Añadir</button>
+      <button class="btn btn-primary" data-action="committee-add-member">${cmIc('userplus')} Añadir</button>
     </div>
     <div style="font-size:12.5px; color:var(--muted); margin-top:8px;">La persona tiene que haberse registrado antes en we-ref.com con ese mismo email.</div>
   </div>
-  <div class="section-title">Miembros con acceso (${members.length})</div>
-  ${members.length ? `<div class="qcard" style="overflow-x:auto;"><table class="stat-table"><tr><th>Usuario</th><th>Nombre</th><th>Email</th><th>Alta</th><th></th></tr>${rows}</table></div>` : '<div class="empty-state">Todavía no hay ningún miembro.</div>'}`;
+  <div class="cm-card">
+    <div class="cm-sec-title">Miembros con acceso (${members.length})</div>
+    ${rows || '<div style="font-size:13.5px; color:var(--muted);">Todavía no hay ningún miembro. Añade el primero con su email.</div>'}
+  </div>`;
 }
 
 function cmMineTab(){
@@ -334,8 +445,6 @@ function cmMineTab(){
 function cmComputeRanking(month){
   const tests = (COMMITTEE.tests || []).filter(t => t.published && (month === 'all' || t.month === month));
   const ids = new Set(tests.map(t => t.id));
-  const maxTotal = {};
-  (COMMITTEE.attempts || []).forEach(a => { if(ids.has(a.test_id)) maxTotal[a.test_id] = a.total; });
   const people = {};
   (COMMITTEE.members || []).forEach(m => { people[m.user_id] = { id: m.user_id, who: cmWho(m), full_name: m.full_name, email: m.email, best: {} }; });
   (COMMITTEE.attempts || []).filter(a => ids.has(a.test_id)).forEach(a => {
@@ -350,13 +459,20 @@ function cmComputeRanking(month){
     const dur = done.reduce((s, a) => s + (a.duration_sec || 0), 0);
     return { who: p.who, full_name: p.full_name, email: p.email, done: done.length, score, total, pct: total ? score / total * 100 : 0, avgDur: done.length ? Math.round(dur / done.length) : null };
   });
-  rows.sort((a, b) => (b.done > 0) - (a.done > 0) || b.pct - a.pct || b.score - a.score || (a.avgDur ?? 1e9) - (b.avgDur ?? 1e9));
+  rows.sort((a, b) => (b.done > 0) - (a.done > 0) || b.pct - a.pct || b.score - a.score || (a.avgDur === null ? 1e9 : a.avgDur) - (b.avgDur === null ? 1e9 : b.avgDur));
   return { rows, testCount: tests.length };
 }
 
 function cmRankingTab(){
   const months = Array.from(new Set((COMMITTEE.tests || []).filter(t => t.published && t.month).map(t => t.month))).sort().reverse();
   const { rows, testCount } = cmComputeRanking(COMMITTEE.rankMonth);
+  const top = rows.filter(r => r.done > 0).slice(0, 3);
+  const podium = top.length ? `<div class="cm-podium">${top.map((r, i) => `<div class="cm-pod p${i + 1}">
+      <div class="cm-pod-pos">${i + 1}º</div>
+      <div class="cm-pod-name">${esc(r.who)}</div>
+      <div class="cm-pod-pct">${Math.round(r.pct)}%</div>
+      <div class="cm-pod-sub">${r.score}/${r.total} · ${cmFmtDur(r.avgDur)}</div>
+    </div>`).join('')}</div>` : '';
   const body = rows.map((r, i) => `<tr>
     <td class="mono">${r.done ? i + 1 : '—'}</td>
     <td><strong>${esc(r.who)}</strong>${r.full_name && r.full_name !== r.who ? `<div style="font-size:11.5px; color:var(--muted);">${esc(r.full_name)}</div>` : ''}</td>
@@ -366,36 +482,47 @@ function cmRankingTab(){
     <td class="mono">${cmFmtDur(r.avgDur)}</td>
   </tr>`).join('');
   return `
-  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:6px;">
     <div style="flex:1; min-width:180px;">
-      <label>Periodo</label>
+      <label for="cm-rank-month">Periodo</label>
       <select id="cm-rank-month" data-cm-field="rankMonth" data-cm-rerender>
         <option value="all" ${COMMITTEE.rankMonth === 'all' ? 'selected' : ''}>Toda la temporada</option>
         ${months.map(m => `<option value="${esc(m)}" ${COMMITTEE.rankMonth === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
       </select>
     </div>
-    <button class="btn btn-secondary" data-action="committee-export-ranking">📊 Exportar a Excel</button>
+    <button class="btn btn-secondary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-ranking">${cmIc('download')} Exportar a Excel</button>
   </div>
-  <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Se cuenta el mejor intento de cada test publicado. Orden: % de acierto, puntos y tiempo medio. Esta clasificación solo la ves tú.</div>
-  ${rows.length ? `<div class="qcard" style="overflow-x:auto;"><table class="stat-table"><tr><th>#</th><th>Árbitro</th><th>Tests</th><th>Puntos</th><th>Acierto</th><th>Tiempo medio</th></tr>${body}</table></div>` : '<div class="empty-state">Todavía no hay miembros ni resultados.</div>'}`;
+  <div style="font-size:12.5px; color:var(--muted); margin:8px 0 14px;">Se cuenta el mejor intento de cada test publicado. Orden: % de acierto, puntos y tiempo medio. Esta clasificación solo la ves tú.</div>
+  ${podium}
+  ${rows.length ? `<div class="cm-card" style="overflow-x:auto; padding:8px 14px;"><table class="stat-table"><tr><th>#</th><th>Árbitro</th><th>Tests</th><th>Puntos</th><th>Acierto</th><th>Tiempo medio</th></tr>${body}</table></div>` : '<div class="empty-state">Todavía no hay miembros ni resultados.</div>'}`;
 }
 
 function cmStatsTab(){
   const stats = (COMMITTEE.ruleStats || []).map(s => Object.assign({}, s, { pct: s.answered ? Math.round(s.correct_count / s.answered * 100) : 0 })).sort((a, b) => a.pct - b.pct);
   if(!stats.length) return '<div class="empty-state">Todavía no hay resultados para calcular los puntos débiles.</div>';
-  const bars = stats.map(s => `<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-    <div style="width:170px; font-size:13px; flex-shrink:0;"><strong>R${s.rule}</strong> ${esc(LAW_NAMES[s.rule] || '')}</div>
-    <div class="law-bar-bg" style="flex:1;"><div class="law-bar-fill" style="width:${s.pct}%; background:${scoreColor(s.pct)};"></div></div>
-    <div class="mono" style="width:44px; text-align:right; font-size:13px;">${s.pct}%</div>
+  const weakest = stats.slice(0, 3);
+  const bars = stats.map(s => `<div class="cm-rule-row">
+    <div class="cm-rule-name"><strong>R${s.rule}</strong> ${esc(LAW_NAMES[s.rule] || '')}</div>
+    <div class="cm-rule-bar"><div style="width:${s.pct}%; background:${scoreColor(s.pct)};"></div></div>
+    <div class="cm-rule-val" style="color:${scoreColor(s.pct)};">${s.pct}%</div>
   </div>`).join('');
-  return `<div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Acierto del comité por regla, de menor a mayor. Las reglas de arriba son las que más conviene reforzar.</div>
-  <div class="qcard">${bars}</div>`;
+  return `
+  <div class="cm-card" style="border-left:4px solid var(--red);">
+    <div class="cm-sec-title" style="color:var(--red);">Reglas a reforzar con el comité</div>
+    <div class="cm-chips">${weakest.map(s => `<span class="cm-chip soft" style="font-size:12.5px;"><strong>R${s.rule}</strong> ${esc(LAW_NAMES[s.rule] || '')} · ${s.pct}%</span>`).join('')}</div>
+  </div>
+  <div class="cm-card">
+    <div class="cm-sec-title">Acierto del comité por regla (de menor a mayor)</div>
+    ${bars}
+  </div>`;
 }
 
-/* ---------- administrador: resultados de un test ---------- */
+/* ---------- administrador: resultados y ajustes de un test ---------- */
 async function cmOpenDetail(tid){
   COMMITTEE.detailTestId = tid;
   COMMITTEE.qStats = null;
+  const t = (COMMITTEE.tests || []).find(x => x.id === tid);
+  COMMITTEE.settings = t ? { opens: cmToLocalInput(t.opens_at), closes: cmToLocalInput(t.closes_at), max: String(t.max_attempts) } : null;
   STATE.view = 'committeeTestDetail';
   render();
   const { data, error } = await supabaseClient.rpc('committee_admin_question_stats', { p_test_id: tid });
@@ -407,10 +534,13 @@ async function cmOpenDetail(tid){
 function cmTestDetailView(){
   const t = (COMMITTEE.tests || []).find(x => x.id === COMMITTEE.detailTestId);
   if(!t) return '<button class="backbtn" data-action="committee-open">&larr; Volver</button><div class="empty-state">Test no encontrado.</div>';
+  const set = COMMITTEE.settings || { opens: '', closes: '', max: '1' };
   const attempts = (COMMITTEE.attempts || []).filter(a => a.test_id === t.id)
     .sort((a, b) => b.score - a.score || (a.duration_sec || 0) - (b.duration_sec || 0));
   const doneIds = new Set(attempts.map(a => a.user_id));
   const pending = (COMMITTEE.members || []).filter(m => !doneIds.has(m.user_id));
+  const avgPct = attempts.length ? Math.round(attempts.reduce((s, a) => s + a.score / a.total * 100, 0) / attempts.length) : null;
+  const avgDur = attempts.length ? Math.round(attempts.reduce((s, a) => s + (a.duration_sec || 0), 0) / attempts.length) : null;
   const rows = attempts.map(a => `<tr>
     <td><strong>${esc(cmWho(a))}</strong></td>
     <td class="mono">${a.attempt_no}</td>
@@ -421,34 +551,76 @@ function cmTestDetailView(){
   </tr>`).join('');
   const qrows = (COMMITTEE.qStats || []).map(s => {
     const pct = s.answered ? Math.round(s.correct_count / s.answered * 100) : 0;
-    return `<tr><td class="mono">${s.pos}</td><td>${esc(s.question)}</td><td class="mono">${s.rule ? 'R' + s.rule : '—'}</td><td>${s.answered ? accuracyBadge(pct) : '<span class="law-sub-muted">—</span>'}</td></tr>`;
+    return `<div style="margin-bottom:12px;">
+      <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:5px; font-size:13px;">
+        <span class="mono" style="color:var(--muted); width:24px; flex-shrink:0;">${s.pos}.</span>
+        <span style="flex:1;">${esc(s.question)}</span>
+        <span class="mono" style="color:var(--muted); flex-shrink:0;">${s.rule ? 'R' + s.rule : '—'}</span>
+        <span class="mono" style="width:42px; text-align:right; font-weight:700; color:${s.answered ? scoreColor(pct) : 'var(--muted)'};">${s.answered ? pct + '%' : '—'}</span>
+      </div>
+      <div class="cm-rule-bar" style="margin-left:34px;"><div style="width:${pct}%; background:${scoreColor(pct)};"></div></div>
+    </div>`;
   }).join('');
   return `
-  <button class="backbtn" data-action="committee-open">&larr; Volver</button>
-  <h2 style="margin-bottom:4px;">${esc(t.title)}</h2>
-  <div style="margin-bottom:14px;">${cmTestStatus(t)} <span style="font-size:12.5px; color:var(--muted);">${t.question_count} preguntas · ${attempts.length} intentos</span></div>
-  <div style="margin-bottom:14px;"><button class="btn btn-secondary" data-action="committee-export-test" data-tid="${t.id}">📊 Exportar a Excel</button></div>
-  <div class="section-title">Resultados</div>
-  ${attempts.length ? `<div class="qcard" style="overflow-x:auto; margin-bottom:14px;"><table class="stat-table"><tr><th>Árbitro</th><th>Intento</th><th>Puntos</th><th>Acierto</th><th>Tiempo</th><th>Fecha</th></tr>${rows}</table></div>` : '<div class="empty-state" style="margin-bottom:14px;">Nadie ha hecho este test todavía.</div>'}
-  ${pending.length ? `<div class="section-title">Pendientes de hacerlo (${pending.length})</div><div class="qcard" style="margin-bottom:14px; font-size:13.5px;">${pending.map(m => esc(cmWho(m))).join(' · ')}</div>` : ''}
-  <div class="section-title">Acierto por pregunta</div>
-  ${COMMITTEE.qStats === null ? '<div class="empty-state">Cargando...</div>' : `<div class="qcard" style="overflow-x:auto;"><table class="stat-table"><tr><th>#</th><th>Pregunta</th><th>Regla</th><th>Acierto</th></tr>${qrows}</table></div>`}`;
+  <button class="backbtn" data-action="committee-open">&larr; Volver al panel</button>
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+    <h2 style="margin:0;">${esc(t.title)}</h2>${cmStatusChip(t)}
+    <button class="btn btn-secondary" style="margin-left:auto; display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-test" data-tid="${t.id}">${cmIc('download')} Exportar a Excel</button>
+  </div>
+  <div class="home-kpis" style="margin-bottom:18px;">
+    <div class="kpi"><div class="kpi-top">${cmIc('users')} Participantes</div><div class="kpi-val">${doneIds.size}<small> / ${(COMMITTEE.members || []).length}</small></div><div class="kpi-sub">${t.question_count} preguntas</div></div>
+    <div class="kpi"><div class="kpi-top">${cmIc('target')} Acierto medio</div><div class="kpi-val" ${avgPct !== null ? `style="color:${scoreColor(avgPct)};"` : ''}>${avgPct !== null ? avgPct + '<small>%</small>' : '—'}</div><div class="kpi-sub">de todos los intentos</div></div>
+    <div class="kpi"><div class="kpi-top">${cmIc('clock')} Tiempo medio</div><div class="kpi-val">${cmFmtDur(avgDur)}</div><div class="kpi-sub">por intento</div></div>
+    <div class="kpi"><div class="kpi-top">${cmIc('repeat')} Pendientes</div><div class="kpi-val">${pending.length}</div><div class="kpi-sub">aún sin hacerlo</div></div>
+  </div>
+
+  <div class="cm-card">
+    <div class="cm-sec-title">Ajustes del test</div>
+    <div class="cm-fields">
+      <div><label for="cm-s-opens">Abre</label><input type="datetime-local" id="cm-s-opens" data-cm-field="settings.opens" value="${esc(set.opens)}"></div>
+      <div><label for="cm-s-closes">Cierra (vacío = sin cierre)</label><input type="datetime-local" id="cm-s-closes" data-cm-field="settings.closes" value="${esc(set.closes)}"></div>
+      <div><label for="cm-s-max">Intentos permitidos</label><input type="number" id="cm-s-max" min="1" max="20" data-cm-field="settings.max" value="${esc(String(set.max))}"></div>
+    </div>
+    <div style="margin-top:14px;"><button class="btn btn-primary" data-action="committee-save-settings" data-tid="${t.id}">Guardar ajustes</button></div>
+  </div>
+
+  <div class="cm-card" style="overflow-x:auto;">
+    <div class="cm-sec-title">Resultados</div>
+    ${attempts.length ? `<table class="stat-table"><tr><th>Árbitro</th><th>Intento</th><th>Puntos</th><th>Acierto</th><th>Tiempo</th><th>Fecha</th></tr>${rows}</table>` : '<div style="font-size:13.5px; color:var(--muted);">Nadie ha hecho este test todavía.</div>'}
+  </div>
+  ${pending.length ? `<div class="cm-card"><div class="cm-sec-title">Pendientes de hacerlo (${pending.length})</div><div class="cm-chips">${pending.map(m => `<span class="cm-chip soft">${esc(cmWho(m))}</span>`).join('')}</div></div>` : ''}
+  <div class="cm-card">
+    <div class="cm-sec-title">Acierto por pregunta</div>
+    ${COMMITTEE.qStats === null ? '<div style="font-size:13.5px; color:var(--muted);">Cargando...</div>' : (qrows || '<div style="font-size:13.5px; color:var(--muted);">Sin datos.</div>')}
+  </div>`;
 }
 
 /* ---------- administrador: crear un test ---------- */
 function cmNewBuilder(){
   const now = new Date();
   const month = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  return { title: '', month, opens: '', closes: '', maxAttempts: 1, selected: [], expanded: {}, filterRule: 'all', filterDiff: 'all', filterText: '', page: 1, randomCount: 10, saving: false };
+  return {
+    title: '', month, opens: '', closes: '', maxAttempts: 1,
+    selected: [], expanded: {},
+    filterRule: 'all', filterDiff: 'all', filterText: '', hideUsed: false, page: 1,
+    genCount: 10, genRules: [],
+    showCustom: false, custom: { q: '', a: '', b: '', c: '', d: '', correct: 'a', rule: '', expl: '' },
+    saving: false
+  };
 }
 
-function cmBankCandidates(){
-  const b = COMMITTEE.builder;
+function cmBankPool(b){
   let list = allQuestions().filter(q => q.domain === 'law' || q.domain === 'glossary');
-  if(b.filterRule === 'glossary') list = list.filter(q => q.domain === 'glossary');
-  else if(b.filterRule !== 'all') list = list.filter(q => q.domain === 'law' && q.rule === parseInt(b.filterRule, 10));
   if(b.filterDiff === 'hard') list = list.filter(q => q.difficulty === 'hard');
   else if(b.filterDiff === 'normal') list = list.filter(q => q.difficulty !== 'hard');
+  if(b.hideUsed) list = list.filter(q => !cmUsedIn(q).length);
+  return list;
+}
+function cmBankCandidates(){
+  const b = COMMITTEE.builder;
+  let list = cmBankPool(b);
+  if(b.filterRule === 'glossary') list = list.filter(q => q.domain === 'glossary');
+  else if(b.filterRule !== 'all') list = list.filter(q => q.domain === 'law' && q.rule === parseInt(b.filterRule, 10));
   const s = b.filterText.trim().toLowerCase();
   if(s) list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o => o.toLowerCase().includes(s)));
   return list;
@@ -461,6 +633,13 @@ function cmQuestionDetail(q){
   </div>`;
 }
 
+function cmComposition(selected){
+  const by = {};
+  selected.forEach(q => { const k = q.domain === 'glossary' ? 'G' : (q.rule ? 'R' + q.rule : '—'); by[k] = (by[k] || 0) + 1; });
+  const keys = Object.keys(by).sort((a, b) => (parseInt(a.slice(1), 10) || 99) - (parseInt(b.slice(1), 10) || 99));
+  return keys.map(k => `<span class="cm-chip soft">${k} × ${by[k]}</span>`).join('');
+}
+
 function cmBuilderView(){
   const b = COMMITTEE.builder;
   if(!b) return cmAdminView();
@@ -470,78 +649,130 @@ function cmBuilderView(){
   if(b.page > totalPages) b.page = totalPages;
   const pageItems = cands.slice((b.page - 1) * CM_PAGE_SIZE, b.page * CM_PAGE_SIZE);
   const ruleOpts = `<option value="all">Todas las reglas</option>` +
-    Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<option value="${i}" ${b.filterRule == i ? 'selected' : ''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
+    Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<option value="${i}" ${String(b.filterRule) === String(i) ? 'selected' : ''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
     `<option value="glossary" ${b.filterRule === 'glossary' ? 'selected' : ''}>Glosario</option>`;
+  const genChips = Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<button class="cm-pick ${b.genRules.includes(i) ? 'on' : ''}" data-action="committee-b-gen-rule" data-rule="${i}">R${i}</button>`).join('');
+
   const candHtml = pageItems.map(q => {
     const open = !!b.expanded[q.id];
-    return `<div class="qcard" style="margin-bottom:8px; padding:12px 14px;">
-    <div class="qtag" style="margin-bottom:4px;">${q.domain === 'glossary' ? 'Glosario' : 'Regla ' + q.rule}${q.difficulty === 'hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}${q.source === 'user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Del comité</span>' : ''}</div>
-    <div style="font-size:13.5px; margin-bottom:8px;">${esc(q.question)}</div>
-    ${open ? cmQuestionDetail(q) : ''}
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn ${picked.has(q.id) ? 'btn-secondary' : 'btn-primary'}" style="padding:6px 12px; font-size:12.5px;" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${picked.has(q.id) ? '✓ Añadida · quitar' : '+ Añadir'}</button>
-      <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" data-action="committee-b-expand" data-qid="${esc(q.id)}">${open ? 'Ocultar respuestas' : 'Ver respuestas'}</button>
-    </div>
-  </div>`;
+    const used = cmUsedIn(q);
+    return `<div class="cm-bank-q">
+      <div class="qtag" style="margin-bottom:4px;">${cmRuleLabel(q)}${q.difficulty === 'hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}${q.source === 'user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Del comité</span>' : ''}</div>
+      <div style="font-size:13.5px; margin-bottom:6px;">${esc(q.question)}</div>
+      ${used.length ? `<div class="cm-used">Ya usada en: ${used.map(esc).join(', ')}</div>` : ''}
+      ${open ? cmQuestionDetail(q) : ''}
+      <div class="cm-actions" style="margin-top:8px;">
+        <button class="btn ${picked.has(q.id) ? 'btn-secondary' : 'btn-primary'}" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${picked.has(q.id) ? '✓ Añadida · quitar' : '+ Añadir'}</button>
+        <button class="btn btn-ghost" data-action="committee-b-expand" data-qid="${esc(q.id)}">${open ? 'Ocultar respuestas' : 'Ver respuestas'}</button>
+      </div>
+    </div>`;
   }).join('');
+
   const selHtml = b.selected.map((q, i) => {
     const open = !!b.expanded[q.id];
-    return `<div style="padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;">
-    <div style="display:flex; gap:8px; align-items:flex-start;">
-      <span class="mono" style="color:var(--muted); width:26px; flex-shrink:0;">${i + 1}.</span>
-      <span style="flex:1;">${esc(q.question)}</span>
-      <span class="mono" style="color:var(--muted); flex-shrink:0;">${q.domain === 'glossary' ? 'G' : 'R' + q.rule}</span>
-      <button class="icon-btn" title="${open ? 'Ocultar respuestas' : 'Ver respuestas'}" data-action="committee-b-expand" data-qid="${esc(q.id)}">${open ? '▴' : '▾'}</button>
-      <button class="icon-btn" title="Quitar" data-action="committee-b-toggle" data-qid="${esc(q.id)}">✕</button>
-    </div>
-    ${open ? `<div style="padding-left:34px;">${cmQuestionDetail(q)}</div>` : ''}
-  </div>`;
+    return `<div class="cm-sel-item">
+      <div class="cm-sel-row">
+        <span class="cm-sel-num">${i + 1}.</span>
+        <span style="flex:1;">${esc(q.question)}<div style="margin-top:3px;"><span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${cmRuleShort(q)}</span></div></span>
+        <span class="cm-sel-tools">
+          <button class="icon-btn" title="Subir" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>${shellIcon('up')}</button>
+          <button class="icon-btn" title="Bajar" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="1" ${i === b.selected.length - 1 ? 'disabled' : ''}>${shellIcon('down')}</button>
+          <button class="icon-btn" title="${open ? 'Ocultar respuestas' : 'Ver respuestas'}" data-action="committee-b-expand" data-qid="${esc(q.id)}">${shellIcon('eye')}</button>
+          <button class="icon-btn" title="Quitar" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${shellIcon('trash')}</button>
+        </span>
+      </div>
+      ${open ? `<div style="padding-left:32px;">${cmQuestionDetail(q)}</div>` : ''}
+    </div>`;
   }).join('');
+
+  const c = b.custom;
+  const customHtml = b.showCustom ? `<div class="cm-card">
+    <div class="cm-sec-title">Pregunta propia del comité</div>
+    <label for="cm-c-q" style="margin-top:0;">Enunciado</label><textarea id="cm-c-q" data-cm-field="builder.custom.q" maxlength="1000">${esc(c.q)}</textarea>
+    <div class="cm-fields">
+      <div><label for="cm-c-a">Respuesta a)</label><input type="text" id="cm-c-a" data-cm-field="builder.custom.a" value="${esc(c.a)}" maxlength="300"></div>
+      <div><label for="cm-c-b">Respuesta b)</label><input type="text" id="cm-c-b" data-cm-field="builder.custom.b" value="${esc(c.b)}" maxlength="300"></div>
+      <div><label for="cm-c-c">Respuesta c)</label><input type="text" id="cm-c-c" data-cm-field="builder.custom.c" value="${esc(c.c)}" maxlength="300"></div>
+      <div><label for="cm-c-d">Respuesta d)</label><input type="text" id="cm-c-d" data-cm-field="builder.custom.d" value="${esc(c.d)}" maxlength="300" placeholder="Ninguna respuesta es correcta."></div>
+      <div><label for="cm-c-correct">Correcta</label><select id="cm-c-correct" data-cm-field="builder.custom.correct">${CM_LETTERS.map(l => `<option value="${l}" ${c.correct === l ? 'selected' : ''}>${l})</option>`).join('')}</select></div>
+      <div><label for="cm-c-rule">Regla (opcional)</label><select id="cm-c-rule" data-cm-field="builder.custom.rule"><option value="">Sin regla</option>${Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<option value="${i}" ${String(c.rule) === String(i) ? 'selected' : ''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('')}</select></div>
+      <div class="full"><label for="cm-c-expl">Explicación (opcional)</label><input type="text" id="cm-c-expl" data-cm-field="builder.custom.expl" value="${esc(c.expl)}" maxlength="500"></div>
+    </div>
+    <div style="margin-top:14px;"><button class="btn btn-primary" data-action="committee-b-add-custom">+ Añadir al test</button></div>
+  </div>` : '';
+
   return `
   <button class="backbtn" data-action="committee-b-cancel">&larr; Cancelar</button>
   <h2 style="margin-bottom:14px;">Nuevo test</h2>
-  <div class="qcard" style="margin-bottom:14px;">
-    <label for="cm-b-title">Título</label>
-    <input type="text" id="cm-b-title" data-cm-field="builder.title" value="${esc(b.title)}" placeholder="Ej.: Test de octubre" maxlength="120">
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-      <div style="flex:1; min-width:140px;"><label for="cm-b-month">Mes (para la clasificación)</label><input type="month" id="cm-b-month" data-cm-field="builder.month" value="${esc(b.month)}"></div>
-      <div style="flex:1; min-width:140px;"><label for="cm-b-attempts">Intentos permitidos</label><input type="number" id="cm-b-attempts" min="1" max="20" data-cm-field="builder.maxAttempts" value="${esc(String(b.maxAttempts))}"></div>
+
+  <div class="cm-card">
+    <div class="cm-sec-title">Datos del test</div>
+    <div class="cm-fields">
+      <div class="full"><label for="cm-b-title" style="margin-top:0;">Título</label><input type="text" id="cm-b-title" data-cm-field="builder.title" value="${esc(b.title)}" placeholder="Ej.: Test de octubre" maxlength="120"></div>
+      <div><label for="cm-b-month">Mes (para la clasificación)</label><input type="month" id="cm-b-month" data-cm-field="builder.month" value="${esc(b.month)}"></div>
+      <div><label for="cm-b-attempts">Intentos permitidos</label><input type="number" id="cm-b-attempts" min="1" max="20" data-cm-field="builder.maxAttempts" value="${esc(String(b.maxAttempts))}"></div>
+      <div><label for="cm-b-opens">Abre (vacío = ahora)</label><input type="datetime-local" id="cm-b-opens" data-cm-field="builder.opens" value="${esc(b.opens)}"></div>
+      <div><label for="cm-b-closes">Cierra (opcional)</label><input type="datetime-local" id="cm-b-closes" data-cm-field="builder.closes" value="${esc(b.closes)}"></div>
     </div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-      <div style="flex:1; min-width:180px;"><label for="cm-b-opens">Abre (vacío = ahora)</label><input type="datetime-local" id="cm-b-opens" data-cm-field="builder.opens" value="${esc(b.opens)}"></div>
-      <div style="flex:1; min-width:180px;"><label for="cm-b-closes">Cierra (opcional)</label><input type="datetime-local" id="cm-b-closes" data-cm-field="builder.closes" value="${esc(b.closes)}"></div>
-    </div>
-    <div style="font-size:12.5px; color:var(--muted); margin-top:8px;">Las respuestas correctas se enseñan a los árbitros cuando el test cierra. Si no pones fecha de cierre, se enseñan al terminar.</div>
+    <div style="font-size:12.5px; color:var(--muted); margin-top:10px;">Las respuestas correctas se enseñan a los árbitros cuando el test cierra. Si no pones fecha de cierre, se enseñan al terminar.</div>
   </div>
 
-  <div class="section-title">Preguntas seleccionadas (${b.selected.length})</div>
-  <div class="qcard" style="margin-bottom:14px;">${selHtml || '<div style="font-size:13px; color:var(--muted);">Todavía no has elegido ninguna. Búscalas abajo o añade aleatorias.</div>'}</div>
+  <div class="cm-builder">
+    <div class="cm-b-main">
+      <div class="cm-card">
+        <div class="cm-sec-title">${cmIc('wand')} Generar un test equilibrado</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Reparte las preguntas a partes iguales entre las reglas que elijas (si no eliges ninguna, entre las 17). Respeta los filtros de dificultad y de preguntas ya usadas.</div>
+        <div class="cm-chips" style="margin-bottom:12px;">${genChips}</div>
+        <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+          <div style="width:120px;"><label for="cm-b-gen" style="margin-top:0;">Nº de preguntas</label><input type="number" id="cm-b-gen" min="1" max="100" data-cm-field="builder.genCount" value="${esc(String(b.genCount))}"></div>
+          <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-generate">${cmIc('wand')} Generar y añadir</button>
+        </div>
+      </div>
 
-  <div class="section-title">Buscar en el banco de preguntas</div>
-  <div class="qcard" style="margin-bottom:12px;">
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <div style="flex:1; min-width:180px;"><label for="cm-b-rule">Regla</label><select id="cm-b-rule" data-cm-field="builder.filterRule" data-cm-rerender>${ruleOpts}</select></div>
-      <div style="flex:1; min-width:140px;"><label for="cm-b-diff">Dificultad</label><select id="cm-b-diff" data-cm-field="builder.filterDiff" data-cm-rerender>
-        <option value="all" ${b.filterDiff === 'all' ? 'selected' : ''}>Todas</option>
-        <option value="hard" ${b.filterDiff === 'hard' ? 'selected' : ''}>Solo difíciles</option>
-        <option value="normal" ${b.filterDiff === 'normal' ? 'selected' : ''}>Solo normales</option>
-      </select></div>
+      <div class="cm-card">
+        <div class="cm-sec-title">Buscar en el banco de preguntas</div>
+        <div class="cm-fields">
+          <div><label for="cm-b-rule" style="margin-top:0;">Regla</label><select id="cm-b-rule" data-cm-field="builder.filterRule" data-cm-rerender>${ruleOpts}</select></div>
+          <div><label for="cm-b-diff" style="margin-top:0;">Dificultad</label><select id="cm-b-diff" data-cm-field="builder.filterDiff" data-cm-rerender>
+            <option value="all" ${b.filterDiff === 'all' ? 'selected' : ''}>Todas</option>
+            <option value="hard" ${b.filterDiff === 'hard' ? 'selected' : ''}>Solo difíciles</option>
+            <option value="normal" ${b.filterDiff === 'normal' ? 'selected' : ''}>Solo normales</option>
+          </select></div>
+          <div class="full"><label for="cm-b-search">Buscar texto</label><input type="text" id="cm-b-search" data-cm-field="builder.filterText" data-cm-rerender value="${esc(b.filterText)}" placeholder="Palabra de la pregunta o respuestas..." maxlength="100"></div>
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:12px; letter-spacing:0;">
+          <input type="checkbox" id="cm-b-hideused" style="width:auto;" data-cm-field="builder.hideUsed" data-cm-rerender ${b.hideUsed ? 'checked' : ''}> Ocultar las preguntas que ya salieron en otros tests
+        </label>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+          <button class="btn btn-secondary" data-action="committee-b-random">${cmIc('shuffle')} Añadir 10 aleatorias de esta búsqueda</button>
+          <button class="btn btn-ghost" data-action="committee-b-toggle-custom">${cmIc('pencil')} ${b.showCustom ? 'Cerrar pregunta propia' : 'Escribir una pregunta propia'}</button>
+        </div>
+      </div>
+      ${customHtml}
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">${cands.length} preguntas coinciden</div>
+      ${candHtml || '<div class="empty-state">Ninguna pregunta coincide.</div>'}
+      ${cands.length > CM_PAGE_SIZE ? `<div style="display:flex; justify-content:center; align-items:center; gap:14px; margin:12px 0;">
+        <button class="btn btn-ghost" data-action="committee-b-prev" ${b.page <= 1 ? 'disabled' : ''}>&larr; Anterior</button>
+        <span class="mono" style="font-size:13px; color:var(--muted);">Página ${b.page} / ${totalPages}</span>
+        <button class="btn btn-ghost" data-action="committee-b-next" ${b.page >= totalPages ? 'disabled' : ''}>Siguiente &rarr;</button>
+      </div>` : ''}
     </div>
-    <div style="margin-top:12px;"><label for="cm-b-search" style="margin-top:0;">Buscar texto</label><input type="text" id="cm-b-search" data-cm-field="builder.filterText" data-cm-rerender value="${esc(b.filterText)}" placeholder="Palabra de la pregunta o respuestas..." maxlength="100"></div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px;">
-      <div style="width:110px;"><label for="cm-b-random">Aleatorias</label><input type="number" id="cm-b-random" min="1" max="100" data-cm-field="builder.randomCount" value="${esc(String(b.randomCount))}"></div>
-      <button class="btn btn-secondary" data-action="committee-b-random">+ Añadir aleatorias de esta búsqueda</button>
-    </div>
-  </div>
-  <div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">${cands.length} preguntas coinciden</div>
-  ${candHtml || '<div class="empty-state">Ninguna pregunta coincide.</div>'}
-  ${cands.length > CM_PAGE_SIZE ? `<div style="display:flex; justify-content:center; align-items:center; gap:14px; margin:12px 0;">
-    <button class="btn btn-ghost" data-action="committee-b-prev" ${b.page <= 1 ? 'disabled' : ''}>&larr; Anterior</button>
-    <span class="mono" style="font-size:13px; color:var(--muted);">Página ${b.page} / ${totalPages}</span>
-    <button class="btn btn-ghost" data-action="committee-b-next" ${b.page >= totalPages ? 'disabled' : ''}>Siguiente &rarr;</button>
-  </div>` : ''}
-  <div style="position:sticky; bottom:0; background:var(--chalk); padding:12px 0; margin-top:14px; border-top:1px solid var(--line);">
-    <button class="btn btn-primary" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${b.saving ? 'Guardando...' : 'Guardar como borrador (' + b.selected.length + ' preguntas)'}</button>
+
+    <aside class="cm-b-side">
+      <div class="cm-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+          <div class="cm-sec-title" style="margin:0;">Tu test (${b.selected.length})</div>
+          <div class="cm-actions">
+            <button class="btn btn-ghost" style="padding:5px 10px;" data-action="committee-b-shuffle" ${b.selected.length < 2 ? 'disabled' : ''} title="Mezclar el orden">${cmIc('shuffle')}</button>
+            <button class="btn btn-ghost btn-danger-soft" style="padding:5px 10px;" data-action="committee-b-clear" ${b.selected.length ? '' : 'disabled'} title="Vaciar">${cmIc('trash')}</button>
+          </div>
+        </div>
+        ${b.selected.length ? `<div class="cm-chips" style="margin-bottom:8px;">${cmComposition(b.selected)}</div>` : ''}
+        ${selHtml || '<div style="font-size:13px; color:var(--muted); padding:8px 0;">Todavía no has elegido ninguna pregunta. Genera un test equilibrado o añade desde el banco.</div>'}
+        <button class="btn btn-primary" style="width:100%; margin-top:14px;" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${b.saving ? 'Guardando...' : 'Guardar como borrador'}</button>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px; text-align:center;">Después podrás revisarlo y publicarlo.</div>
+      </div>
+    </aside>
   </div>`;
 }
 
@@ -557,7 +788,7 @@ async function cmSaveBuilder(){
   b.saving = true; render();
   const questions = b.selected.map(q => ({
     question: q.question, options: q.options, correct: q.correct,
-    rule: q.domain === 'glossary' ? null : q.rule, explanation: q.explanation || ''
+    rule: q.domain === 'glossary' ? null : (q.rule || null), explanation: q.explanation || ''
   }));
   const { error } = await supabaseClient.rpc('committee_admin_create_test', {
     p_title: b.title.trim(), p_month: b.month || null,
@@ -574,6 +805,24 @@ async function cmSaveBuilder(){
   cmLoadAdminData();
 }
 
+function cmGenerate(){
+  const b = COMMITTEE.builder;
+  const n = Math.max(1, Math.min(100, parseInt(b.genCount, 10) || 10));
+  const taken = new Set(b.selected.map(q => q.id));
+  const base = cmBankPool(b).filter(q => q.domain === 'law' && q.rule && !taken.has(q.id));
+  const rules = b.genRules.length ? b.genRules : Array.from({ length: 17 }, (_, i) => i + 1);
+  const buckets = rules.map(r => cmShuffle(base.filter(q => q.rule === r))).filter(a => a.length);
+  const picked = [];
+  let i = 0;
+  while(picked.length < n && buckets.some(x => x.length)){
+    const bk = buckets[i % buckets.length];
+    if(bk.length) picked.push(bk.pop());
+    i++;
+  }
+  picked.forEach(q => b.selected.push(q));
+  return picked.length;
+}
+
 /* ---------- acciones ---------- */
 async function committeeOnAction(action, el){
   const tid = el.dataset.tid;
@@ -585,18 +834,22 @@ async function committeeOnAction(action, el){
     if(st.is_admin){ STATE.view = 'committeeAdmin'; render(); cmLoadAdminData(); }
     else { STATE.view = 'committee'; render(); cmLoadMyTests(); }
   }
-  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; render(); }
+  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeAdmin'; render(); }
 
   /* miembro */
   else if(action === 'committee-start'){
     const { data, error } = await supabaseClient.rpc('committee_get_test', { p_test_id: tid });
     if(error){ cmToast(cmErrText(error)); cmLoadMyTests(); return; }
     COMMITTEE.run = { test: data, answers: {}, idx: 0, startedAt: Date.now(), submitting: false };
-    STATE.view = 'committeeRun'; render();
+    STATE.view = 'committeeRun'; render(); window.scrollTo(0, 0);
   }
   else if(action === 'committee-answer'){
     const r = COMMITTEE.run; if(!r) return;
     r.answers[r.test.questions[r.idx].pos] = el.dataset.letter; render();
+  }
+  else if(action === 'committee-goto'){
+    const r = COMMITTEE.run; if(!r) return;
+    r.idx = parseInt(el.dataset.idx, 10) || 0; render();
   }
   else if(action === 'committee-prev'){ if(COMMITTEE.run && COMMITTEE.run.idx > 0){ COMMITTEE.run.idx--; render(); } }
   else if(action === 'committee-next'){
@@ -623,14 +876,14 @@ async function committeeOnAction(action, el){
     if(error){ r.submitting = false; cmToast(cmErrText(error)); return; }
     COMMITTEE.result = { title: r.test.title, score: data.score, total: data.total, review: data.review };
     COMMITTEE.run = null;
-    STATE.view = 'committeeResult'; render();
+    STATE.view = 'committeeResult'; render(); window.scrollTo(0, 0);
     cmLoadMyTests();
   }
   else if(action === 'committee-review'){
     const { data, error } = await supabaseClient.rpc('committee_get_review', { p_test_id: tid });
     if(error){ cmToast(cmErrText(error)); return; }
     COMMITTEE.result = { title: data.title, score: data.score, total: data.total, review: data.review };
-    STATE.view = 'committeeResult'; render();
+    STATE.view = 'committeeResult'; render(); window.scrollTo(0, 0);
   }
 
   /* administrador: miembros */
@@ -671,7 +924,37 @@ async function committeeOnAction(action, el){
     STATE.toast = 'Test eliminado.'; render();
     cmLoadAdminData();
   }
-  else if(action === 'committee-detail'){ cmOpenDetail(tid); }
+  else if(action === 'committee-duplicate'){
+    const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
+    const { data, error } = await supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos');
+    if(error){ cmToast(cmErrText(error)); return; }
+    const nb = cmNewBuilder();
+    nb.title = 'Copia de ' + t.title;
+    nb.maxAttempts = t.max_attempts;
+    nb.selected = (data || []).map((q, i) => ({
+      id: 'dup-' + Date.now() + '-' + i, question: q.question, options: q.options, correct: q.correct,
+      rule: q.rule, explanation: q.explanation || '', domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user'
+    }));
+    COMMITTEE.builder = nb;
+    STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0);
+    STATE.toast = 'Test duplicado: cambia lo que quieras y guárdalo.'; render();
+  }
+  else if(action === 'committee-detail'){ cmOpenDetail(tid); window.scrollTo(0, 0); }
+  else if(action === 'committee-save-settings'){
+    const s = COMMITTEE.settings; if(!s) return;
+    const opens = s.opens ? new Date(s.opens) : null;
+    const closes = s.closes ? new Date(s.closes) : null;
+    if(!opens){ cmToast('Indica la fecha de apertura.'); return; }
+    if(closes && closes <= opens){ cmToast('La fecha de cierre tiene que ser posterior a la de apertura.'); return; }
+    const max = Math.max(1, parseInt(s.max, 10) || 1);
+    const { error } = await supabaseClient.from('committee_tests').update({ opens_at: opens.toISOString(), closes_at: closes ? closes.toISOString() : null, max_attempts: max }).eq('id', tid);
+    if(error){ cmToast(cmErrText(error)); return; }
+    STATE.toast = 'Ajustes guardados.'; render();
+    await cmLoadAdminData();
+    const t = (COMMITTEE.tests || []).find(x => x.id === tid);
+    if(t) COMMITTEE.settings = { opens: cmToLocalInput(t.opens_at), closes: cmToLocalInput(t.closes_at), max: String(t.max_attempts) };
+    cmRefresh();
+  }
   else if(action === 'committee-export-test'){
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
     const rows = (COMMITTEE.attempts || []).filter(a => a.test_id === tid).map(a => ({
@@ -692,7 +975,7 @@ async function committeeOnAction(action, el){
   }
 
   /* administrador: creación de test */
-  else if(action === 'committee-new'){ COMMITTEE.builder = cmNewBuilder(); STATE.view = 'committeeBuilder'; render(); }
+  else if(action === 'committee-new'){ COMMITTEE.builder = cmNewBuilder(); STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-b-cancel'){
     if(b && b.selected.length && !confirm('¿Descartar este test sin guardar?')) return;
     COMMITTEE.builder = null; STATE.view = 'committeeAdmin'; render();
@@ -707,18 +990,58 @@ async function committeeOnAction(action, el){
   }
   else if(action === 'committee-b-expand'){
     if(!b) return;
-    const qid = el.dataset.qid;
-    b.expanded[qid] = !b.expanded[qid];
+    b.expanded[el.dataset.qid] = !b.expanded[el.dataset.qid];
+    render();
+  }
+  else if(action === 'committee-b-move'){
+    if(!b) return;
+    const idx = b.selected.findIndex(q => q.id === el.dataset.qid);
+    const to = idx + parseInt(el.dataset.dir, 10);
+    if(idx < 0 || to < 0 || to >= b.selected.length) return;
+    [b.selected[idx], b.selected[to]] = [b.selected[to], b.selected[idx]];
+    render();
+  }
+  else if(action === 'committee-b-shuffle'){ if(b){ cmShuffle(b.selected); render(); } }
+  else if(action === 'committee-b-clear'){
+    if(!b || !b.selected.length) return;
+    if(!confirm('¿Quitar todas las preguntas seleccionadas?')) return;
+    b.selected = []; render();
+  }
+  else if(action === 'committee-b-gen-rule'){
+    if(!b) return;
+    const r = parseInt(el.dataset.rule, 10);
+    const i = b.genRules.indexOf(r);
+    if(i >= 0) b.genRules.splice(i, 1); else b.genRules.push(r);
+    render();
+  }
+  else if(action === 'committee-b-generate'){
+    if(!b) return;
+    const n = cmGenerate();
+    STATE.toast = n ? 'Añadidas ' + n + ' preguntas.' : 'No quedan preguntas con esos filtros.';
     render();
   }
   else if(action === 'committee-b-random'){
     if(!b) return;
-    const n = Math.max(1, Math.min(100, parseInt(b.randomCount, 10) || 1));
     const taken = new Set(b.selected.map(q => q.id));
-    const pool = cmBankCandidates().filter(q => !taken.has(q.id));
-    for(let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-    pool.slice(0, n).forEach(q => b.selected.push(q));
-    STATE.toast = pool.length ? 'Añadidas ' + Math.min(n, pool.length) + ' preguntas.' : 'No quedan preguntas con ese filtro.';
+    const pool = cmShuffle(cmBankCandidates().filter(q => !taken.has(q.id)));
+    const picked = pool.slice(0, 10);
+    picked.forEach(q => b.selected.push(q));
+    STATE.toast = picked.length ? 'Añadidas ' + picked.length + ' preguntas.' : 'No quedan preguntas con ese filtro.';
+    render();
+  }
+  else if(action === 'committee-b-toggle-custom'){ if(b){ b.showCustom = !b.showCustom; render(); } }
+  else if(action === 'committee-b-add-custom'){
+    if(!b) return;
+    const c = b.custom;
+    if(!c.q.trim() || !c.a.trim() || !c.b.trim() || !c.c.trim()){ cmToast('Rellena el enunciado y al menos las respuestas a, b y c.'); return; }
+    const rule = c.rule ? parseInt(c.rule, 10) : null;
+    b.selected.push({
+      id: 'custom-' + Date.now(), question: c.q.trim(), options: [c.a.trim(), c.b.trim(), c.c.trim(), c.d.trim() || 'Ninguna respuesta es correcta.'],
+      correct: c.correct, rule, explanation: c.expl.trim(), domain: rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user'
+    });
+    b.custom = { q: '', a: '', b: '', c: '', d: '', correct: 'a', rule: '', expl: '' };
+    b.showCustom = false;
+    STATE.toast = 'Pregunta propia añadida al test.';
     render();
   }
   else if(action === 'committee-b-prev'){ if(b && b.page > 1){ b.page--; render(); } }
@@ -732,14 +1055,14 @@ function cmSetPath(path, value){
   let obj = COMMITTEE;
   for(let i = 0; i < parts.length - 1; i++){ obj = obj[parts[i]]; if(!obj) return; }
   obj[parts[parts.length - 1]] = value;
-  if(path === 'builder.filterRule' || path === 'builder.filterText' || path === 'builder.filterDiff') COMMITTEE.builder.page = 1;
+  if(path === 'builder.filterRule' || path === 'builder.filterText' || path === 'builder.filterDiff' || path === 'builder.hideUsed') COMMITTEE.builder.page = 1;
 }
 
 function committeeAfterRender(){
   document.querySelectorAll('[data-cm-field]').forEach(el => {
-    const evt = (el.tagName === 'SELECT' || ['month', 'datetime-local', 'date', 'number'].includes(el.type)) ? 'change' : 'input';
+    const evt = (el.tagName === 'SELECT' || ['month', 'datetime-local', 'date', 'number', 'checkbox'].includes(el.type)) ? 'change' : 'input';
     el.addEventListener(evt, () => {
-      cmSetPath(el.dataset.cmField, el.value);
+      cmSetPath(el.dataset.cmField, el.type === 'checkbox' ? el.checked : el.value);
       if(el.hasAttribute('data-cm-rerender')) render();
     });
   });
