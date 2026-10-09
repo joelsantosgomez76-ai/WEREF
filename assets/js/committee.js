@@ -204,7 +204,7 @@ function cmHero(eyebrow, title, text, actionsHtml, rightHtml){
     <div class="lg-hero-main">
       <div class="home-eyebrow">${eyebrow}</div>
       <h1>${title}</h1>
-      <p>${text}</p>
+      ${text ? `<p>${text}</p>` : ''}
       ${actionsHtml ? `<div class="ac-hero-actions">${actionsHtml}</div>` : ''}
     </div>
     ${rightHtml || ''}
@@ -280,7 +280,7 @@ function cmMemberView(){
   const pct = total ? Math.round(done / total * 100) : 0;
   return `
   ${cmHero('Comité de árbitros · Bages', 'CTA BAGES',
-      'Aquí irán apareciendo los tests y los mensajes del comité. Tu resultado es privado: la clasificación solo la ven los administradores.',
+      '',
       '', preview ? '' : cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
   ${previewBar}
   ${cmMessagesFeed()}
