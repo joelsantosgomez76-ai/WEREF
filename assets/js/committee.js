@@ -439,7 +439,7 @@ function cmTestDetailView(){
 function cmNewBuilder(){
   const now = new Date();
   const month = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  return { title: '', month, opens: '', closes: '', maxAttempts: 1, selected: [], filterRule: 'all', filterText: '', page: 1, randomCount: 10, saving: false };
+  return { title: '', month, opens: '', closes: '', maxAttempts: 1, selected: [], expanded: {}, filterRule: 'all', filterDiff: 'all', filterText: '', page: 1, randomCount: 10, saving: false };
 }
 
 function cmBankCandidates(){
@@ -447,9 +447,18 @@ function cmBankCandidates(){
   let list = allQuestions().filter(q => q.domain === 'law' || q.domain === 'glossary');
   if(b.filterRule === 'glossary') list = list.filter(q => q.domain === 'glossary');
   else if(b.filterRule !== 'all') list = list.filter(q => q.domain === 'law' && q.rule === parseInt(b.filterRule, 10));
+  if(b.filterDiff === 'hard') list = list.filter(q => q.difficulty === 'hard');
+  else if(b.filterDiff === 'normal') list = list.filter(q => q.difficulty !== 'hard');
   const s = b.filterText.trim().toLowerCase();
   if(s) list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o => o.toLowerCase().includes(s)));
   return list;
+}
+
+function cmQuestionDetail(q){
+  return `<div style="margin:8px 0 10px;">
+    ${q.options.map((o, i) => `<div class="option ${CM_LETTERS[i] === q.correct ? 'correct' : ''}" style="cursor:default; padding:8px 12px; margin-bottom:6px; font-size:13px;"><span class="letter">${CM_LETTERS[i]})</span>${esc(o)}</div>`).join('')}
+    ${q.explanation ? `<div style="margin-top:6px; padding:8px 12px; background:#FBF1F1; border-radius:8px; font-size:12.5px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+  </div>`;
 }
 
 function cmBuilderView(){
@@ -463,17 +472,31 @@ function cmBuilderView(){
   const ruleOpts = `<option value="all">Todas las reglas</option>` +
     Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<option value="${i}" ${b.filterRule == i ? 'selected' : ''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
     `<option value="glossary" ${b.filterRule === 'glossary' ? 'selected' : ''}>Glosario</option>`;
-  const candHtml = pageItems.map(q => `<div class="qcard" style="margin-bottom:8px; padding:12px 14px;">
-    <div class="qtag" style="margin-bottom:4px;">${q.domain === 'glossary' ? 'Glosario' : 'Regla ' + q.rule}</div>
+  const candHtml = pageItems.map(q => {
+    const open = !!b.expanded[q.id];
+    return `<div class="qcard" style="margin-bottom:8px; padding:12px 14px;">
+    <div class="qtag" style="margin-bottom:4px;">${q.domain === 'glossary' ? 'Glosario' : 'Regla ' + q.rule}${q.difficulty === 'hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}${q.source === 'user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Del comité</span>' : ''}</div>
     <div style="font-size:13.5px; margin-bottom:8px;">${esc(q.question)}</div>
-    <button class="btn ${picked.has(q.id) ? 'btn-secondary' : 'btn-primary'}" style="padding:6px 12px; font-size:12.5px;" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${picked.has(q.id) ? '✓ Añadida · quitar' : '+ Añadir'}</button>
-  </div>`).join('');
-  const selHtml = b.selected.map((q, i) => `<div style="display:flex; gap:8px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;">
-    <span class="mono" style="color:var(--muted); width:26px; flex-shrink:0;">${i + 1}.</span>
-    <span style="flex:1;">${esc(q.question)}</span>
-    <span class="mono" style="color:var(--muted); flex-shrink:0;">${q.domain === 'glossary' ? 'G' : 'R' + q.rule}</span>
-    <button class="icon-btn" title="Quitar" data-action="committee-b-toggle" data-qid="${esc(q.id)}">✕</button>
-  </div>`).join('');
+    ${open ? cmQuestionDetail(q) : ''}
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn ${picked.has(q.id) ? 'btn-secondary' : 'btn-primary'}" style="padding:6px 12px; font-size:12.5px;" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${picked.has(q.id) ? '✓ Añadida · quitar' : '+ Añadir'}</button>
+      <button class="btn btn-ghost" style="padding:6px 12px; font-size:12.5px;" data-action="committee-b-expand" data-qid="${esc(q.id)}">${open ? 'Ocultar respuestas' : 'Ver respuestas'}</button>
+    </div>
+  </div>`;
+  }).join('');
+  const selHtml = b.selected.map((q, i) => {
+    const open = !!b.expanded[q.id];
+    return `<div style="padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;">
+    <div style="display:flex; gap:8px; align-items:flex-start;">
+      <span class="mono" style="color:var(--muted); width:26px; flex-shrink:0;">${i + 1}.</span>
+      <span style="flex:1;">${esc(q.question)}</span>
+      <span class="mono" style="color:var(--muted); flex-shrink:0;">${q.domain === 'glossary' ? 'G' : 'R' + q.rule}</span>
+      <button class="icon-btn" title="${open ? 'Ocultar respuestas' : 'Ver respuestas'}" data-action="committee-b-expand" data-qid="${esc(q.id)}">${open ? '▴' : '▾'}</button>
+      <button class="icon-btn" title="Quitar" data-action="committee-b-toggle" data-qid="${esc(q.id)}">✕</button>
+    </div>
+    ${open ? `<div style="padding-left:34px;">${cmQuestionDetail(q)}</div>` : ''}
+  </div>`;
+  }).join('');
   return `
   <button class="backbtn" data-action="committee-b-cancel">&larr; Cancelar</button>
   <h2 style="margin-bottom:14px;">Nuevo test</h2>
@@ -498,8 +521,13 @@ function cmBuilderView(){
   <div class="qcard" style="margin-bottom:12px;">
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <div style="flex:1; min-width:180px;"><label for="cm-b-rule">Regla</label><select id="cm-b-rule" data-cm-field="builder.filterRule" data-cm-rerender>${ruleOpts}</select></div>
-      <div style="flex:2; min-width:200px;"><label for="cm-b-search">Buscar texto</label><input type="text" id="cm-b-search" data-cm-field="builder.filterText" data-cm-rerender value="${esc(b.filterText)}" placeholder="Palabra de la pregunta o respuestas..." maxlength="100"></div>
+      <div style="flex:1; min-width:140px;"><label for="cm-b-diff">Dificultad</label><select id="cm-b-diff" data-cm-field="builder.filterDiff" data-cm-rerender>
+        <option value="all" ${b.filterDiff === 'all' ? 'selected' : ''}>Todas</option>
+        <option value="hard" ${b.filterDiff === 'hard' ? 'selected' : ''}>Solo difíciles</option>
+        <option value="normal" ${b.filterDiff === 'normal' ? 'selected' : ''}>Solo normales</option>
+      </select></div>
     </div>
+    <div style="margin-top:12px;"><label for="cm-b-search" style="margin-top:0;">Buscar texto</label><input type="text" id="cm-b-search" data-cm-field="builder.filterText" data-cm-rerender value="${esc(b.filterText)}" placeholder="Palabra de la pregunta o respuestas..." maxlength="100"></div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px;">
       <div style="width:110px;"><label for="cm-b-random">Aleatorias</label><input type="number" id="cm-b-random" min="1" max="100" data-cm-field="builder.randomCount" value="${esc(String(b.randomCount))}"></div>
       <button class="btn btn-secondary" data-action="committee-b-random">+ Añadir aleatorias de esta búsqueda</button>
@@ -677,6 +705,12 @@ async function committeeOnAction(action, el){
     else { const q = allQuestions().find(x => x.id === qid); if(q) b.selected.push(q); }
     render();
   }
+  else if(action === 'committee-b-expand'){
+    if(!b) return;
+    const qid = el.dataset.qid;
+    b.expanded[qid] = !b.expanded[qid];
+    render();
+  }
   else if(action === 'committee-b-random'){
     if(!b) return;
     const n = Math.max(1, Math.min(100, parseInt(b.randomCount, 10) || 1));
@@ -698,7 +732,7 @@ function cmSetPath(path, value){
   let obj = COMMITTEE;
   for(let i = 0; i < parts.length - 1; i++){ obj = obj[parts[i]]; if(!obj) return; }
   obj[parts[parts.length - 1]] = value;
-  if(path === 'builder.filterRule' || path === 'builder.filterText') COMMITTEE.builder.page = 1;
+  if(path === 'builder.filterRule' || path === 'builder.filterText' || path === 'builder.filterDiff') COMMITTEE.builder.page = 1;
 }
 
 function committeeAfterRender(){
