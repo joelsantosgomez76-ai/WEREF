@@ -87,7 +87,7 @@ function shellNavItems(){
     { id: 'stats', label: 'Estadísticas', icon: 'chart', action: 'stats' },
     { id: 'logros', label: 'Rango e insignias', icon: 'award', action: 'achievements' }
   ];
-  if(st && (st.is_admin || (st.is_member && cmSettingsOn()))) main.push({ id: 'comite', label: 'CTA BAGES', icon: 'users', action: 'committee-open', badge: (st.is_admin && !cmSettingsOn()) ? 'Cerrado' : 0 });
+  if(st && (st.is_admin || st.is_member)) main.push({ id: 'comite', label: 'CTA BAGES', icon: 'users', action: 'committee-open' });
   const admin = [];
   if(isDevUser()){
     const reports = Object.keys(STATE.reports || {}).length;
@@ -160,9 +160,4 @@ function menuView(){
     ${row({ label: 'Configuración de la cuenta', icon: 'settings', action: 'profile' })}
     ${row({ label: 'Cerrar sesión', icon: 'logout', action: 'logout' })}
   </div>`;
-}
-
-/* ¿Está CTA BAGES visible para los miembros? (por defecto sí) */
-function cmSettingsOn(){
-  return !(typeof COMMITTEE !== 'undefined' && COMMITTEE.cfg && COMMITTEE.cfg.enabled === false);
 }
