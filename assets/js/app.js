@@ -457,13 +457,13 @@ function questionNumber(q, fallback){
 }
 /* Mapa número -> pregunta (con el mismo criterio que questionNumber). */
 function questionsByNumber(){
-  const all = allQuestions(), out = {};
+  const all = allQuestionsAdmin(), out = {};
   all.forEach((q, i) => { const n = questionNumber(q, i + 1); if(n) out[n] = q; });
   return out;
 }
 async function qnumSync(){
   if(QNUM.busy || QNUM.failed || !isDevUser() || typeof supabaseClient === 'undefined') return;
-  if(QNUM.ready && !allQuestions().some(q => !QNUM.map[q.id])) return;
+  if(QNUM.ready && !allQuestionsAdmin().some(q => !QNUM.map[q.id])) return;
   QNUM.busy = true;
   let changed = false;
   try{
@@ -478,7 +478,7 @@ async function qnumSync(){
       }
       QNUM.ready = true; changed = true;
     }
-    const missing = allQuestions().filter(q => !QNUM.map[q.id]).map(q => q.id);
+    const missing = allQuestionsAdmin().filter(q => !QNUM.map[q.id]).map(q => q.id);
     for(let i = 0; i < missing.length; i += 500){
       const { data, error } = await supabaseClient.rpc('assign_question_numbers', { p_qids: missing.slice(i, i + 500) });
       if(error) throw error;
@@ -614,7 +614,8 @@ async function sharedMigrateLocal(){
   if(rows.length) STATE.toast = 'Tus preguntas y cambios ya están en el banco compartido: ahora los ven todos los usuarios.';
 }
 
-function allQuestions(){
+/* Todas las preguntas, incluidas las del Reglament General FCF (solo para administradores: Base de datos y tests del comité). */
+function allQuestionsAdmin(){
   const combined = BASE_QUESTIONS.concat(ASSISTANT_QUESTIONS).concat(SHARED.added).concat(STATE.storage.userQuestions || []).concat(STATE.storage.glossaryQuestions || []);
   return combined
     .filter(q => {
@@ -640,6 +641,8 @@ function allQuestions(){
       return e ? Object.assign({}, r, e) : r;
     });
 }
+/* Lo que ve la web: sin las preguntas del Reglament General FCF. */
+function allQuestions(){ return allQuestionsAdmin().filter(q => q.domain !== 'fcf'); }
 function questionsForLaw(law){
   if(law === 'hard') return allQuestions().filter(q => q.difficulty === 'hard');
   if(law === 'failed') return allQuestions().filter(q => isFailedQuestion(q));
@@ -1277,7 +1280,7 @@ function questionDedupeKey(q){
 
 function duplicateQuestionIds(){
   const groups = {};
-  allQuestions().forEach(q => {
+  allQuestionsAdmin().forEach(q => {
     const key = questionDedupeKey(q);
     if(!key) return;
     (groups[key] = groups[key] || []).push(q.id);
@@ -1301,6 +1304,7 @@ function questionCountsByLaw(){
 function scopeLabel(q){
   if(q.domain==='glossary') return 'Glosario IFAB';
   if(q.domain==='assistants') return 'Árbitros Asistentes';
+  if(q.domain==='fcf') return 'Reglament General FCF';
   return 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
 }
 
@@ -1362,7 +1366,7 @@ function render(){
     modal.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
   } else
   if(STATE.confirmDeleteId){
-    const q = allQuestions().find(x=>x.id===STATE.confirmDeleteId);
+    const q = allQuestionsAdmin().find(x=>x.id===STATE.confirmDeleteId);
     const preview = q ? q.question : '';
     const modal = document.createElement('div');
     modal.id = 'confirm-modal';
@@ -3905,7 +3909,7 @@ function flaggedView(){
     <div class="empty-state">Todavía no has marcado ninguna pregunta. Cuando veas una que parezca desactualizada o con un error, pulsa "Marcar esta pregunta" en el test o en modo estudio, y aparecerá aquí para que la corrijas.</div>`;
   }
   let items = ids.map(id=>{
-    const q = allQuestions().find(x=>x.id===id);
+    const q = allQuestionsAdmin().find(x=>x.id===id);
     if(!q) return '';
     if(STATE.editingId === id) return editFormHtml(q);
     return `<div class="qcard" style="margin-bottom:10px;">
@@ -3940,12 +3944,12 @@ function saveQuestionEdit(qid, alsoUnflag){
   const explanation = document.getElementById('e-explanation').value.trim();
   const difficulty = document.getElementById('e-hard').checked ? 'hard' : 'normal';
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
-  const edit = (domain==='glossary' || domain==='assistants')
+  const edit = (domain==='glossary' || domain==='assistants' || domain==='fcf')
     ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
     : { rule: selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() };
   if(sharedActive()){
     // Banco compartido: el cambio lo ven todos los usuarios.
-    const cur = allQuestions().find(x => x.id === qid) || {};
+    const cur = allQuestionsAdmin().find(x => x.id === qid) || {};
     sharedSave([sharedRowFor(qid, domain, edit, cur.createdAt)]);
     if(STATE.storage.edits[qid]){ delete STATE.storage.edits[qid]; saveEdits(); }
   } else {
@@ -3960,10 +3964,11 @@ function saveQuestionEdit(qid, alsoUnflag){
 
 function filteredDbList(){
   const f = STATE.dbFilter;
-  let list = allQuestions();
+  let list = allQuestionsAdmin();
   if(f.law === 'hard') list = list.filter(q => q.difficulty === 'hard');
   else if(f.law === 'glossary') list = list.filter(q => q.domain === 'glossary');
   else if(f.law === 'assistants') list = list.filter(q => q.domain === 'assistants');
+  else if(f.law === 'fcf') list = list.filter(q => q.domain === 'fcf');
   else if(f.law !== 'all') list = list.filter(q => q.domain !== 'glossary' && q.rule === parseInt(f.law,10));
   if(f.difficulty === 'hard') list = list.filter(q => q.difficulty === 'hard');
   else if(f.difficulty === 'normal') list = list.filter(q => q.difficulty !== 'hard');
@@ -3978,7 +3983,7 @@ function filteredDbList(){
     const s = f.search.trim().toLowerCase();
     const numQuery = /^#\d+$/.test(s) ? parseInt(s.slice(1), 10) : null;
     if(numQuery !== null){
-      const pos = {}; allQuestions().forEach((q, i) => { pos[q.id] = i + 1; });
+      const pos = {}; allQuestionsAdmin().forEach((q, i) => { pos[q.id] = i + 1; });
       list = list.filter(q => questionNumber(q, pos[q.id]) === numQuery);
     } else {
       list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o => o.toLowerCase().includes(s)));
@@ -4012,7 +4017,7 @@ function databaseView(){
   const pageItems = list.slice(startIdx, startIdx + pageSize);
   const letters = ['a','b','c','d'];
 
-  const all = allQuestions();
+  const all = allQuestionsAdmin();
   const numberMap = {};
   all.forEach((q,i) => { numberMap[q.id] = questionNumber(q, i+1); });
   qnumSync();
@@ -4070,6 +4075,7 @@ function databaseView(){
   const LOW_COUNT_THRESHOLD = 30;
   const { counts: lawCounts, glossary: glossaryCount } = questionCountsByLaw();
   const assistantsCount = all.filter(q => q.domain === 'assistants').length;
+  const fcfCount = all.filter(q => q.domain === 'fcf').length;
   const lawChip = (law, label, n, extra) => {
     const low = n < LOW_COUNT_THRESHOLD && !extra;
     return `<button class="db-lawchip ${String(f.law)===String(law) ? 'active' : ''} ${low ? 'low' : ''}" data-action="db-view-law-questions" data-law="${law}"><b>${label}</b><span>${n}</span></button>`;
@@ -4077,7 +4083,8 @@ function databaseView(){
   const lawCountChipsHtml = `<button class="db-lawchip all ${String(f.law)==='all' ? 'active' : ''}" data-action="db-view-law-questions" data-law="all"><b>Todas</b><span>${all.length}</span></button>`
     + Array.from({length:17},(_,i)=>i+1).map(i => lawChip(i, 'R' + i, lawCounts[i] || 0)).join('')
     + lawChip('glossary', 'Glosario', glossaryCount)
-    + lawChip('assistants', 'Asistentes', assistantsCount, true);
+    + lawChip('assistants', 'Asistentes', assistantsCount, true)
+    + lawChip('fcf', 'Reglament FCF', fcfCount, true);
 
   const statusChip = (key, label, n) => `<button class="db-status ${key} ${statusNow === key ? 'active' : ''}" data-action="db-set-status" data-status="${key}">${label}<em>${n}</em></button>`;
   const advOpen = !!(f.dateFrom || f.dateTo || (f.dateField && f.dateField !== 'created'));
@@ -4341,7 +4348,8 @@ function addQuestionView(){
   const currentLawNum = typeof STATE.lawId === 'number' ? STATE.lawId : null;
   const lawSel = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${currentLawNum===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('')
     + `<option value="glossary" ${isGlossaryContext?'selected':''}>Glosario IFAB</option>`
-    + (sharedActive() ? `<option value="assistants" ${STATE.lawId==='assistants'?'selected':''}>Árbitros Asistentes</option>` : '');
+    + (sharedActive() ? `<option value="assistants" ${STATE.lawId==='assistants'?'selected':''}>Árbitros Asistentes</option>` : '')
+    + (sharedActive() ? `<option value="fcf" ${STATE.lawId==='fcf'?'selected':''}>Reglament General FCF (solo Base de datos y tests)</option>` : '');
   const backAction = STATE.cameFromDb ? 'database' : (STATE.lawId!=null ? 'open-law' : 'home');
   const sections = questionFormSections('f', {
     options: ['', '', '', ''], correct: 'a', question: '', explanation: '', hard: false,
@@ -4362,9 +4370,9 @@ function addQuestionView(){
 }
 
 function editFormHtml(q){
-  const isGlossaryQ = q.domain === 'glossary' || q.domain === 'assistants';
+  const isGlossaryQ = q.domain === 'glossary' || q.domain === 'assistants' || q.domain === 'fcf';
   const lawOpts = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${q.rule===i?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('');
-  const tagLabel = q.domain === 'assistants' ? 'Árbitros Asistentes' : isGlossaryQ ? 'Glosario IFAB' : 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
+  const tagLabel = q.domain === 'fcf' ? 'Reglament General FCF' : q.domain === 'assistants' ? 'Árbitros Asistentes' : isGlossaryQ ? 'Glosario IFAB' : 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
   const sections = questionFormSections('e', {
     options: q.options || ['', '', '', ''], correct: q.correct, question: q.question, explanation: q.explanation || '', hard: q.difficulty === 'hard',
     scopeHint: tagLabel,
@@ -4386,7 +4394,7 @@ function editFormHtml(q){
 function saveNewQuestion(){
   const lawSelEl = document.getElementById('f-law');
   const lawSelVal = lawSelEl.value;
-  const domain = lawSelVal === 'glossary' ? 'glossary' : lawSelVal === 'assistants' ? 'assistants' : 'law';
+  const domain = lawSelVal === 'glossary' ? 'glossary' : lawSelVal === 'assistants' ? 'assistants' : lawSelVal === 'fcf' ? 'fcf' : 'law';
   const selectedNum = domain === 'law' ? parseInt(lawSelVal,10) : null;
   const question = document.getElementById('f-question').value.trim();
   const a = document.getElementById('f-a').value.trim();
@@ -4399,7 +4407,7 @@ function saveNewQuestion(){
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
 
   const dedupeKey = questionDedupeKey({ question, options: [a,b,c,d] });
-  if(allQuestions().some(q => questionDedupeKey(q) === dedupeKey)){
+  if(allQuestionsAdmin().some(q => questionDedupeKey(q) === dedupeKey)){
     STATE.toast = 'Ya existe una pregunta con este mismo enunciado y estas mismas opciones en la base de datos.';
     render();
     return;
@@ -4407,11 +4415,12 @@ function saveNewQuestion(){
 
   if(sharedActive()){
     // Banco compartido: la pregunta la ven todos los usuarios.
-    const prefix = domain === 'glossary' ? 'G' : domain === 'assistants' ? 'S' : 'U';
+    const prefix = domain === 'glossary' ? 'G' : domain === 'assistants' ? 'S' : domain === 'fcf' ? 'F' : 'U';
     const id = prefix + Math.random().toString(36).slice(2,9);
     sharedSave([sharedRowFor(id, domain, { rule:selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty }, Date.now())]);
     if(domain==='glossary'){ STATE.toast='Pregunta guardada en el Glosario para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId='glossary'; STATE.view='law'; } }
     else if(domain==='assistants'){ STATE.toast='Pregunta guardada en Árbitros Asistentes para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId='assistants'; STATE.view='law'; } }
+    else if(domain==='fcf'){ STATE.toast='Pregunta guardada en Reglament General FCF. Solo se ve en la Base de datos y en los tests del comité.'; STATE.cameFromDb = true; }
     else { STATE.toast='Pregunta guardada en la Regla '+selectedNum+' para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId=selectedNum; STATE.view='law'; } }
     if(STATE.cameFromDb){ STATE.view='database'; }
   } else if(domain==='glossary'){
@@ -4547,10 +4556,10 @@ function statsView(){
 
 function exportExcel(){
   if(typeof XLSX === 'undefined'){ STATE.toast = 'No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'; render(); return; }
-  const rows = allQuestions().map((q,i) => ({
-    'Número': i+1,
+  const rows = allQuestionsAdmin().map((q,i) => ({
+    'Número': questionNumber(q, i+1),
     'ID': q.id,
-    'Ámbito': q.domain==='glossary' ? 'Glosario' : q.domain==='assistants' ? 'Asistentes' : q.rule,
+    'Ámbito': q.domain==='glossary' ? 'Glosario' : q.domain==='assistants' ? 'Asistentes' : q.domain==='fcf' ? 'FCF' : q.rule,
     'Pregunta': q.question,
     'Opción A': q.options[0]||'',
     'Opción B': q.options[1]||'',
@@ -4569,7 +4578,7 @@ function exportExcel(){
     ['- La columna "Número" es solo de referencia (la misma que ves en Base de datos como #123 en la app); no hace falta rellenarla en filas nuevas.'],
     ['- Deja la columna ID tal cual para EDITAR una pregunta existente.'],
     ['- Borra el ID (déjalo vacío) en una fila nueva para AÑADIR una pregunta.'],
-    ['- En "Ámbito" pon el número de regla (1-17) o la palabra Glosario.'],
+    ['- En "Ámbito" pon el número de regla (1-17), Glosario, Asistentes o FCF (Reglament General FCF).'],
     ['- En "Correcta" pon solo la letra: a, b, c o d.'],
     ['- No borres filas para eliminar preguntas: usa el botón Eliminar en la app.'],
     ['- Cuando termines, guarda el archivo y súbelo con "Importar desde Excel".']
@@ -4589,7 +4598,7 @@ function importExcelFile(file){
       const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
       let updated = 0, added = 0, skipped = 0, duplicates = 0;
       const sharedRows = [];
-      const seenKeys = new Set(allQuestions().map(q => questionDedupeKey(q)));
+      const seenKeys = new Set(allQuestionsAdmin().map(q => questionDedupeKey(q)));
       rows.forEach(row => {
         const id = String(row['ID']||'').trim();
         const ambito = String(row['Ámbito']||'').trim();
@@ -4602,14 +4611,15 @@ function importExcelFile(file){
         const explanation = String(row['Explicación']||'').trim();
         const difficulty = String(row['Difícil (SI/NO)']||'').trim().toUpperCase()==='SI' ? 'hard' : 'normal';
         const isAssist = ambito.toLowerCase().startsWith('asis');
-        const isGlossary = ambito.toLowerCase().startsWith('glos') || isAssist;
+        const isFcf = ambito.toLowerCase().startsWith('fcf') || ambito.toLowerCase().startsWith('reglament');
+        const isGlossary = ambito.toLowerCase().startsWith('glos') || isAssist || isFcf;
         const rule = isGlossary ? null : parseInt(ambito,10);
 
         if(!question || !a || !b || !c || !['a','b','c','d'].includes(correct)){ skipped++; return; }
         if(!isGlossary && (!rule || rule<1 || rule>17)){ skipped++; return; }
 
         if(id){
-          const exists = allQuestions().find(q=>q.id===id);
+          const exists = allQuestionsAdmin().find(q=>q.id===id);
           if(!exists){ skipped++; return; }
           const edit = isGlossary
             ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
@@ -4618,13 +4628,13 @@ function importExcelFile(file){
           else STATE.storage.edits[id] = edit;
           updated++;
         } else {
-          if(isAssist && !sharedActive()){ skipped++; return; }
+          if((isAssist || isFcf) && !sharedActive()){ skipped++; return; }
           const dedupeKey = questionDedupeKey({ question, options:[a,b,c,d] });
           if(seenKeys.has(dedupeKey)){ duplicates++; return; }
           seenKeys.add(dedupeKey);
           if(sharedActive()){
-            const dom = isAssist ? 'assistants' : isGlossary ? 'glossary' : 'law';
-            const nid = (isAssist ? 'S' : isGlossary ? 'G' : 'U') + Math.random().toString(36).slice(2,9);
+            const dom = isFcf ? 'fcf' : isAssist ? 'assistants' : isGlossary ? 'glossary' : 'law';
+            const nid = (isFcf ? 'F' : isAssist ? 'S' : isGlossary ? 'G' : 'U') + Math.random().toString(36).slice(2,9);
             sharedRows.push(sharedRowFor(nid, dom, { rule, question, options:[a,b,c,d], correct, explanation, difficulty }, Date.now()));
           } else if(isGlossary){
             STATE.storage.glossaryQuestions.push({ domain:'glossary', rule:null, num:'X'+Math.random().toString(36).slice(2,9), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() });
@@ -4818,7 +4828,7 @@ function onAction(e){
   else if(action==='add-from-db'){
     STATE.cameFromDb = true;
     const currentLaw = STATE.dbFilter.law;
-    STATE.lawId = currentLaw==='glossary' ? 'glossary' : (/^\d+$/.test(currentLaw) ? parseInt(currentLaw,10) : null);
+    STATE.lawId = (currentLaw==='glossary' || currentLaw==='assistants' || currentLaw==='fcf') ? currentLaw : (/^\d+$/.test(currentLaw) ? parseInt(currentLaw,10) : null);
     STATE.view='add'; render();
   }
   else if(action==='save-question'){ saveNewQuestion(); }
@@ -4978,7 +4988,7 @@ function onAction(e){
       if(sharedActive() && (baseIdSet().has(qid) || SHARED.rows[qid])){
         // Banco compartido: se elimina para todos los usuarios.
         if(baseIdSet().has(qid)){
-          const cur = allQuestions().find(x => x.id === qid) || {};
+          const cur = allQuestionsAdmin().find(x => x.id === qid) || {};
           const ex = SHARED.rows[qid] || {};
           sharedSave([{ id:qid, domain:cur.domain || ex.domain || 'law', deleted:true, created_at: ex.created_at || null, updated_at: Date.now() }]);
         } else {
