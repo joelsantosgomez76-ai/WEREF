@@ -16,6 +16,10 @@ const COMMITTEE = {
   tab: 'tests',
   rankMonth: 'all',
   rankSeason: null,
+  memberSearch: '',
+  memberFilter: 'all',
+  memberSort: 'surname',
+  memberReport: null,
   newMemberEmail: '',
   detailTestId: null,
   settings: null,     // ajustes de UN test (detalle)
@@ -151,12 +155,19 @@ async function cmLoadMyTests(){
   cmRefresh();
 }
 
+/* Miembros con nombre y apellidos por separado; si el SQL nuevo aún no está, se usa la función antigua. */
+async function cmFetchMembers(){
+  const r = await supabaseClient.rpc('committee_admin_members_detail');
+  if(!r.error) return r;
+  return supabaseClient.rpc('committee_admin_list_members');
+}
+
 async function cmLoadAdminData(){
   COMMITTEE.error = null;
   await cmLoadMessages();
   const results = await Promise.all([
     supabaseClient.from('committee_tests').select('*, committee_test_questions(count)').order('created_at', { ascending: false }),
-    supabaseClient.rpc('committee_admin_list_members'),
+    cmFetchMembers(),
     supabaseClient.rpc('committee_admin_all_attempts'),
     supabaseClient.rpc('committee_admin_rule_stats'),
     supabaseClient.from('committee_test_questions').select('question, committee_tests(title)')
@@ -706,32 +717,164 @@ function cmTestsTab(){
 }
 
 /* ----- Miembros ----- */
-function cmMembersTab(){
+/* ----- Miembros ----- */
+function cmNameParts(m){
+  let first = String(m.first_name || '').trim(), last = String(m.last_name || '').trim();
+  if(!first && !last && m.full_name) first = String(m.full_name).trim(); // función antigua: sin separar
+  return { first, last };
+}
+function cmHasRealName(m){ const p = cmNameParts(m); return !!(p.last || p.first); }
+/* "Apellidos, Nombre" */
+function cmSurnameName(m){
+  const { first, last } = cmNameParts(m);
+  if(last && first) return last + ', ' + first;
+  return last || first || m.username || m.email || '—';
+}
+function cmInitials(m){
+  const { first, last } = cmNameParts(m);
+  const a = (last || first || m.username || m.email || '?').charAt(0);
+  const b = last && first ? first.charAt(0) : '';
+  return (a + b).toUpperCase();
+}
+function cmCollate(a, b){ return String(a || '').localeCompare(String(b || ''), 'es', { sensitivity: 'base' }); }
+function cmPlain(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+function cmLetterOf(m){
+  if(!cmHasRealName(m)) return '#';
+  const p = cmNameParts(m);
+  const c = cmPlain((p.last || p.first).charAt(0)).toUpperCase();
+  return /[A-Z]/.test(c) ? c : '#';
+}
+function cmFmtDay(iso){ return iso ? new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'; }
+
+/* Lista ya filtrada y ordenada según los controles de la pestaña. */
+function cmMembersData(){
+  const all = (COMMITTEE.members || []).map(m => ({ m, s: cmMemberStats(m.user_id) }));
+  const counts = { all: all.length, results: all.filter(e => e.s.pct !== null).length };
+  counts.none = counts.all - counts.results;
+  const q = cmPlain(COMMITTEE.memberSearch).trim();
+  let list = all.filter(e => {
+    if(COMMITTEE.memberFilter === 'results' && e.s.pct === null) return false;
+    if(COMMITTEE.memberFilter === 'none' && e.s.pct !== null) return false;
+    if(!q) return true;
+    const p = cmNameParts(e.m);
+    return cmPlain([p.last, p.first, p.last + ' ' + p.first, p.first + ' ' + p.last, e.m.username, e.m.email].join(' ')).includes(q);
+  });
+  const sort = COMMITTEE.memberSort || 'surname';
+  const bySurname = (a, b) => {
+    const na = cmHasRealName(a.m), nb = cmHasRealName(b.m);
+    if(na !== nb) return na ? -1 : 1;              // sin nombre registrado, al final
+    const pa = cmNameParts(a.m), pb = cmNameParts(b.m);
+    return cmCollate(pa.last || pa.first || a.m.username || a.m.email, pb.last || pb.first || b.m.username || b.m.email)
+      || cmCollate(pa.first, pb.first)
+      || cmCollate(a.m.username || a.m.email, b.m.username || b.m.email);
+  };
+  if(sort === 'surname') list.sort(bySurname);
+  else if(sort === 'surname_desc') list.sort((a, b) => {
+    const na = cmHasRealName(a.m), nb = cmHasRealName(b.m);
+    if(na !== nb) return na ? -1 : 1;
+    return -bySurname(a, b);
+  });
+  else if(sort === 'done') list.sort((a, b) => b.s.done - a.s.done || bySurname(a, b));
+  else if(sort === 'acc') list.sort((a, b) => (b.s.pct === null ? -1 : b.s.pct) - (a.s.pct === null ? -1 : a.s.pct) || bySurname(a, b));
+  else if(sort === 'recent') list.sort((a, b) => Date.parse(b.m.added_at || 0) - Date.parse(a.m.added_at || 0));
+  return { all, list, counts, sort };
+}
+
+function cmMemberRowHtml(e){
   const ic = (n) => shellIcon(n);
-  const members = COMMITTEE.members || [];
-  const rows = members.map(m => {
-    const s = cmMemberStats(m.user_id);
-    const pct = s.published ? Math.round(s.done / s.published * 100) : 0;
-    return `<div class="mb-row">
-      ${cmAvatar(cmWho(m))}
-      <div class="mb-info"><strong>${esc(m.username || m.full_name || m.email || '')}</strong><small>${esc(m.full_name && m.username ? m.full_name + ' · ' : '')}${esc(m.email || '')}</small></div>
+  const m = e.m, s = e.s;
+  const pct = s.published ? Math.round(s.done / s.published * 100) : 0;
+  let h = 0; const seed = cmSurnameName(m); for(let k = 0; k < seed.length; k++) h = (h * 31 + seed.charCodeAt(k)) % 360;
+  const handle = [m.username ? '@' + m.username : '', m.email || ''].filter(Boolean).join(' · ');
+  return `<div class="mb-row">
+      <span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span>
+      <div class="mb-info">
+        <strong>${esc(cmSurnameName(m))}</strong>
+        <small>${esc(handle)}</small>
+      </div>
       <div class="mb-prog"><div class="mb-prog-top"><span>${s.done}/${s.published} tests</span></div><div class="mb-prog-bar"><i style="width:${pct}%"></i></div></div>
       <div class="mb-acc">${s.pct !== null ? accuracyBadge(s.pct) : '<span class="cm-chip soft">sin resultados</span>'}</div>
+      <div class="mb-date" title="Último acceso">${m.last_sign_in_at ? ic('clock') + ' ' + cmFmtDay(m.last_sign_in_at) : '<span class="mb-date-none">—</span>'}</div>
       <button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button>
     </div>`;
-  }).join('');
-  const withRes = members.filter(m => cmMemberStats(m.user_id).pct !== null).length;
+}
+
+function cmMembersListHtml(){
+  const ic = (n) => shellIcon(n);
+  const { all, list, sort } = cmMembersData();
+  if(!all.length){
+    return `<div class="ac-empty" style="padding:26px 14px;">${ic('users')}<strong>Todavía no hay ningún miembro</strong><span>Añade el primero con su correo.</span></div>`;
+  }
+  if(!list.length){
+    return `<div class="ac-empty" style="padding:26px 14px;">${ic('search')}<strong>Nadie coincide con ese filtro</strong><span>Prueba con otro nombre o quita el filtro.</span></div>`;
+  }
+  const grouped = sort === 'surname' || sort === 'surname_desc';
+  if(!grouped) return list.map(cmMemberRowHtml).join('');
+  const out = [];
+  let cur = null;
+  list.forEach(e => {
+    const L = cmLetterOf(e.m);
+    if(L !== cur){
+      cur = L;
+      out.push(`<div class="mb-letter"><span>${L === '#' ? 'Sin nombre' : L}</span></div>`);
+    }
+    out.push(cmMemberRowHtml(e));
+  });
+  return out.join('');
+}
+
+function cmMembersCountText(){
+  const { all, list } = cmMembersData();
+  return list.length === all.length
+    ? `${all.length} ${all.length === 1 ? 'árbitro' : 'árbitros'}`
+    : `${list.length} de ${all.length} árbitros`;
+}
+
+function cmMembersTab(){
+  const ic = (n) => shellIcon(n);
+  const { counts } = cmMembersData();
+  const f = COMMITTEE.memberFilter || 'all';
+  const chip = (k, label, n) => `<button class="tx-filter ${f === k ? 'active' : ''}" data-action="committee-member-filter" data-filter="${k}">${label}<em>${n}</em></button>`;
+  const sortOpts = [['surname', 'Apellidos (A–Z)'], ['surname_desc', 'Apellidos (Z–A)'], ['done', 'Más tests hechos'], ['acc', 'Mejor acierto'], ['recent', 'Añadidos recientemente']];
+  const rep = COMMITTEE.memberReport;
+  const repHtml = rep ? `
+      ${rep.added ? `<div class="cm-nums-rep ok">${ic('check')}<span>Añadidos <b>${rep.added}</b> ${rep.added === 1 ? 'árbitro' : 'árbitros'}.</span></div>` : ''}
+      ${rep.already ? `<div class="cm-nums-rep warn">${ic('flag')}<span><b>${rep.already}</b> ya tenían acceso.</span></div>` : ''}
+      ${rep.notFound.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No están registrados en we-ref.com: <b>${rep.notFound.map(esc).join(', ')}</b>. Pídeles que se creen una cuenta.</span></div>` : ''}
+      ${rep.invalid.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No parecen correos válidos: <b>${rep.invalid.map(esc).join(', ')}</b>.</span></div>` : ''}` : '';
   return `
   <div class="tp-layout mb-layout">
-    <div class="tc-card">
-      <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small>${members.length} ${members.length === 1 ? 'miembro' : 'miembros'} · ${withRes} con resultados</small></div></div>
-      ${rows || `<div class="ac-empty" style="padding:26px 14px;">${ic('users')}<strong>Todavía no hay ningún miembro</strong><span>Añade el primero con su email.</span></div>`}
+    <div class="mb-main">
+      <div class="ac-search mb-search">
+        ${ic('search')}
+        <input type="text" id="cm-member-search" placeholder="Buscar por apellidos, nombre, usuario o correo..." value="${esc(COMMITTEE.memberSearch)}" maxlength="80" autocomplete="off" aria-label="Buscar árbitro">
+      </div>
+      <div class="tx-toolbar mb-toolbar">
+        <div class="tx-filters">
+          ${chip('all', 'Todos', counts.all)}
+          ${chip('results', 'Con resultados', counts.results)}
+          ${chip('none', 'Sin resultados', counts.none)}
+        </div>
+        <div class="mb-tools">
+          <label class="mb-sort">Ordenar
+            <select id="cm-member-sort" data-cm-field="memberSort" data-cm-rerender>
+              ${sortOpts.map(([k, l]) => `<option value="${k}" ${COMMITTEE.memberSort === k ? 'selected' : ''}>${l}</option>`).join('')}
+            </select>
+          </label>
+          <button class="btn btn-ghost" data-action="committee-export-members">${ic('download')} Exportar</button>
+        </div>
+      </div>
+      <div class="tc-card mb-listcard">
+        <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small id="cm-members-count">${cmMembersCountText()}</small></div></div>
+        <div id="cm-members-list">${cmMembersListHtml()}</div>
+      </div>
     </div>
     <aside class="tc-card mb-add">
-      <div class="tc-card-head"><span class="tc-step">${ic('userplus')}</span><div><h3>Añadir árbitro</h3><small>Por su correo</small></div></div>
-      <input type="email" id="cm-new-member" data-cm-field="newMemberEmail" value="${esc(COMMITTEE.newMemberEmail)}" placeholder="correo@ejemplo.com">
+      <div class="tc-card-head"><span class="tc-step">${ic('userplus')}</span><div><h3>Añadir árbitros</h3><small>Uno o varios correos</small></div></div>
+      <textarea id="cm-new-member" data-cm-field="newMemberEmail" rows="4" placeholder="correo@ejemplo.com&#10;otro@ejemplo.com" style="margin:0;">${esc(COMMITTEE.newMemberEmail)}</textarea>
       <button class="btn btn-primary" style="width:100%; margin-top:12px; display:inline-flex; align-items:center; justify-content:center; gap:8px;" data-action="committee-add-member">${ic('userplus')} Añadir</button>
-      <div class="st-note" style="margin-top:12px;">La persona tiene que haberse registrado antes en we-ref.com con ese mismo email.</div>
+      ${repHtml}
+      <div class="st-note" style="margin-top:12px;">Puedes pegar varios correos separados por comas, espacios o saltos de línea. Cada persona tiene que haberse registrado antes en we-ref.com con ese mismo correo.</div>
     </aside>
   </div>`;
 }
@@ -1429,14 +1572,37 @@ async function committeeOnAction(action, el){
 
   /* administrador: miembros */
   else if(action === 'committee-add-member'){
-    const email = COMMITTEE.newMemberEmail.trim();
-    if(!email){ cmToast('Escribe el email del árbitro.'); return; }
-    const { data, error } = await supabaseClient.rpc('committee_admin_add_member', { p_email: email });
-    if(error){ cmToast(cmErrText(error)); return; }
-    if(!data.ok){ cmToast('Ese email no está registrado en we-ref.com. Pídele que se cree una cuenta primero.'); return; }
-    COMMITTEE.newMemberEmail = '';
-    STATE.toast = 'Árbitro añadido.'; render();
+    const raw = String(COMMITTEE.newMemberEmail || '');
+    const tokens = Array.from(new Set(raw.split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean)));
+    if(!tokens.length){ cmToast('Escribe el correo del árbitro.'); return; }
+    const emails = tokens.filter(x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+    const invalid = tokens.filter(x => !emails.includes(x));
+    const known = new Set((COMMITTEE.members || []).map(m => String(m.email || '').toLowerCase()));
+    const rep = { added: 0, already: 0, notFound: [], invalid };
+    const keep = [];
+    for(const em of emails){
+      if(known.has(em)){ rep.already++; continue; }
+      const { data, error } = await supabaseClient.rpc('committee_admin_add_member', { p_email: em });
+      if(error){ cmToast(cmErrText(error)); return; }
+      if(data && data.ok) rep.added++; else { rep.notFound.push(em); keep.push(em); }
+    }
+    COMMITTEE.newMemberEmail = keep.concat(invalid).join('\n');
+    COMMITTEE.memberReport = rep;
+    render();
     cmLoadAdminData();
+  }
+  else if(action === 'committee-member-filter'){ COMMITTEE.memberFilter = el.dataset.filter; render(); }
+  else if(action === 'committee-export-members'){
+    const { list } = cmMembersData();
+    const rows = list.map(e => {
+      const p = cmNameParts(e.m);
+      return {
+        'Apellidos': p.last, 'Nombre': p.first, 'Usuario': e.m.username || '', 'Email': e.m.email || '',
+        'Tests hechos': e.s.done, 'Tests publicados': e.s.published, '% acierto': e.s.pct === null ? '' : e.s.pct,
+        'Alta en CTA BAGES': cmFmtDay(e.m.added_at), 'Último acceso': e.m.last_sign_in_at ? cmFmtDay(e.m.last_sign_in_at) : ''
+      };
+    });
+    cmExport(rows, 'Miembros', 'comite_miembros.xlsx');
   }
   else if(action === 'committee-remove-member'){
     const m = (COMMITTEE.members || []).find(x => x.user_id === el.dataset.uid);
@@ -1620,6 +1786,13 @@ function committeeAfterRender(){
       cmSetPath(el.dataset.cmField, el.type === 'checkbox' ? el.checked : el.value);
       if(el.hasAttribute('data-cm-rerender')) render();
     });
+  });
+  const msearch = document.getElementById('cm-member-search');
+  if(msearch) msearch.addEventListener('input', () => {
+    COMMITTEE.memberSearch = msearch.value;
+    const list = document.getElementById('cm-members-list');
+    if(list){ list.innerHTML = cmMembersListHtml(); list.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction)); }
+    const cnt = document.getElementById('cm-members-count'); if(cnt) cnt.textContent = cmMembersCountText();
   });
   const nta = document.getElementById('cm-b-nums');
   if(nta) nta.addEventListener('input', () => {
