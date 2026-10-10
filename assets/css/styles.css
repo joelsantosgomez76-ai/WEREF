@@ -2255,3 +2255,50 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
   .mb-table{min-width:680px;}
   .mb-listcard .tc-card-head .cm-actions{width:100%;}
 }
+
+/* ---------- Miembros: la tabla cabe en una pantalla (sin barra horizontal) ---------- */
+.mb-fullwidth{display:block;}
+.mb-tablewrap{overflow-x:hidden; overflow-y:auto;}
+.mb-table{min-width:0 !important; width:100%; table-layout:fixed;}
+.mb-table th, .mb-table td{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.mb-table .mb-c-chk{width:42px;}
+.mb-table th:nth-child(2){width:22%;}
+.mb-table th:nth-child(3){width:14%;}
+.mb-table th:nth-child(4){width:24%;}
+.mb-table th:nth-child(5){width:20%;}
+.mb-table th:nth-child(6){width:13%;}
+.mb-table .mb-c-del{width:52px;}
+.mb-person{max-width:100%;}
+.mb-person strong{overflow:hidden; text-overflow:ellipsis;}
+.mb-table .mb-c-email{max-width:none;}
+.mb-f{min-width:0 !important;}
+.mb-cat{min-width:0 !important;}
+.mb-sortbtn{max-width:100%;}
+.mb-addpanel{margin-bottom:14px;}
+.mb-addrow{display:flex; gap:12px; align-items:flex-start;}
+.mb-addrow textarea{flex:1; min-width:0;}
+.mb-addrow .btn{display:inline-flex; align-items:center; gap:8px; white-space:nowrap;}
+@media (max-width:900px){
+  .mb-table .mb-c-date, .mb-table th:nth-child(6){display:none;}
+  .mb-table th:nth-child(2){width:28%;}
+  .mb-table th:nth-child(3){width:18%;}
+  .mb-table th:nth-child(4){width:26%;}
+  .mb-table th:nth-child(5){width:24%;}
+}
+@media (max-width:640px){
+  .mb-table .mb-c-email, .mb-table th:nth-child(4){display:none;}
+  .mb-table th:nth-child(2){width:36%;}
+  .mb-table th:nth-child(3){width:24%;}
+  .mb-table th:nth-child(5){width:40%;}
+  .mb-av{display:none;}
+  .mb-table th, .mb-table td{padding-left:6px; padding-right:6px;}
+  .mb-table .mb-c-chk{width:32px;}
+  .mb-table .mb-c-del{width:40px;}
+  .mb-addrow{flex-direction:column;}
+  .mb-addrow .btn{width:100%; justify-content:center;}
+}
+@media (max-width:640px){
+  .mb-table .mb-c-del{width:50px; padding-right:8px; text-align:center !important;}
+  .mb-c-del .tx-icon{width:32px; height:32px;}
+  .mb-table th:nth-child(5){width:38%;}
+}
