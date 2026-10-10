@@ -1002,6 +1002,49 @@ function cmAddByNumbers(b){
   b.numsReport = rep;
   return rep;
 }
+/* Estado de cada número escrito: se calcula en directo, sin tocar el test. */
+function cmNumsStatus(b){
+  const nums = cmParseNumbers(b.numsText);
+  const byNum = questionsByNumber();
+  const inTest = new Set(b.selected.map(q => q.id));
+  const items = nums.map(n => {
+    const q = byNum[n];
+    return { n, q, state: !q ? 'missing' : (inTest.has(q.id) ? 'already' : 'new') };
+  });
+  return { items, ok: items.filter(i => i.state === 'new').length };
+}
+function cmNumsAddLabel(b){
+  const { ok } = cmNumsStatus(b);
+  return ok ? `Añadir ${ok} ${ok === 1 ? 'pregunta' : 'preguntas'} al test` : 'Añadir al test';
+}
+function cmNumsPreviewHtml(b){
+  const { items, ok } = cmNumsStatus(b);
+  if(!items.length) return '';
+  const already = items.filter(i => i.state === 'already').length;
+  const missing = items.filter(i => i.state === 'missing').length;
+  const LIMIT = 60;
+  const cards = items.slice(0, LIMIT).map((it, idx) => {
+    if(it.state === 'missing'){
+      return `<div class="cm-pv missing"><div class="cm-pv-head"><span class="cm-qnum">#${it.n}</span><span class="cm-pv-state bad">No existe o se eliminó</span></div></div>`;
+    }
+    const q = it.q;
+    return `<div class="cm-pv ${it.state}">
+      <div class="cm-pv-head">
+        <span class="cm-pv-pos">${idx + 1}</span><span class="cm-qnum">#${it.n}</span>
+        <span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${esc(cmRuleLabel(q))}</span>
+        ${q.difficulty === 'hard' ? '<span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">Difícil</span>' : ''}
+        ${it.state === 'already' ? '<span class="cm-pv-state warn">Ya está en el test</span>' : ''}
+      </div>
+      <div class="cm-pv-q">${esc(q.question)}</div>
+      ${cmQuestionDetail(q)}
+    </div>`;
+  }).join('');
+  return `<div class="cm-pv-wrap">
+    <div class="cm-pv-title">${cmIc('eye')} Previsualización · ${ok} ${ok === 1 ? 'nueva' : 'nuevas'}${already ? ` · ${already} ya en el test` : ''}${missing ? ` · ${missing} sin encontrar` : ''}</div>
+    ${cards}
+    ${items.length > LIMIT ? `<div style="font-size:12.5px; color:var(--muted); text-align:center;">Se muestran las primeras ${LIMIT} de ${items.length}; se añadirán todas.</div>` : ''}
+  </div>`;
+}
 function cmNumsReportHtml(rep){
   if(!rep) return '';
   if(!rep.total) return `<div class="cm-nums-rep warn">${cmIc('flag')}<span>No he encontrado ningún número. Escríbelos separados por comas, espacios o saltos de línea.</span></div>`;
@@ -1128,10 +1171,11 @@ function cmBuilderView(){
         <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Escribe los números que ves con <b>#</b> en la Base de datos. Sepáralos con comas, espacios o saltos de línea; también vale un rango (por ejemplo <b>120-125</b>). Se añaden en el orden que los escribas.</div>
         <textarea id="cm-b-nums" data-cm-field="builder.numsText" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" style="margin:0;">${esc(b.numsText)}</textarea>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px;">
-          <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${cmIc('plus')} Añadir al test</button>
+          <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${cmIc('plus')} <span id="cm-b-add-label">${cmNumsAddLabel(b)}</span></button>
           <span style="font-size:12.5px; color:var(--muted);">El número de cada pregunta es único y no cambia nunca, aunque se eliminen otras.</span>
         </div>
         ${cmNumsReportHtml(b.numsReport)}
+        <div id="cm-nums-preview">${cmNumsPreviewHtml(b)}</div>
       </div>
 
       <div class="cm-card">
@@ -1557,5 +1601,12 @@ function committeeAfterRender(){
       cmSetPath(el.dataset.cmField, el.type === 'checkbox' ? el.checked : el.value);
       if(el.hasAttribute('data-cm-rerender')) render();
     });
+  });
+  const nta = document.getElementById('cm-b-nums');
+  if(nta) nta.addEventListener('input', () => {
+    const b = COMMITTEE.builder; if(!b) return;
+    b.numsText = nta.value;
+    const pv = document.getElementById('cm-nums-preview'); if(pv) pv.innerHTML = cmNumsPreviewHtml(b);
+    const lb = document.getElementById('cm-b-add-label'); if(lb) lb.textContent = cmNumsAddLabel(b);
   });
 }
