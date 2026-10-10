@@ -1118,7 +1118,10 @@ function cmTestDetailView(){
   <div class="cm-card">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
       <div class="cm-sec-title" style="margin:0;">Preguntas del test${COMMITTEE.detailQuestions ? ' (' + COMMITTEE.detailQuestions.length + ')' : ''}</div>
-      <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-edit-test" data-tid="${t.id}">${cmIc('pencil')} Modificar preguntas</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-dq-toggle-all">${cmIc('eye')} <span id="cm-dq-all-label">Ver todas</span></button>
+        <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-edit-test" data-tid="${t.id}">${cmIc('pencil')} Modificar preguntas</button>
+      </div>
     </div>
     ${t.published ? `<div class="st-note" style="margin-bottom:12px;">Este test está publicado: puedes corregirlo igualmente. Los cambios se ven al momento y, si cambias una respuesta correcta, podrás recalcular los resultados ya hechos.</div>` : ''}
     ${COMMITTEE.detailQuestions === null ? '<div style="font-size:13.5px; color:var(--muted);">Cargando...</div>' : (COMMITTEE.detailQuestions.length ? COMMITTEE.detailQuestions.map(q => `
@@ -1265,6 +1268,7 @@ function cmBuilderView(){
   if(b.season) seasonSet.add(String(b.season));
   const seasonOpts = Array.from(seasonSet).sort();
   const n = b.selected.length;
+  const allOpen = n > 0 && b.selected.every(q => b.expanded[q.id]);
   const monthName = CM_MONTHS[parseInt(b.mon, 10) - 1] || '';
   const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   const timerLabel = cmTimerText({ timer_mode: b.timerMode, time_minutes: parseInt(b.minutes, 10) || null, seconds_per_question: parseInt(b.secPerQ, 10) || null });
@@ -1387,6 +1391,7 @@ function cmBuilderView(){
       <div class="tc-card">
         <div class="tc-card-head"><span class="tc-step">7</span><div><h3>Preguntas del test (${n})</h3><small>Ordénalas, revísalas o quítalas</small></div>
           <div class="cm-actions">
+            <button class="btn btn-ghost" style="padding:6px 12px; display:inline-flex; align-items:center; gap:7px;" data-action="committee-b-expand-all" ${n ? '' : 'disabled'}>${cmIc('eye')} ${allOpen ? 'Ocultar todas' : 'Ver todas'}</button>
             <button class="btn btn-ghost" style="padding:6px 11px;" data-action="committee-b-shuffle" ${n < 2 ? 'disabled' : ''} title="Mezclar el orden">${cmIc('shuffle')}</button>
             <button class="btn btn-ghost btn-danger-soft" style="padding:6px 11px;" data-action="committee-b-clear" ${n ? '' : 'disabled'} title="Vaciar">${cmIc('trash')}</button>
           </div>
@@ -1808,6 +1813,13 @@ async function committeeOnAction(action, el){
     COMMITTEE.builder = nb;
     STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0);
   }
+  else if(action === 'committee-dq-toggle-all'){
+    const items = Array.from(document.querySelectorAll('.cm-dq'));
+    if(!items.length) return;
+    const open = !items.every(d => d.open);
+    items.forEach(d => { d.open = open; });
+    const lb = document.getElementById('cm-dq-all-label'); if(lb) lb.textContent = open ? 'Ocultar todas' : 'Ver todas';
+  }
   else if(action === 'committee-detail'){ cmOpenDetail(tid); window.scrollTo(0, 0); }
   else if(action === 'committee-save-settings'){
     const s = COMMITTEE.settings; if(!s) return;
@@ -1856,6 +1868,12 @@ async function committeeOnAction(action, el){
     const idx = b.selected.findIndex(q => q.id === qid);
     if(idx >= 0) b.selected.splice(idx, 1);
     else { const q = allQuestionsAdmin().find(x => x.id === qid); if(q) b.selected.push(q); }
+    render();
+  }
+  else if(action === 'committee-b-expand-all'){
+    if(!b || !b.selected.length) return;
+    const open = !b.selected.every(q => b.expanded[q.id]);
+    b.selected.forEach(q => { b.expanded[q.id] = open; });
     render();
   }
   else if(action === 'committee-b-expand'){
