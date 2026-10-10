@@ -51,6 +51,9 @@ function cmErrText(err){
     time_up: 'Se agotó el tiempo del test y no se ha podido guardar el intento.'
   };
   for(const k in known){ if(m.includes(k)) return known[k]; }
+  if(/shuffle_mode/.test(m)){
+    return 'Falta ejecutar el SQL de orden de preguntas (committee-shuffle.sql) en Supabase.';
+  }
   if(/timer_mode|time_minutes|seconds_per_question/.test(m)){
     return 'Falta ejecutar el SQL de temporización (committee-timer.sql) en Supabase.';
   }
@@ -434,7 +437,7 @@ function cmRunView(){
       ${q.rule ? `<div class="qz-tag">Regla ${q.rule} · ${esc(LAW_NAMES[q.rule] || '')}</div>` : '<div class="qz-tag">CTA BAGES</div>'}
       <h2 class="qz-text">${esc(q.question)}</h2>
       <div class="qz-options">
-        ${q.options.map((o, i) => `<button class="option ${sel === CM_LETTERS[i] ? 'selected' : ''}" data-action="committee-answer" data-letter="${CM_LETTERS[i]}"><span class="letter">${CM_LETTERS[i].toUpperCase()}</span><span class="opt-text">${esc(o)}</span></button>`).join('')}
+        ${(q.perm || q.options.map((_, k) => k)).map((orig, i) => `<button class="option ${sel === CM_LETTERS[orig] ? 'selected' : ''}" data-action="committee-answer" data-letter="${CM_LETTERS[orig]}"><span class="letter">${CM_LETTERS[i].toUpperCase()}</span><span class="opt-text">${esc(q.options[orig])}</span></button>`).join('')}
       </div>
     </article>
     <div class="qz-actions">
@@ -598,6 +601,43 @@ function cmRankScope(){
   return { seasons, season, months, month };
 }
 
+
+/* ---------- orden de preguntas y respuestas (igual para todos o mezclado por árbitro) ---------- */
+function cmSeededRandom(seedStr){
+  let h = 1779033703 ^ String(seedStr).length;
+  for(let i = 0; i < seedStr.length; i++){ h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  let a = (h ^= h >>> 16) >>> 0;
+  return function(){
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function cmShuffleWith(arr, rnd){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+/* "Ninguna respuesta es correcta" y "Todas las anteriores" se quedan en su sitio (al final). */
+function cmAnchoredOption(text){
+  return /^\s*(ninguna|ninguno|todas|todos)\b[^.]{0,40}\b(respuesta|anterior|correct)/i.test(String(text || ''));
+}
+/* Devuelve una copia de las preguntas en orden distinto, con `perm` = índice original de cada opción mostrada.
+   Las respuestas se siguen guardando con la letra ORIGINAL (data-letter), así que la corrección no cambia. */
+function cmShuffleQuestions(questions, seed){
+  const rnd = cmSeededRandom(seed);
+  const ordered = cmShuffleWith(questions, rnd);
+  return ordered.map(q => {
+    const idx = q.options.map((_, i) => i);
+    const free = idx.filter(i => !cmAnchoredOption(q.options[i]));
+    const mixed = cmShuffleWith(free, rnd);
+    const perm = idx.slice();
+    free.forEach((pos, k) => { perm[pos] = mixed[k]; });
+    return Object.assign({}, q, { perm });
+  });
+}
 /* ---------- temporización de los tests ---------- */
 function cmTimerText(t){
   if(t && t.timer_mode === 'total' && t.time_minutes) return t.time_minutes + ' min en total';
@@ -606,6 +646,11 @@ function cmTimerText(t){
 }
 function cmTimerOpt(on, mode, icon, title, text){
   return `<button type="button" class="tc-opt ${on ? 'active' : ''}" data-action="committee-b-timer-mode" data-mode="${mode}">
+    <span class="tc-opt-ic">${shellIcon(icon)}</span><span class="tc-opt-body"><strong>${title}</strong><small>${text}</small></span><span class="tc-opt-check">${shellIcon('check')}</span>
+  </button>`;
+}
+function cmOrderOpt(on, mode, icon, title, text){
+  return `<button type="button" class="tc-opt ${on ? 'active' : ''}" data-action="committee-b-order-mode" data-mode="${mode}">
     <span class="tc-opt-ic">${shellIcon(icon)}</span><span class="tc-opt-body"><strong>${title}</strong><small>${text}</small></span><span class="tc-opt-check">${shellIcon('check')}</span>
   </button>`;
 }
@@ -630,12 +675,17 @@ function cmBuilderTimerSummary(b){
   }
   return 'Sin límite de tiempo: cada árbitro lo hace a su ritmo.';
 }
+/* Columnas opcionales del test (temporización y orden). Solo se envían las que hacen falta,
+   para no romper si el SQL correspondiente aún no se ha ejecutado. */
 function cmBuilderTimerFields(b){
-  return {
-    timer_mode: b.timerMode,
-    time_minutes: b.timerMode === 'total' ? Math.round(parseInt(b.minutes, 10)) : null,
-    seconds_per_question: b.timerMode === 'perQuestion' ? Math.round(parseInt(b.secPerQ, 10)) : null
-  };
+  const o = {};
+  if(b.timerMode !== 'none' || b.hadTimerCols){
+    o.timer_mode = b.timerMode;
+    o.time_minutes = b.timerMode === 'total' ? Math.round(parseInt(b.minutes, 10)) : null;
+    o.seconds_per_question = b.timerMode === 'perQuestion' ? Math.round(parseInt(b.secPerQ, 10)) : null;
+  }
+  if(b.shuffleMode !== 'fixed' || b.hadShuffleCol) o.shuffle_mode = b.shuffleMode;
+  return o;
 }
 
 /* ---------- administrador: clasificación ---------- */
@@ -694,6 +744,7 @@ function cmTestsTab(){
         <li>${ic('repeat')}<span>${t.max_attempts} ${t.max_attempts === 1 ? 'intento' : 'intentos'}</span></li>
         <li>${ic('clock')}<span>${cmFmtDate(t.opens_at)} → ${t.closes_at ? cmFmtDate(t.closes_at) : 'sin cierre'}</span></li>
         <li>${ic('timer')}<span>${cmTimerText(t)}</span></li>
+        ${t.shuffle_mode === 'shuffled' ? `<li>${ic('shuffle')}<span>Orden mezclado por árbitro</span></li>` : ''}
       </ul>
       ${t.published
         ? `<div class="tx-part"><div class="tx-part-top"><span>Participación</span><b>${people} de ${m}</b></div><div class="tx-part-bar"><i style="width:${pct}%"></i></div></div>`
@@ -1073,6 +1124,7 @@ function cmNewBuilder(){
   return {
     editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: 1,
     timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
+    shuffleMode: 'fixed', hadShuffleCol: false,
     selected: [], expanded: {},
     numsText: '', numsReport: null,
     saving: false
@@ -1283,7 +1335,18 @@ function cmBuilderView(){
       </div>
 
       <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">5</span><div><h3>Añadir preguntas</h3><small>Con los números de la Base de datos (los que ves con #)</small></div></div>
+        <div class="tc-card-head"><span class="tc-step">5</span><div><h3>Orden de preguntas y respuestas</h3><small>Para que no se puedan ayudar entre ellos</small></div></div>
+        <div class="tc-opts two">
+          ${cmOrderOpt(b.shuffleMode !== 'shuffled', 'fixed', 'list', 'Igual para todos', 'Todos los árbitros ven las preguntas y las respuestas A, B, C, D en el mismo orden.')}
+          ${cmOrderOpt(b.shuffleMode === 'shuffled', 'shuffled', 'shuffle', 'Mezclado para cada árbitro', 'Cada árbitro recibe las preguntas y las respuestas en un orden distinto.')}
+        </div>
+        <div class="cm-season-note">${ic(b.shuffleMode === 'shuffled' ? 'shuffle' : 'list')}<span>${b.shuffleMode === 'shuffled'
+          ? 'El orden de las preguntas y de las respuestas es distinto para cada árbitro. "Ninguna respuesta es correcta" y "Todas las anteriores" se quedan siempre al final. La corrección no cambia.'
+          : 'Todos verán exactamente el mismo orden que ves en "Preguntas del test".'}</span></div>
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">6</span><div><h3>Añadir preguntas</h3><small>Con los números de la Base de datos (los que ves con #)</small></div></div>
         <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Sepáralos con comas, espacios o saltos de línea; también vale un rango (por ejemplo <b>120-125</b>). Se añaden en el orden que los escribas y debajo ves cada pregunta con sus respuestas antes de añadirla.</div>
         <textarea id="cm-b-nums" data-cm-field="builder.numsText" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" style="margin:0;">${esc(b.numsText)}</textarea>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px;">
@@ -1295,7 +1358,7 @@ function cmBuilderView(){
       </div>
 
       <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">6</span><div><h3>Preguntas del test (${n})</h3><small>Ordénalas, revísalas o quítalas</small></div>
+        <div class="tc-card-head"><span class="tc-step">7</span><div><h3>Preguntas del test (${n})</h3><small>Ordénalas, revísalas o quítalas</small></div>
           <div class="cm-actions">
             <button class="btn btn-ghost" style="padding:6px 11px;" data-action="committee-b-shuffle" ${n < 2 ? 'disabled' : ''} title="Mezclar el orden">${cmIc('shuffle')}</button>
             <button class="btn btn-ghost btn-danger-soft" style="padding:6px 11px;" data-action="committee-b-clear" ${n ? '' : 'disabled'} title="Vaciar">${cmIc('trash')}</button>
@@ -1313,6 +1376,7 @@ function cmBuilderView(){
         <div class="tc-sum-row">${ic('trophy')}<span>Temporada</span><b>${cmSeasonLabel(b.season)} · ${monthCap}</b></div>
         <div class="tc-sum-row">${ic('book')}<span>Preguntas</span><b>${n}</b></div>
         <div class="tc-sum-row">${ic('clock')}<span>Tiempo</span><b>${esc(timerLabel)}</b></div>
+        <div class="tc-sum-row">${ic(b.shuffleMode === 'shuffled' ? 'shuffle' : 'list')}<span>Orden</span><b>${b.shuffleMode === 'shuffled' ? 'Mezclado' : 'Igual para todos'}</b></div>
         <div class="tc-sum-row">${ic('repeat')}<span>Intentos</span><b>${esc(String(parseInt(b.maxAttempts, 10) || 1))}</b></div>
         <div class="tc-sum-row">${ic('calendar')}<span>Abre</span><b>${b.opens ? esc(fmt(b.opens)) : 'Al publicar'}</b></div>
         <div class="tc-sum-row">${ic('lock')}<span>Cierra</span><b>${b.closes ? esc(fmt(b.closes)) : 'Sin cierre'}</b></div>
@@ -1385,6 +1449,7 @@ function cmPreviewView(){
     </div>
     <div class="cm-dots">${dots}</div>
     ${perQ ? `<div class="cm-allanswered">En el test real, con tiempo por pregunta, no se podrá volver a la pregunta anterior.</div>` : ''}
+    ${b.shuffleMode === 'shuffled' ? `<div class="cm-allanswered">En el test real cada árbitro verá las preguntas y las respuestas en un orden distinto.</div>` : ''}
   </div>`;
 }
 
@@ -1407,7 +1472,8 @@ async function cmSaveBuilder(){
     if(!(secs >= 5 && secs <= 3600)){ bad('Los segundos por pregunta tienen que estar entre 5 y 3600.'); return; }
   }
   // Si el SQL de temporización aún no se ha ejecutado y no se usa tiempo, no se envían esas columnas.
-  const withTimer = b.timerMode !== 'none' || b.hadTimerCols;
+  const extras = cmBuilderTimerFields(b);
+  const withTimer = Object.keys(extras).length > 0;
   b.saving = true; render();
   const questions = b.selected.map(q => ({
     question: q.question, options: q.options, correct: q.correct,
@@ -1418,7 +1484,7 @@ async function cmSaveBuilder(){
     // Edición de un borrador: se actualizan los datos y se reemplazan las preguntas.
     const patch = { title: b.title.trim(), month: cmBuilderMonth(b), closes_at: closes ? closes.toISOString() : null, max_attempts: attempts };
     if(opens) patch.opens_at = opens.toISOString();
-    if(withTimer) Object.assign(patch, cmBuilderTimerFields(b));
+    if(withTimer) Object.assign(patch, extras);
     ({ error } = await supabaseClient.from('committee_tests').update(patch).eq('id', b.editId));
     if(!error){
       const rows = questions.map((q, i) => ({ test_id: b.editId, pos: i + 1, question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation }));
@@ -1433,7 +1499,7 @@ async function cmSaveBuilder(){
       p_max_attempts: attempts, p_questions: questions
     }));
     if(!error && withTimer && newId){
-      const tr = await supabaseClient.from('committee_tests').update(cmBuilderTimerFields(b)).eq('id', newId);
+      const tr = await supabaseClient.from('committee_tests').update(extras).eq('id', newId);
       if(tr.error) timerErr = tr.error;
     }
   }
@@ -1527,6 +1593,11 @@ async function committeeOnAction(action, el){
     }
     const { data, error } = await supabaseClient.rpc('committee_get_test', { p_test_id: tid });
     if(error){ cmToast(cmErrText(error)); cmLoadMyTests(); return; }
+    if(data && data.shuffle_mode === 'shuffled' && Array.isArray(data.questions)){
+      // Orden propio de este árbitro (fijo para este intento: si reabre el test ve el mismo).
+      const uid = (typeof CURRENT_USER_ID !== 'undefined' && CURRENT_USER_ID) ? CURRENT_USER_ID : 'u';
+      data.questions = cmShuffleQuestions(data.questions, uid + '|' + data.id + '|' + (data.attempts_used || 0));
+    }
     const now0 = Date.now();
     COMMITTEE.run = { test: data, answers: {}, idx: 0, startedAt: now0, qStartedAt: now0, submitting: false };
     STATE.view = 'committeeRun'; render(); window.scrollTo(0, 0);
@@ -1640,6 +1711,7 @@ async function committeeOnAction(action, el){
     nb.title = 'Copia de ' + t.title;
     nb.maxAttempts = t.max_attempts;
     nb.timerMode = t.timer_mode || 'none'; nb.minutes = t.time_minutes || nb.minutes; nb.secPerQ = t.seconds_per_question || nb.secPerQ;
+    nb.shuffleMode = t.shuffle_mode || 'fixed';
     nb.selected = (data || []).map((q, i) => ({
       id: 'dup-' + Date.now() + '-' + i, question: q.question, options: q.options, correct: q.correct,
       rule: q.rule, explanation: q.explanation || '', domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user'
@@ -1664,8 +1736,9 @@ async function committeeOnAction(action, el){
     if(t.month){ nb.season = cmSeasonOfMonth(t.month); nb.mon = String(parseInt(t.month.slice(5, 7), 10)); }
     nb.opens = cmToLocalInput(t.opens_at);
     nb.closes = cmToLocalInput(t.closes_at);
-    nb.maxAttempts = t.max_attempts; nb.hadTimerCols = ('timer_mode' in t);
+    nb.maxAttempts = t.max_attempts; nb.hadTimerCols = ('timer_mode' in t); nb.hadShuffleCol = ('shuffle_mode' in t);
     nb.timerMode = t.timer_mode || 'none'; nb.minutes = t.time_minutes || nb.minutes; nb.secPerQ = t.seconds_per_question || nb.secPerQ;
+    nb.shuffleMode = t.shuffle_mode || 'fixed';
     nb.selected = (data || []).map((q, i) => {
       const match = bank[questionDedupeKey({ question: q.question, options: q.options })];
       const base = match ? Object.assign({}, match) : { id: 'tq-' + t.id + '-' + i, domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user' };
@@ -1769,6 +1842,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-pv-prev'){ if(COMMITTEE.pv && COMMITTEE.pv.idx > 0){ COMMITTEE.pv.idx--; render(); } }
   else if(action === 'committee-pv-next'){ if(COMMITTEE.pv && b && COMMITTEE.pv.idx < b.selected.length - 1){ COMMITTEE.pv.idx++; render(); } }
   else if(action === 'committee-b-timer-mode'){ if(b){ b.timerMode = el.dataset.mode; render(); } }
+  else if(action === 'committee-b-order-mode'){ if(b){ b.shuffleMode = el.dataset.mode === 'shuffled' ? 'shuffled' : 'fixed'; render(); } }
   else if(action === 'committee-b-save'){ cmSaveBuilder(); }
 }
 
