@@ -372,6 +372,7 @@ function cmStartRunTimer(){
 
 async function cmSubmitRun(auto){
   const r = COMMITTEE.run; if(!r || r.submitting) return;
+  if(auto) appDialogClose();
   cmStopRunTimer();
   r.submitting = true; render();
   const { data, error } = await supabaseClient.rpc('committee_submit_attempt', {
@@ -1349,7 +1350,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-msg-publish'){
     if(!isDevUser()) return;
     const m = (COMMITTEE.messages || []).find(x => x.id === el.dataset.mid); if(!m) return;
-    if(!m.published && !confirm('¿Publicar "' + m.title + '" en CTA BAGES? Los árbitros lo verán.')) return;
+    if(!m.published && !(await appConfirm({ title: '¿Publicar el mensaje?', message: '"' + m.title + '" lo verán los árbitros en CTA BAGES.', confirmText: 'Publicar', cancelText: 'Todavía no', icon: 'play' }))) return;
     const patch = m.published ? { published: false } : { published: true, published_at: new Date().toISOString() };
     const { error } = await supabaseClient.from('committee_messages').update(patch).eq('id', m.id);
     if(error){ cmToast(cmErrText(error)); return; }
@@ -1365,7 +1366,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-msg-delete'){
     if(!isDevUser()) return;
     const m = (COMMITTEE.messages || []).find(x => x.id === el.dataset.mid); if(!m) return;
-    if(!confirm('¿Eliminar el mensaje "' + m.title + '"? No se puede deshacer.')) return;
+    if(!(await appConfirm({ title: '¿Eliminar el mensaje?', message: '"' + m.title + '" se borrará y no se puede deshacer.', confirmText: 'Eliminar', danger: true }))) return;
     const { error } = await supabaseClient.from('committee_messages').delete().eq('id', m.id);
     if(error){ cmToast(cmErrText(error)); return; }
     if(COMMITTEE.msgDraft && COMMITTEE.msgDraft.id === m.id) COMMITTEE.msgDraft = { id: null, title: '', body: '' };
@@ -1378,7 +1379,7 @@ async function committeeOnAction(action, el){
     const card = (COMMITTEE.myTests || []).find(x => x.id === tid);
     if(card && card.timer_mode && card.timer_mode !== 'none'){
       const extra = card.timer_mode === 'perQuestion' ? ' Cada pregunta se pasa sola al acabarse su tiempo y no se puede volver atrás.' : ' Al llegar a cero se envía solo.';
-      if(!confirm('Este test tiene tiempo limitado: ' + cmTimerText(card) + '.' + extra + ' El reloj empieza al aceptar. ¿Empezar ahora?')) return;
+      if(!(await appConfirm({ title: 'Test con tiempo limitado', message: cmTimerText(card) + '.' + extra + ' El reloj empieza al aceptar.', confirmText: 'Empezar ahora', cancelText: 'Todavía no', icon: 'timer' }))) return;
     }
     const { data, error } = await supabaseClient.rpc('committee_get_test', { p_test_id: tid });
     if(error){ cmToast(cmErrText(error)); cmLoadMyTests(); return; }
@@ -1404,7 +1405,7 @@ async function committeeOnAction(action, el){
     if(r && r.idx < r.test.questions.length - 1){ r.idx++; r.qStartedAt = Date.now(); render(); }
   }
   else if(action === 'committee-exit-run'){
-    if(!confirm('¿Salir del test? No se guardará ninguna respuesta y no se gastará el intento.')) return;
+    if(!(await appConfirm({ title: '¿Salir del test?', message: 'No se guardará ninguna respuesta y no se gastará el intento.', confirmText: 'Sí, salir', cancelText: 'Seguir con el test', danger: true, icon: 'flag' }))) return;
     cmStopRunTimer();
     COMMITTEE.run = null;
     STATE.view = 'committee';
@@ -1414,9 +1415,9 @@ async function committeeOnAction(action, el){
     const r = COMMITTEE.run; if(!r || r.submitting) return;
     const missing = r.test.questions.length - Object.keys(r.answers).length;
     const msg = missing > 0
-      ? `Te quedan ${missing} preguntas sin responder (contarán como fallo). ¿Finalizar igualmente?`
-      : '¿Finalizar el test? Después no podrás cambiar tus respuestas.';
-    if(!confirm(msg)) return;
+      ? `Te ${missing === 1 ? "queda 1 pregunta" : "quedan " + missing + " preguntas"} sin responder y contará${missing === 1 ? "" : "n"} como fallo.`
+      : 'Después no podrás cambiar tus respuestas.';
+    if(!(await appConfirm({ title: '¿Finalizar el test?', message: msg, confirmText: 'Finalizar', cancelText: 'Seguir revisando', icon: 'check' }))) return;
     await cmSubmitRun(false);
   }
   else if(action === 'committee-review'){
@@ -1439,7 +1440,7 @@ async function committeeOnAction(action, el){
   }
   else if(action === 'committee-remove-member'){
     const m = (COMMITTEE.members || []).find(x => x.user_id === el.dataset.uid);
-    if(!confirm('¿Quitar el acceso a ' + (m ? cmWho(m) : 'este árbitro') + '? Sus resultados anteriores se conservan.')) return;
+    if(!(await appConfirm({ title: '¿Quitar el acceso?', message: (m ? cmWho(m) : 'Este árbitro') + ' dejará de ver CTA BAGES. Sus resultados anteriores se conservan.', confirmText: 'Quitar acceso', danger: true }))) return;
     const { error } = await supabaseClient.rpc('committee_admin_remove_member', { p_user_id: el.dataset.uid });
     if(error){ cmToast(cmErrText(error)); return; }
     STATE.toast = 'Acceso retirado.'; render();
@@ -1450,7 +1451,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-toggle-pub'){
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
     if(!t.published && !t.question_count){ cmToast('El test no tiene preguntas.'); return; }
-    if(!t.published && !confirm('¿Publicar "' + t.title + '" en CTA BAGES? Los árbitros lo verán y podrán hacerlo desde la fecha de apertura.')) return;
+    if(!t.published && !(await appConfirm({ title: '¿Publicar el test?', message: '"' + t.title + '" lo verán los árbitros y podrán hacerlo desde la fecha de apertura.', confirmText: 'Publicar', cancelText: 'Todavía no', icon: 'play' }))) return;
     const { error } = await supabaseClient.from('committee_tests').update({ published: !t.published }).eq('id', tid);
     if(error){ cmToast(cmErrText(error)); return; }
     STATE.toast = t.published ? 'Test despublicado.' : 'Test publicado.'; render();
@@ -1458,7 +1459,7 @@ async function committeeOnAction(action, el){
   }
   else if(action === 'committee-delete-test'){
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
-    if(!confirm('¿Eliminar "' + t.title + '"? Se borrarán también todos los resultados. No se puede deshacer.')) return;
+    if(!(await appConfirm({ title: '¿Eliminar el test?', message: '"' + t.title + '" se borrará junto con todos sus resultados. No se puede deshacer.', confirmText: 'Eliminar', danger: true }))) return;
     const { error } = await supabaseClient.from('committee_tests').delete().eq('id', tid);
     if(error){ cmToast(cmErrText(error)); return; }
     STATE.toast = 'Test eliminado.'; render();
@@ -1545,7 +1546,7 @@ async function committeeOnAction(action, el){
   /* administrador: creación de test */
   else if(action === 'committee-new'){ COMMITTEE.builder = cmNewBuilder(); STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-b-cancel'){
-    if(b && b.selected.length && !confirm('¿Descartar este test sin guardar?')) return;
+    if(b && b.selected.length && !(await appConfirm({ title: '¿Descartar este test?', message: 'Se perderán los cambios que no hayas guardado.', confirmText: 'Descartar', cancelText: 'Seguir editando', danger: true }))) return;
     COMMITTEE.builder = null; COMMITTEE.pv = null; STATE.view = 'committeeTraining'; render();
   }
   else if(action === 'committee-b-toggle'){
@@ -1572,7 +1573,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-b-shuffle'){ if(b){ cmShuffle(b.selected); render(); } }
   else if(action === 'committee-b-clear'){
     if(!b || !b.selected.length) return;
-    if(!confirm('¿Quitar todas las preguntas seleccionadas?')) return;
+    if(!(await appConfirm({ title: '¿Quitar todas las preguntas?', message: 'Se vaciará la lista de preguntas del test.', confirmText: 'Vaciar', danger: true }))) return;
     b.selected = []; render();
   }
   else if(action === 'committee-b-add-numbers'){

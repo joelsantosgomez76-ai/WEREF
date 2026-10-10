@@ -2124,3 +2124,9 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 .cm-pvbar-actions .btn svg{width:15px; height:15px;}
 .cm-pv-adminnum{color:var(--accent); font-weight:700;}
 @media (max-width:640px){ .cm-pvbar-actions{width:100%;} .cm-pvbar-actions .btn{flex:1; justify-content:center;} }
+
+/* ---------- cuadro de confirmación propio (appConfirm) ---------- */
+.qz-confirm-ic.danger{background:#FDECEC; color:var(--red);}
+.btn.btn-danger-solid{background:var(--red); border-color:var(--red); color:#fff;}
+.btn.btn-danger-solid:hover{filter:brightness(0.93);}
+#app-dialog{z-index:300;}
