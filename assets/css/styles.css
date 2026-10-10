@@ -2072,3 +2072,11 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 .db-more-item{width:auto; padding:9px 14px; border-radius:12px; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.28);}
 .db-more-item svg{color:var(--yellow);}
 .db-more-item:hover{background:rgba(255,255,255,0.2);}
+
+/* ---------- Constructor de tests: temporada ---------- */
+.cm-season-note{display:flex; align-items:flex-start; gap:10px; margin:12px 0 4px; padding:12px 14px; border-radius:12px; background:var(--chalk); border:1px solid var(--line); font-size:13.5px; color:var(--muted);}
+.cm-season-note svg{width:18px; height:18px; flex-shrink:0; margin-top:1px; color:var(--accent);}
+.cm-season-note b{color:var(--ink);}
+.rk-period{flex-wrap:wrap;}
+.rk-period select{min-width:150px;}
+.rk-period label + select + label{margin-left:6px;}

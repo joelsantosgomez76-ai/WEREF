@@ -15,6 +15,7 @@ const COMMITTEE = {
   usedMap: null,      // texto normalizado de pregunta -> títulos de los tests donde ya salió
   tab: 'tests',
   rankMonth: 'all',
+  rankSeason: null,
   newMemberEmail: '',
   detailTestId: null,
   settings: null,     // ajustes de UN test (detalle)
@@ -478,9 +479,44 @@ function cmMineTab(){
     : '<div class="empty-state">No hay tests publicados.</div>';
 }
 
+/* ---------- temporadas: julio–junio (la 2026/2027 va de julio de 2026 a junio de 2027) ---------- */
+const CM_MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const CM_SEASON_ORDER = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+function cmSeasonLabel(start){ return start + '/' + (parseInt(start, 10) + 1); }
+function cmSeasonStartOf(year, month){ return month >= 7 ? year : year - 1; }
+function cmSeasonOfMonth(ym){
+  const m = /^(\d{4})-(\d{2})$/.exec(ym || '');
+  return m ? String(cmSeasonStartOf(parseInt(m[1], 10), parseInt(m[2], 10))) : null;
+}
+function cmSeasonOfTest(t){
+  const s = cmSeasonOfMonth(t.month);
+  if(s) return s;
+  const d = t.created_at ? new Date(t.created_at) : new Date();
+  return String(cmSeasonStartOf(d.getFullYear(), d.getMonth() + 1));
+}
+function cmCurrentSeason(){ const d = new Date(); return String(cmSeasonStartOf(d.getFullYear(), d.getMonth() + 1)); }
+function cmMonthName(ym){
+  const m = /^(\d{4})-(\d{2})$/.exec(ym || '');
+  return m ? CM_MONTHS[parseInt(m[2], 10) - 1] : '';
+}
+function cmMonthNameCap(ym){ const n = cmMonthName(ym); return n ? n.charAt(0).toUpperCase() + n.slice(1) : ''; }
+function cmBuilderMonth(b){
+  const s = parseInt(b.season, 10), m = parseInt(b.mon, 10);
+  if(!s || !m) return null;
+  return (m >= 7 ? s : s + 1) + '-' + String(m).padStart(2, '0');
+}
+function cmRankScope(){
+  const tests = (COMMITTEE.tests || []).filter(t => t.published);
+  const seasons = Array.from(new Set(tests.map(cmSeasonOfTest).concat([cmCurrentSeason()]))).sort().reverse();
+  const season = seasons.includes(COMMITTEE.rankSeason) ? COMMITTEE.rankSeason : cmCurrentSeason();
+  const months = Array.from(new Set(tests.filter(t => cmSeasonOfTest(t) === season && t.month).map(t => t.month))).sort();
+  const month = months.includes(COMMITTEE.rankMonth) ? COMMITTEE.rankMonth : 'all';
+  return { seasons, season, months, month };
+}
+
 /* ---------- administrador: clasificación ---------- */
-function cmComputeRanking(month){
-  const tests = (COMMITTEE.tests || []).filter(t => t.published && (month === 'all' || t.month === month));
+function cmComputeRanking(season, month){
+  const tests = (COMMITTEE.tests || []).filter(t => t.published && cmSeasonOfTest(t) === season && (month === 'all' || t.month === month));
   const ids = new Set(tests.map(t => t.id));
   const people = {};
   (COMMITTEE.members || []).forEach(m => { people[m.user_id] = { id: m.user_id, who: cmWho(m), full_name: m.full_name, email: m.email, best: {} }; });
@@ -525,7 +561,7 @@ function cmTestsTab(){
     const pct = m ? Math.min(100, Math.round(people / m * 100)) : 0;
     return `<article class="tx-card ${st.cls}">
       <div class="tx-head">
-        <span class="tx-month">${t.month ? ic('calendar') + ' ' + esc(t.month) : 'Sin mes'}</span>
+        <span class="tx-month">${ic('calendar')} ${t.month ? esc(cmMonthNameCap(t.month)) + ' · ' : ''}Temporada ${cmSeasonLabel(cmSeasonOfTest(t))}</span>
         ${cmStatusChip(t)}
       </div>
       <h3>${esc(t.title)}</h3>
@@ -590,8 +626,8 @@ function cmMembersTab(){
 /* ----- Clasificación ----- */
 function cmRankingTab(){
   const ic = (n) => shellIcon(n);
-  const months = Array.from(new Set((COMMITTEE.tests || []).filter(t => t.published && t.month).map(t => t.month))).sort().reverse();
-  const { rows, testCount } = cmComputeRanking(COMMITTEE.rankMonth);
+  const scope = cmRankScope();
+  const { rows, testCount } = cmComputeRanking(scope.season, scope.month);
   const top = rows.filter(r => r.done > 0).slice(0, 3);
   const medals = ['🥇', '🥈', '🥉'];
   const pod = (r, i) => `<div class="lg-pod p${i + 1}">
@@ -615,10 +651,14 @@ function cmRankingTab(){
   return `
   <div class="tx-toolbar">
     <div class="rk-period">
+      <label for="cm-rank-season">Temporada</label>
+      <select id="cm-rank-season" data-cm-field="rankSeason" data-cm-rerender>
+        ${scope.seasons.map(s => `<option value="${esc(s)}" ${scope.season === s ? 'selected' : ''}>${cmSeasonLabel(s)}</option>`).join('')}
+      </select>
       <label for="cm-rank-month">Periodo</label>
       <select id="cm-rank-month" data-cm-field="rankMonth" data-cm-rerender>
-        <option value="all" ${COMMITTEE.rankMonth === 'all' ? 'selected' : ''}>Toda la temporada</option>
-        ${months.map(m => `<option value="${esc(m)}" ${COMMITTEE.rankMonth === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+        <option value="all" ${scope.month === 'all' ? 'selected' : ''}>Toda la temporada</option>
+        ${scope.months.map(m => `<option value="${esc(m)}" ${scope.month === m ? 'selected' : ''}>${esc(cmMonthNameCap(m))} ${esc(m.slice(0, 4))}</option>`).join('')}
       </select>
     </div>
     <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-ranking">${ic('download')} Exportar a Excel</button>
@@ -771,9 +811,10 @@ function cmTestDetailView(){
 /* ---------- administrador: crear un test ---------- */
 function cmNewBuilder(){
   const now = new Date();
-  const month = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const season = String(cmSeasonStartOf(now.getFullYear(), now.getMonth() + 1));
+  const mon = String(now.getMonth() + 1);
   return {
-    editId: null, title: '', month, opens: '', closes: '', maxAttempts: 1,
+    editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: 1,
     selected: [], expanded: {},
     filterRule: 'all', filterDiff: 'all', filterText: '', hideUsed: false, page: 1,
     genCount: 10, genRules: [],
@@ -816,6 +857,10 @@ function cmComposition(selected){
 function cmBuilderView(){
   const b = COMMITTEE.builder;
   if(!b) return cmAdminView();
+  const curSeason = parseInt(cmCurrentSeason(), 10);
+  const seasonSet = new Set([-1, 0, 1, 2].map(d => String(curSeason + d)));
+  if(b.season) seasonSet.add(String(b.season));
+  const seasonOpts = Array.from(seasonSet).sort();
   const picked = new Set(b.selected.map(q => q.id));
   const cands = cmBankCandidates();
   const totalPages = Math.max(1, Math.ceil(cands.length / CM_PAGE_SIZE));
@@ -882,7 +927,15 @@ function cmBuilderView(){
     <div class="cm-sec-title">Datos del test</div>
     <div class="cm-fields">
       <div class="full"><label for="cm-b-title" style="margin-top:0;">Título</label><input type="text" id="cm-b-title" data-cm-field="builder.title" value="${esc(b.title)}" placeholder="Ej.: Test de octubre" maxlength="120"></div>
-      <div><label for="cm-b-month">Mes (para la clasificación)</label><input type="month" id="cm-b-month" data-cm-field="builder.month" value="${esc(b.month)}"></div>
+      <div><label for="cm-b-season">Temporada (clasificación)</label>
+        <select id="cm-b-season" data-cm-field="builder.season" data-cm-rerender>
+          ${seasonOpts.map(s => `<option value="${s}" ${String(b.season) === s ? 'selected' : ''}>${cmSeasonLabel(s)}</option>`).join('')}
+        </select></div>
+      <div><label for="cm-b-mon">Mes</label>
+        <select id="cm-b-mon" data-cm-field="builder.mon" data-cm-rerender>
+          ${CM_SEASON_ORDER.map(n => `<option value="${n}" ${String(b.mon) === String(n) ? 'selected' : ''}>${CM_MONTHS[n - 1].charAt(0).toUpperCase() + CM_MONTHS[n - 1].slice(1)}</option>`).join('')}
+        </select></div>
+      <div class="full cm-season-note">${shellIcon('trophy')}<span>Este test cuenta para la clasificación de la temporada <b>${cmSeasonLabel(b.season)}</b>, mes de <b>${CM_MONTHS[parseInt(b.mon, 10) - 1]} de ${cmBuilderMonth(b).slice(0, 4)}</b>. Cada temporada tiene su propia clasificación.</span></div>
       <div><label for="cm-b-attempts">Intentos permitidos</label><input type="number" id="cm-b-attempts" min="1" max="20" data-cm-field="builder.maxAttempts" value="${esc(String(b.maxAttempts))}"></div>
       <div><label for="cm-b-opens">Abre (vacío = ahora)</label><input type="datetime-local" id="cm-b-opens" data-cm-field="builder.opens" value="${esc(b.opens)}"></div>
       <div><label for="cm-b-closes">Cierra (opcional)</label><input type="datetime-local" id="cm-b-closes" data-cm-field="builder.closes" value="${esc(b.closes)}"></div>
@@ -966,7 +1019,7 @@ async function cmSaveBuilder(){
   let error;
   if(b.editId){
     // Edición de un borrador: se actualizan los datos y se reemplazan las preguntas.
-    const patch = { title: b.title.trim(), month: b.month || null, closes_at: closes ? closes.toISOString() : null, max_attempts: attempts };
+    const patch = { title: b.title.trim(), month: cmBuilderMonth(b), closes_at: closes ? closes.toISOString() : null, max_attempts: attempts };
     if(opens) patch.opens_at = opens.toISOString();
     ({ error } = await supabaseClient.from('committee_tests').update(patch).eq('id', b.editId));
     if(!error){
@@ -976,7 +1029,7 @@ async function cmSaveBuilder(){
     }
   } else {
     ({ error } = await supabaseClient.rpc('committee_admin_create_test', {
-      p_title: b.title.trim(), p_month: b.month || null,
+      p_title: b.title.trim(), p_month: cmBuilderMonth(b),
       p_opens: opens ? opens.toISOString() : null, p_closes: closes ? closes.toISOString() : null,
       p_max_attempts: attempts, p_questions: questions
     }));
@@ -1194,7 +1247,7 @@ async function committeeOnAction(action, el){
     const nb = cmNewBuilder();
     nb.editId = t.id;
     nb.title = t.title;
-    nb.month = t.month || nb.month;
+    if(t.month){ nb.season = cmSeasonOfMonth(t.month); nb.mon = String(parseInt(t.month.slice(5, 7), 10)); }
     nb.opens = cmToLocalInput(t.opens_at);
     nb.closes = cmToLocalInput(t.closes_at);
     nb.maxAttempts = t.max_attempts;
@@ -1232,13 +1285,14 @@ async function committeeOnAction(action, el){
     cmExport(rows, 'Resultados', 'comite_' + t.title.replace(/[^\w]+/g, '_') + '.xlsx');
   }
   else if(action === 'committee-export-ranking'){
-    const { rows, testCount } = cmComputeRanking(COMMITTEE.rankMonth);
+    const scope = cmRankScope();
+    const { rows, testCount } = cmComputeRanking(scope.season, scope.month);
     const out = rows.map((r, i) => ({
       'Posición': r.done ? i + 1 : '', 'Usuario': r.who, 'Nombre': r.full_name || '', 'Email': r.email || '',
       'Tests hechos': r.done, 'Tests del periodo': testCount, 'Aciertos': r.score, 'Preguntas': r.total,
       '% acierto': Math.round(r.pct), 'Tiempo medio (s)': r.avgDur
     }));
-    cmExport(out, 'Clasificación', 'comite_clasificacion_' + (COMMITTEE.rankMonth === 'all' ? 'temporada' : COMMITTEE.rankMonth) + '.xlsx');
+    cmExport(out, 'Clasificación', 'comite_clasificacion_' + cmSeasonLabel(scope.season).replace('/', '-') + (scope.month === 'all' ? '' : '_' + scope.month) + '.xlsx');
   }
 
   /* administrador: creación de test */
