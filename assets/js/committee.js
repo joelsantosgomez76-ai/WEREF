@@ -17,10 +17,15 @@ const COMMITTEE = {
   tab: 'tests',
   rankMonth: 'all',
   rankSeason: null,
-  memberSearch: '',
-  memberFilter: 'all',
-  memberSort: 'surname',
   memberReport: null,
+  memberSortKey: 'surname',
+  memberSortDir: 'asc',
+  memberFilters: { last: '', first: '', user: '', email: '', cat: 'all', res: 'all' },
+  memberSel: {},
+  categories: null,
+  catsMissing: false,
+  catDraft: { name: '', color: '#FF6A2B' },
+  defaults: { maxAttempts: 1, timerMode: 'none', minutes: 20, secPerQ: 45, shuffleMode: 'fixed' },
   newMemberEmail: '',
   detailTestId: null,
   messages: null,     // admin: mensajes del comité (borradores y publicados)
@@ -51,6 +56,9 @@ function cmErrText(err){
     time_up: 'Se agotó el tiempo del test y no se ha podido guardar el intento.'
   };
   for(const k in known){ if(m.includes(k)) return known[k]; }
+  if(/category_id|committee_member_categories/.test(m)){
+    return 'Falta ejecutar el SQL de categorías (committee-categories.sql) en Supabase.';
+  }
   if(/shuffle_mode/.test(m)){
     return 'Falta ejecutar el SQL de orden de preguntas (committee-shuffle.sql) en Supabase.';
   }
@@ -201,6 +209,7 @@ async function cmLoadAdminData(){
     });
     COMMITTEE.usedMap = used;
   }
+  await cmLoadCategories();
   cmRefresh();
 }
 
@@ -768,7 +777,6 @@ function cmTestsTab(){
 }
 
 /* ----- Miembros ----- */
-/* ----- Miembros ----- */
 function cmNameParts(m){
   let first = String(m.first_name || '').trim(), last = String(m.last_name || '').trim();
   if(!first && !last && m.full_name) first = String(m.full_name).trim(); // función antigua: sin separar
@@ -789,135 +797,209 @@ function cmInitials(m){
 }
 function cmCollate(a, b){ return String(a || '').localeCompare(String(b || ''), 'es', { sensitivity: 'base' }); }
 function cmPlain(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
-function cmLetterOf(m){
-  if(!cmHasRealName(m)) return '#';
-  const p = cmNameParts(m);
-  const c = cmPlain((p.last || p.first).charAt(0)).toUpperCase();
-  return /[A-Z]/.test(c) ? c : '#';
-}
 function cmFmtDay(iso){ return iso ? new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'; }
+function cmCatById(id){ return id ? ((COMMITTEE.categories || []).find(c => c.id === id) || null) : null; }
 
-/* Lista ya filtrada y ordenada según los controles de la pestaña. */
+/* Valor por el que se ordena cada columna (null = vacío, siempre va al final). */
+function cmSortVal(e, key){
+  const p = e.p, m = e.m;
+  if(key === 'surname') return (p.last || p.first) ? cmPlain(p.last || p.first) : null;
+  if(key === 'name') return (p.first || p.last) ? cmPlain(p.first || p.last) : null;
+  if(key === 'user') return m.username ? cmPlain(m.username) : null;
+  if(key === 'email') return m.email ? cmPlain(m.email) : null;
+  if(key === 'cat'){ const c = cmCatById(m.category_id); return c ? cmPlain(c.name) : null; }
+  if(key === 'done') return e.s.done;
+  if(key === 'acc') return e.s.pct;
+  if(key === 'added') return m.added_at ? Date.parse(m.added_at) : null;
+  if(key === 'last') return m.last_sign_in_at ? Date.parse(m.last_sign_in_at) : null;
+  return null;
+}
+function cmCompareMembers(a, b, key, dir){
+  const va = cmSortVal(a, key), vb = cmSortVal(b, key);
+  const na = va === null || va === '', nb = vb === null || vb === '';
+  if(na !== nb) return na ? 1 : -1;
+  let r = 0;
+  if(!na){ r = (typeof va === 'number' && typeof vb === 'number') ? va - vb : cmCollate(va, vb); }
+  if(r !== 0) return dir === 'desc' ? -r : r;
+  // desempate siempre por apellidos y nombre
+  return cmCollate(a.p.last || a.p.first || a.m.username || a.m.email, b.p.last || b.p.first || b.m.username || b.m.email)
+    || cmCollate(a.p.first, b.p.first);
+}
+
+/* Lista ya filtrada (por las cajas de cada columna) y ordenada. */
 function cmMembersData(){
-  const all = (COMMITTEE.members || []).map(m => ({ m, s: cmMemberStats(m.user_id) }));
-  const counts = { all: all.length, results: all.filter(e => e.s.pct !== null).length };
-  counts.none = counts.all - counts.results;
-  const q = cmPlain(COMMITTEE.memberSearch).trim();
-  let list = all.filter(e => {
-    if(COMMITTEE.memberFilter === 'results' && e.s.pct === null) return false;
-    if(COMMITTEE.memberFilter === 'none' && e.s.pct !== null) return false;
-    if(!q) return true;
-    const p = cmNameParts(e.m);
-    return cmPlain([p.last, p.first, p.last + ' ' + p.first, p.first + ' ' + p.last, e.m.username, e.m.email].join(' ')).includes(q);
-  });
-  const sort = COMMITTEE.memberSort || 'surname';
-  const bySurname = (a, b) => {
-    const na = cmHasRealName(a.m), nb = cmHasRealName(b.m);
-    if(na !== nb) return na ? -1 : 1;              // sin nombre registrado, al final
-    const pa = cmNameParts(a.m), pb = cmNameParts(b.m);
-    return cmCollate(pa.last || pa.first || a.m.username || a.m.email, pb.last || pb.first || b.m.username || b.m.email)
-      || cmCollate(pa.first, pb.first)
-      || cmCollate(a.m.username || a.m.email, b.m.username || b.m.email);
-  };
-  if(sort === 'surname') list.sort(bySurname);
-  else if(sort === 'surname_desc') list.sort((a, b) => {
-    const na = cmHasRealName(a.m), nb = cmHasRealName(b.m);
-    if(na !== nb) return na ? -1 : 1;
-    return -bySurname(a, b);
-  });
-  else if(sort === 'done') list.sort((a, b) => b.s.done - a.s.done || bySurname(a, b));
-  else if(sort === 'acc') list.sort((a, b) => (b.s.pct === null ? -1 : b.s.pct) - (a.s.pct === null ? -1 : a.s.pct) || bySurname(a, b));
-  else if(sort === 'recent') list.sort((a, b) => Date.parse(b.m.added_at || 0) - Date.parse(a.m.added_at || 0));
-  return { all, list, counts, sort };
+  const f = COMMITTEE.memberFilters;
+  const all = (COMMITTEE.members || []).map(m => ({ m, s: cmMemberStats(m.user_id), p: cmNameParts(m) }));
+  const has = (v, q) => { const t = cmPlain(q).trim(); return !t || cmPlain(v).includes(t); };
+  const list = all.filter(e => has(e.p.last, f.last) && has(e.p.first, f.first) && has(e.m.username, f.user) && has(e.m.email, f.email)
+    && (f.cat === 'all' || (f.cat === 'none' ? !e.m.category_id : e.m.category_id === f.cat))
+    && (f.res === 'all' || (f.res === 'with' ? e.s.pct !== null : e.s.pct === null)));
+  list.sort((a, b) => cmCompareMembers(a, b, COMMITTEE.memberSortKey, COMMITTEE.memberSortDir));
+  const filtered = !!(f.last || f.first || f.user || f.email || f.cat !== 'all' || f.res !== 'all');
+  return { all, list, filtered };
+}
+
+function cmCatOptions(selectedId, noneLabel){
+  return `<option value="">${esc(noneLabel)}</option>` +
+    (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${selectedId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 }
 
 function cmMemberRowHtml(e){
   const ic = (n) => shellIcon(n);
-  const m = e.m, s = e.s;
+  const m = e.m, s = e.s, p = e.p;
+  const cat = cmCatById(m.category_id);
   const pct = s.published ? Math.round(s.done / s.published * 100) : 0;
-  let h = 0; const seed = cmSurnameName(m); for(let k = 0; k < seed.length; k++) h = (h * 31 + seed.charCodeAt(k)) % 360;
-  const handle = [m.username ? '@' + m.username : '', m.email || ''].filter(Boolean).join(' · ');
-  return `<div class="mb-row">
-      <span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span>
-      <div class="mb-info">
-        <strong>${esc(cmSurnameName(m))}</strong>
-        <small>${esc(handle)}</small>
-      </div>
-      <div class="mb-prog"><div class="mb-prog-top"><span>${s.done}/${s.published} tests</span></div><div class="mb-prog-bar"><i style="width:${pct}%"></i></div></div>
-      <div class="mb-acc">${s.pct !== null ? accuracyBadge(s.pct) : '<span class="cm-chip soft">sin resultados</span>'}</div>
-      <div class="mb-date" title="Último acceso">${m.last_sign_in_at ? ic('clock') + ' ' + cmFmtDay(m.last_sign_in_at) : '<span class="mb-date-none">—</span>'}</div>
-      <button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button>
-    </div>`;
+  return `<tr class="${COMMITTEE.memberSel[m.user_id] ? 'sel' : ''}">
+      <td class="mb-c-chk"><input type="checkbox" class="mb-chk" data-uid="${m.user_id}" ${COMMITTEE.memberSel[m.user_id] ? 'checked' : ''} aria-label="Seleccionar"></td>
+      <td class="mb-c-last"><strong>${esc(p.last || '—')}</strong></td>
+      <td class="mb-c-first">${esc(p.first || '—')}</td>
+      <td class="mb-c-user">${m.username ? '@' + esc(m.username) : '<span class="mb-none">—</span>'}</td>
+      <td class="mb-c-email" title="${esc(m.email || '')}">${esc(m.email || '—')}</td>
+      <td class="mb-c-cat">
+        <select class="mb-cat" data-uid="${m.user_id}" style="${cat ? '--c:' + esc(cat.color) : ''}" ${COMMITTEE.catsMissing ? 'disabled' : ''} aria-label="Categoría">${cmCatOptions(m.category_id, 'Sin categoría')}</select>
+      </td>
+      <td class="mb-c-tests"><div class="mb-prog-top">${s.done}/${s.published}</div><div class="mb-prog-bar"><i style="width:${pct}%"></i></div></td>
+      <td class="mb-c-acc">${s.pct !== null ? accuracyBadge(s.pct) : '<span class="mb-none">—</span>'}</td>
+      <td class="mb-c-date">${cmFmtDay(m.added_at)}</td>
+      <td class="mb-c-date">${m.last_sign_in_at ? cmFmtDay(m.last_sign_in_at) : '<span class="mb-none">—</span>'}</td>
+      <td class="mb-c-del"><button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button></td>
+    </tr>`;
 }
 
-function cmMembersListHtml(){
-  const ic = (n) => shellIcon(n);
-  const { all, list, sort } = cmMembersData();
-  if(!all.length){
-    return `<div class="ac-empty" style="padding:26px 14px;">${ic('users')}<strong>Todavía no hay ningún miembro</strong><span>Añade el primero con su correo.</span></div>`;
-  }
-  if(!list.length){
-    return `<div class="ac-empty" style="padding:26px 14px;">${ic('search')}<strong>Nadie coincide con ese filtro</strong><span>Prueba con otro nombre o quita el filtro.</span></div>`;
-  }
-  const grouped = sort === 'surname' || sort === 'surname_desc';
-  if(!grouped) return list.map(cmMemberRowHtml).join('');
-  const out = [];
-  let cur = null;
-  list.forEach(e => {
-    const L = cmLetterOf(e.m);
-    if(L !== cur){
-      cur = L;
-      out.push(`<div class="mb-letter"><span>${L === '#' ? 'Sin nombre' : L}</span></div>`);
-    }
-    out.push(cmMemberRowHtml(e));
-  });
-  return out.join('');
+function cmMembersBodyHtml(){
+  const { all, list } = cmMembersData();
+  if(!all.length) return `<tr><td colspan="11" class="mb-empty">Todavía no hay ningún miembro. Añade el primero con su correo.</td></tr>`;
+  if(!list.length) return `<tr><td colspan="11" class="mb-empty">Nadie coincide con esos filtros.</td></tr>`;
+  return list.map(cmMemberRowHtml).join('');
 }
-
 function cmMembersCountText(){
   const { all, list } = cmMembersData();
   return list.length === all.length
     ? `${all.length} ${all.length === 1 ? 'árbitro' : 'árbitros'}`
     : `${list.length} de ${all.length} árbitros`;
 }
+function cmMembersBulkHtml(){
+  const n = Object.keys(COMMITTEE.memberSel).filter(k => COMMITTEE.memberSel[k]).length;
+  if(!n) return '';
+  const ic = (x) => shellIcon(x);
+  return `<div class="mb-bulk">
+      <strong>${n} ${n === 1 ? 'seleccionado' : 'seleccionados'}</strong>
+      <select id="cm-bulk-cat" ${COMMITTEE.catsMissing ? 'disabled' : ''}>${cmCatOptions('', 'Sin categoría')}</select>
+      <button class="btn btn-primary" data-action="committee-members-bulk-assign">${ic('check')} Asignar categoría</button>
+      <button class="btn btn-ghost" data-action="committee-members-sel-clear">Deseleccionar</button>
+    </div>`;
+}
+
+/* Repinta solo la tabla, el contador y la barra de selección (así no se pierde el foco al filtrar). */
+function cmMembersRefreshParts(){
+  const body = document.getElementById('cm-members-body');
+  if(body) body.innerHTML = cmMembersBodyHtml();
+  const cnt = document.getElementById('cm-members-count'); if(cnt) cnt.textContent = cmMembersCountText();
+  const bulk = document.getElementById('cm-members-bulk');
+  if(bulk){
+    bulk.innerHTML = cmMembersBulkHtml();
+    bulk.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  }
+  if(body) body.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction));
+  const all = document.getElementById('mb-all');
+  if(all){
+    const { list } = cmMembersData();
+    const sel = list.filter(e => COMMITTEE.memberSel[e.m.user_id]).length;
+    all.checked = list.length > 0 && sel === list.length;
+    all.indeterminate = sel > 0 && sel < list.length;
+  }
+}
+
+async function cmSetMembersCategory(uids, catId){
+  const { error } = await supabaseClient.rpc('committee_admin_set_members_category', { p_user_ids: uids, p_category_id: catId || null });
+  if(error){ cmToast(cmErrText(error)); return false; }
+  const set = new Set(uids);
+  (COMMITTEE.members || []).forEach(m => { if(set.has(m.user_id)) m.category_id = catId || null; });
+  return true;
+}
+
+/* Eventos de la tabla (delegados: siguen valiendo aunque se repinte el cuerpo). */
+function cmBindMembersTable(){
+  const root = document.getElementById('cm-members-table');
+  if(!root) return;
+  root.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if(t.classList && t.classList.contains('mb-f') && t.tagName === 'INPUT'){
+      COMMITTEE.memberFilters[t.dataset.col] = t.value;
+      cmMembersRefreshParts();
+    }
+  });
+  root.addEventListener('change', async (ev) => {
+    const t = ev.target;
+    if(!t.classList) return;
+    if(t.classList.contains('mb-f') && t.tagName === 'SELECT'){
+      COMMITTEE.memberFilters[t.dataset.col] = t.value;
+      cmMembersRefreshParts();
+    } else if(t.classList.contains('mb-cat')){
+      const ok = await cmSetMembersCategory([t.dataset.uid], t.value || null);
+      if(!ok) render(); else cmMembersRefreshParts();
+    } else if(t.classList.contains('mb-chk')){
+      if(t.checked) COMMITTEE.memberSel[t.dataset.uid] = true; else delete COMMITTEE.memberSel[t.dataset.uid];
+      cmMembersRefreshParts();
+    } else if(t.id === 'mb-all'){
+      const { list } = cmMembersData();
+      list.forEach(e => { if(t.checked) COMMITTEE.memberSel[e.m.user_id] = true; else delete COMMITTEE.memberSel[e.m.user_id]; });
+      cmMembersRefreshParts();
+    }
+  });
+}
 
 function cmMembersTab(){
   const ic = (n) => shellIcon(n);
-  const { counts } = cmMembersData();
-  const f = COMMITTEE.memberFilter || 'all';
-  const chip = (k, label, n) => `<button class="tx-filter ${f === k ? 'active' : ''}" data-action="committee-member-filter" data-filter="${k}">${label}<em>${n}</em></button>`;
-  const sortOpts = [['surname', 'Apellidos (A–Z)'], ['surname_desc', 'Apellidos (Z–A)'], ['done', 'Más tests hechos'], ['acc', 'Mejor acierto'], ['recent', 'Añadidos recientemente']];
+  const f = COMMITTEE.memberFilters;
+  const key = COMMITTEE.memberSortKey, dir = COMMITTEE.memberSortDir;
+  const th = (k, label, cls) => `<th class="${cls || ''}"><button class="mb-sortbtn ${key === k ? 'on' : ''}" data-action="committee-member-sort" data-key="${k}">${label}<span class="mb-arrow">${key === k ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></th>`;
   const rep = COMMITTEE.memberReport;
   const repHtml = rep ? `
       ${rep.added ? `<div class="cm-nums-rep ok">${ic('check')}<span>Añadidos <b>${rep.added}</b> ${rep.added === 1 ? 'árbitro' : 'árbitros'}.</span></div>` : ''}
       ${rep.already ? `<div class="cm-nums-rep warn">${ic('flag')}<span><b>${rep.already}</b> ya tenían acceso.</span></div>` : ''}
       ${rep.notFound.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No están registrados en we-ref.com: <b>${rep.notFound.map(esc).join(', ')}</b>. Pídeles que se creen una cuenta.</span></div>` : ''}
       ${rep.invalid.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No parecen correos válidos: <b>${rep.invalid.map(esc).join(', ')}</b>.</span></div>` : ''}` : '';
+  const catFilterOpts = `<option value="all" ${f.cat === 'all' ? 'selected' : ''}>Todas</option><option value="none" ${f.cat === 'none' ? 'selected' : ''}>Sin categoría</option>` +
+    (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${f.cat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   return `
   <div class="tp-layout mb-layout">
     <div class="mb-main">
-      <div class="ac-search mb-search">
-        ${ic('search')}
-        <input type="text" id="cm-member-search" placeholder="Buscar por apellidos, nombre, usuario o correo..." value="${esc(COMMITTEE.memberSearch)}" maxlength="80" autocomplete="off" aria-label="Buscar árbitro">
-      </div>
-      <div class="tx-toolbar mb-toolbar">
-        <div class="tx-filters">
-          ${chip('all', 'Todos', counts.all)}
-          ${chip('results', 'Con resultados', counts.results)}
-          ${chip('none', 'Sin resultados', counts.none)}
+      <div class="tc-card mb-listcard" id="cm-members-table">
+        <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small id="cm-members-count">${cmMembersCountText()}</small></div>
+          <div class="cm-actions">
+            <button class="btn btn-ghost" data-action="committee-member-clear-filters">${ic('repeat')} Limpiar filtros</button>
+            <button class="btn btn-ghost" data-action="committee-export-members">${ic('download')} Exportar</button>
+          </div>
         </div>
-        <div class="mb-tools">
-          <label class="mb-sort">Ordenar
-            <select id="cm-member-sort" data-cm-field="memberSort" data-cm-rerender>
-              ${sortOpts.map(([k, l]) => `<option value="${k}" ${COMMITTEE.memberSort === k ? 'selected' : ''}>${l}</option>`).join('')}
-            </select>
-          </label>
-          <button class="btn btn-ghost" data-action="committee-export-members">${ic('download')} Exportar</button>
+        ${COMMITTEE.catsMissing ? `<div class="st-note" style="margin-bottom:12px;">Para usar categorías falta ejecutar el SQL <b>committee-categories.sql</b> en Supabase.</div>` : ''}
+        <div id="cm-members-bulk">${cmMembersBulkHtml()}</div>
+        <div class="mb-tablewrap">
+          <table class="mb-table">
+            <thead>
+              <tr class="mb-th">
+                <th class="mb-c-chk"><input type="checkbox" id="mb-all" aria-label="Seleccionar todos"></th>
+                ${th('surname', 'Apellidos')}${th('name', 'Nombre')}${th('user', 'Usuario')}${th('email', 'Correo')}${th('cat', 'Categoría')}${th('done', 'Tests')}${th('acc', 'Acierto')}${th('added', 'Alta')}${th('last', 'Último acceso')}
+                <th class="mb-c-del"></th>
+              </tr>
+              <tr class="mb-filters">
+                <th></th>
+                <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="user" type="text" value="${esc(f.user)}" placeholder="Filtrar" aria-label="Filtrar por usuario" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="email" type="text" value="${esc(f.email)}" placeholder="Filtrar" aria-label="Filtrar por correo" autocomplete="off"></th>
+                <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catFilterOpts}</select></th>
+                <th colspan="2"><select class="mb-f" data-col="res" aria-label="Filtrar por resultados">
+                  <option value="all" ${f.res === 'all' ? 'selected' : ''}>Todos</option>
+                  <option value="with" ${f.res === 'with' ? 'selected' : ''}>Con resultados</option>
+                  <option value="none" ${f.res === 'none' ? 'selected' : ''}>Sin resultados</option>
+                </select></th>
+                <th></th><th></th><th></th>
+              </tr>
+            </thead>
+            <tbody id="cm-members-body">${cmMembersBodyHtml()}</tbody>
+          </table>
         </div>
-      </div>
-      <div class="tc-card mb-listcard">
-        <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small id="cm-members-count">${cmMembersCountText()}</small></div></div>
-        <div id="cm-members-list">${cmMembersListHtml()}</div>
       </div>
     </div>
     <aside class="tc-card mb-add">
@@ -928,6 +1010,109 @@ function cmMembersTab(){
       <div class="st-note" style="margin-top:12px;">Puedes pegar varios correos separados por comas, espacios o saltos de línea. Cada persona tiene que haberse registrado antes en we-ref.com con ese mismo correo.</div>
     </aside>
   </div>`;
+}
+
+/* ----- Configuración del módulo ----- */
+const CM_CAT_COLORS = ['#FF6A2B', '#2A6FDB', '#1F9D55', '#8E44AD', '#E0A100', '#D64545', '#0E9AA7', '#6B7280'];
+const CM_CAT_SUGGESTIONS = ['Árbitro de categoría', 'Situación especial', 'Primer año'];
+
+async function cmLoadCategories(){
+  try{
+    const r = await supabaseClient.from('committee_member_categories').select('*').order('position', { ascending: true }).order('name', { ascending: true });
+    if(r.error){ COMMITTEE.categories = []; COMMITTEE.catsMissing = true; }
+    else { COMMITTEE.categories = r.data || []; COMMITTEE.catsMissing = false; }
+  }catch(e){ COMMITTEE.categories = []; COMMITTEE.catsMissing = true; }
+  try{
+    const d = await supabaseClient.from('committee_settings').select('defaults').eq('id', 1).maybeSingle();
+    if(!d.error && d.data && d.data.defaults && typeof d.data.defaults === 'object') Object.assign(COMMITTEE.defaults, d.data.defaults);
+  }catch(e){}
+}
+
+function cmSettingsTab(){
+  const ic = (n) => shellIcon(n);
+  const cats = COMMITTEE.categories || [];
+  const counts = {};
+  (COMMITTEE.members || []).forEach(m => { if(m.category_id) counts[m.category_id] = (counts[m.category_id] || 0) + 1; });
+  const dr = COMMITTEE.catDraft;
+  const d = COMMITTEE.defaults;
+  const rows = cats.map(c => `<div class="cs-cat">
+      <input type="color" class="cs-color" data-cid="${esc(c.id)}" value="${esc(c.color)}" aria-label="Color">
+      <input type="text" class="cs-name" data-cid="${esc(c.id)}" value="${esc(c.name)}" maxlength="60" aria-label="Nombre de la categoría">
+      <span class="cs-count">${counts[c.id] || 0} ${(counts[c.id] || 0) === 1 ? 'árbitro' : 'árbitros'}</span>
+      <button class="tx-icon danger" data-action="committee-cat-delete" data-cid="${esc(c.id)}" title="Eliminar categoría" aria-label="Eliminar categoría">${ic('trash')}</button>
+    </div>`).join('');
+  const palette = CM_CAT_COLORS.map(col => `<button type="button" class="cs-sw ${dr.color === col ? 'on' : ''}" style="--c:${col}" data-action="committee-cat-color" data-color="${col}" aria-label="Color ${col}"></button>`).join('');
+  const sugg = !cats.length ? `<div class="cs-sugg"><span>Sugerencias:</span>${CM_CAT_SUGGESTIONS.map(s => `<button type="button" class="tx-filter" data-action="committee-cat-suggest" data-name="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : '';
+  const timerFields = d.timerMode === 'total'
+    ? `<div><label for="cm-d-min">Minutos</label><input type="number" id="cm-d-min" min="1" max="600" data-cm-field="defaults.minutes" value="${esc(String(d.minutes))}"></div>`
+    : (d.timerMode === 'perQuestion'
+      ? `<div><label for="cm-d-sec">Segundos por pregunta</label><input type="number" id="cm-d-sec" min="5" max="3600" data-cm-field="defaults.secPerQ" value="${esc(String(d.secPerQ))}"></div>` : '');
+  return `
+  <div class="tp-layout cs-layout" id="cm-settings">
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Categorías de árbitros</h3><small>Para clasificar a los miembros: categoría, situación especial, primer año…</small></div></div>
+      ${COMMITTEE.catsMissing ? `<div class="st-note" style="margin-bottom:12px;">Para crear categorías falta ejecutar el SQL <b>committee-categories.sql</b> en Supabase.</div>` : ''}
+      ${rows ? `<div class="cs-list">${rows}</div>` : `<div class="ac-empty" style="padding:22px 14px;">${ic('users')}<strong>Todavía no hay categorías</strong><span>Crea la primera abajo y asígnala desde la tabla de Miembros.</span></div>`}
+      <div class="cs-add">
+        <label for="cm-cat-new" style="margin-top:0;">Nueva categoría</label>
+        <div class="cs-add-row">
+          <input type="text" id="cm-cat-new" data-cm-field="catDraft.name" value="${esc(dr.name)}" maxlength="60" placeholder="Ej.: Primer año" autocomplete="off">
+          <button class="btn btn-primary" data-action="committee-cat-add" ${COMMITTEE.catsMissing ? 'disabled' : ''}>${ic('plus')} Añadir</button>
+        </div>
+        <div class="cs-palette">${palette}</div>
+        ${sugg}
+      </div>
+    </div>
+
+    <aside class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">${ic('settings')}</span><div><h3>Nuevos tests</h3><small>Valores por defecto al crear un test</small></div></div>
+      <label for="cm-d-att" style="margin-top:0;">Intentos permitidos</label>
+      <input type="number" id="cm-d-att" min="1" max="20" data-cm-field="defaults.maxAttempts" value="${esc(String(d.maxAttempts))}">
+      <label for="cm-d-timer">Temporización</label>
+      <select id="cm-d-timer" data-cm-field="defaults.timerMode" data-cm-rerender>
+        <option value="none" ${d.timerMode === 'none' ? 'selected' : ''}>Sin límite</option>
+        <option value="total" ${d.timerMode === 'total' ? 'selected' : ''}>Tiempo total</option>
+        <option value="perQuestion" ${d.timerMode === 'perQuestion' ? 'selected' : ''}>Por pregunta</option>
+      </select>
+      ${timerFields}
+      <label for="cm-d-order">Orden de preguntas y respuestas</label>
+      <select id="cm-d-order" data-cm-field="defaults.shuffleMode">
+        <option value="fixed" ${d.shuffleMode !== 'shuffled' ? 'selected' : ''}>Igual para todos</option>
+        <option value="shuffled" ${d.shuffleMode === 'shuffled' ? 'selected' : ''}>Mezclado para cada árbitro</option>
+      </select>
+      <button class="btn btn-primary" style="width:100%; margin-top:16px; display:inline-flex; align-items:center; justify-content:center; gap:8px;" data-action="committee-defaults-save">${ic('check')} Guardar valores</button>
+      <div class="st-note" style="margin-top:12px;">Se aplican cuando pulsas "Nuevo test". Siempre los puedes cambiar dentro de cada test.</div>
+    </aside>
+  </div>`;
+}
+
+/* Edición directa de nombre y color de las categorías (eventos delegados). */
+function cmBindSettings(){
+  const root = document.getElementById('cm-settings');
+  if(!root) return;
+  root.addEventListener('change', async (ev) => {
+    const t = ev.target;
+    if(!t.classList || !t.dataset.cid) return;
+    const c = (COMMITTEE.categories || []).find(x => x.id === t.dataset.cid); if(!c) return;
+    const patch = {};
+    if(t.classList.contains('cs-name')){
+      const v = t.value.trim();
+      if(!v){ cmToast('La categoría necesita un nombre.'); return; }
+      if(v === c.name) return;
+      patch.name = v;
+    } else if(t.classList.contains('cs-color')){
+      if(t.value.toLowerCase() === String(c.color).toLowerCase()) return;
+      patch.color = t.value;
+    } else return;
+    const { error } = await supabaseClient.from('committee_member_categories').update(patch).eq('id', c.id);
+    if(error){
+      cmToast(/duplicate|23505/i.test((error.message || '') + (error.code || '')) ? 'Ya existe una categoría con ese nombre.' : cmErrText(error));
+      await cmLoadCategories(); cmRefresh();
+      return;
+    }
+    Object.assign(c, patch);
+    STATE.toast = 'Categoría actualizada.'; render();
+  });
 }
 
 /* ----- Clasificación ----- */
@@ -1004,15 +1189,16 @@ function cmStatsTab(){
 function cmTrainingView(){
   const ic = (n) => shellIcon(n);
   const st = COMMITTEE.status || {};
-  const tab = ['tests', 'messages', 'members', 'ranking', 'stats'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
+  const tab = ['tests', 'messages', 'members', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
   const nTests = (COMMITTEE.tests || []).length;
   const nMembers = (COMMITTEE.members || []).length;
-  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null]];
+  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
   let content;
   if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
   else if(tab === 'members') content = cmMembersTab();
   else if(tab === 'ranking') content = cmRankingTab();
   else if(tab === 'stats') content = cmStatsTab();
+  else if(tab === 'settings') content = cmSettingsTab();
   else if(tab === 'messages') content = cmMessagesTab();
   else content = cmTestsTab();
   const s = cmAdminStats();
@@ -1128,9 +1314,9 @@ function cmNewBuilder(){
   const season = String(cmSeasonStartOf(now.getFullYear(), now.getMonth() + 1));
   const mon = String(now.getMonth() + 1);
   return {
-    editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: 1,
-    timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
-    shuffleMode: 'fixed', hadShuffleCol: false,
+    editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: Math.max(1, parseInt(COMMITTEE.defaults.maxAttempts, 10) || 1),
+    timerMode: COMMITTEE.defaults.timerMode || 'none', minutes: COMMITTEE.defaults.minutes || 20, secPerQ: COMMITTEE.defaults.secPerQ || 45, hadTimerCols: false,
+    shuffleMode: COMMITTEE.defaults.shuffleMode === 'shuffled' ? 'shuffled' : 'fixed', hadShuffleCol: false,
     published: false, attemptCount: 0, orig: null, replacingId: null,
     selected: [], expanded: {},
     numsText: '', numsReport: null,
@@ -1566,6 +1752,21 @@ async function cmSaveBuilder(){
   cmLoadAdminData();
 }
 
+async function cmAddCategory(){
+  const dr = COMMITTEE.catDraft;
+  const name = String(dr.name || '').trim();
+  if(!name){ cmToast('Escribe el nombre de la categoría.'); return; }
+  const pos = (COMMITTEE.categories || []).reduce((mx, c) => Math.max(mx, c.position || 0), 0) + 1;
+  const { error } = await supabaseClient.from('committee_member_categories').insert({ name, color: dr.color, position: pos });
+  if(error){
+    cmToast(/duplicate|23505/i.test((error.message || '') + (error.code || '')) ? 'Ya existe una categoría con ese nombre.' : cmErrText(error));
+    return;
+  }
+  COMMITTEE.catDraft = { name: '', color: dr.color };
+  await cmLoadCategories();
+  STATE.toast = 'Categoría creada.'; render();
+}
+
 /* ---------- acciones ---------- */
 async function committeeOnAction(action, el){
   const tid = el.dataset.tid;
@@ -1713,13 +1914,65 @@ async function committeeOnAction(action, el){
     render();
     cmLoadAdminData();
   }
-  else if(action === 'committee-member-filter'){ COMMITTEE.memberFilter = el.dataset.filter; render(); }
+  else if(action === 'committee-member-sort'){
+    const k = el.dataset.key;
+    if(COMMITTEE.memberSortKey === k) COMMITTEE.memberSortDir = COMMITTEE.memberSortDir === 'asc' ? 'desc' : 'asc';
+    else { COMMITTEE.memberSortKey = k; COMMITTEE.memberSortDir = (k === 'done' || k === 'acc' || k === 'added' || k === 'last') ? 'desc' : 'asc'; }
+    render();
+  }
+  else if(action === 'committee-member-clear-filters'){
+    COMMITTEE.memberFilters = { last: '', first: '', user: '', email: '', cat: 'all', res: 'all' };
+    render();
+  }
+  else if(action === 'committee-members-sel-clear'){ COMMITTEE.memberSel = {}; cmMembersRefreshParts(); }
+  else if(action === 'committee-members-bulk-assign'){
+    const uids = Object.keys(COMMITTEE.memberSel).filter(k => COMMITTEE.memberSel[k]);
+    if(!uids.length) return;
+    const sel = document.getElementById('cm-bulk-cat');
+    const catId = sel && sel.value ? sel.value : null;
+    const ok = await cmSetMembersCategory(uids, catId);
+    if(!ok) return;
+    COMMITTEE.memberSel = {};
+    const c = cmCatById(catId);
+    STATE.toast = c ? `Categoría «${c.name}» asignada a ${uids.length} ${uids.length === 1 ? 'árbitro' : 'árbitros'}.` : `Categoría quitada a ${uids.length} ${uids.length === 1 ? 'árbitro' : 'árbitros'}.`;
+    render();
+  }
+  else if(action === 'committee-cat-color'){ COMMITTEE.catDraft.color = el.dataset.color; render(); }
+  else if(action === 'committee-cat-suggest'){ COMMITTEE.catDraft.name = el.dataset.name; await cmAddCategory(); }
+  else if(action === 'committee-cat-add'){ await cmAddCategory(); }
+  else if(action === 'committee-cat-delete'){
+    const c = (COMMITTEE.categories || []).find(x => x.id === el.dataset.cid); if(!c) return;
+    const n = (COMMITTEE.members || []).filter(m => m.category_id === c.id).length;
+    const ok = await appConfirm({
+      title: '¿Eliminar la categoría?',
+      message: `«${c.name}» se eliminará.` + (n ? ` ${n} ${n === 1 ? 'árbitro quedará' : 'árbitros quedarán'} sin categoría.` : ''),
+      confirmText: 'Eliminar', danger: true
+    });
+    if(!ok) return;
+    const { error } = await supabaseClient.from('committee_member_categories').delete().eq('id', c.id);
+    if(error){ cmToast(cmErrText(error)); return; }
+    (COMMITTEE.members || []).forEach(m => { if(m.category_id === c.id) m.category_id = null; });
+    COMMITTEE.categories = (COMMITTEE.categories || []).filter(x => x.id !== c.id);
+    if(COMMITTEE.memberFilters.cat === c.id) COMMITTEE.memberFilters.cat = 'all';
+    STATE.toast = 'Categoría eliminada.'; render();
+  }
+  else if(action === 'committee-defaults-save'){
+    const d = COMMITTEE.defaults;
+    const att = Math.max(1, Math.min(20, parseInt(d.maxAttempts, 10) || 1));
+    const min = Math.max(1, Math.min(600, parseInt(d.minutes, 10) || 20));
+    const sec = Math.max(5, Math.min(3600, parseInt(d.secPerQ, 10) || 45));
+    const clean = { maxAttempts: att, timerMode: ['none', 'total', 'perQuestion'].includes(d.timerMode) ? d.timerMode : 'none', minutes: min, secPerQ: sec, shuffleMode: d.shuffleMode === 'shuffled' ? 'shuffled' : 'fixed' };
+    const { error } = await supabaseClient.from('committee_settings').update({ defaults: clean }).eq('id', 1);
+    if(error){ cmToast(/defaults/.test(error.message || '') ? 'Falta ejecutar el SQL committee-categories.sql en Supabase.' : cmErrText(error)); return; }
+    Object.assign(COMMITTEE.defaults, clean);
+    STATE.toast = 'Valores guardados. Se usarán en los nuevos tests.'; render();
+  }
   else if(action === 'committee-export-members'){
     const { list } = cmMembersData();
     const rows = list.map(e => {
       const p = cmNameParts(e.m);
       return {
-        'Apellidos': p.last, 'Nombre': p.first, 'Usuario': e.m.username || '', 'Email': e.m.email || '',
+        'Apellidos': p.last, 'Nombre': p.first, 'Usuario': e.m.username || '', 'Email': e.m.email || '', 'Categoría': (cmCatById(e.m.category_id) || {}).name || '',
         'Tests hechos': e.s.done, 'Tests publicados': e.s.published, '% acierto': e.s.pct === null ? '' : e.s.pct,
         'Alta en CTA BAGES': cmFmtDay(e.m.added_at), 'Último acceso': e.m.last_sign_in_at ? cmFmtDay(e.m.last_sign_in_at) : ''
       };
@@ -1916,13 +2169,8 @@ function committeeAfterRender(){
       if(el.hasAttribute('data-cm-rerender')) render();
     });
   });
-  const msearch = document.getElementById('cm-member-search');
-  if(msearch) msearch.addEventListener('input', () => {
-    COMMITTEE.memberSearch = msearch.value;
-    const list = document.getElementById('cm-members-list');
-    if(list){ list.innerHTML = cmMembersListHtml(); list.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onAction)); }
-    const cnt = document.getElementById('cm-members-count'); if(cnt) cnt.textContent = cmMembersCountText();
-  });
+  cmBindMembersTable();
+  cmBindSettings();
   const nta = document.getElementById('cm-b-nums');
   if(nta) nta.addEventListener('input', () => {
     const b = COMMITTEE.builder; if(!b) return;
