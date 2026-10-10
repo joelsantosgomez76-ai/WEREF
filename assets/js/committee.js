@@ -25,6 +25,7 @@ const COMMITTEE = {
   run: null,
   result: null,
   builder: null,
+  pv: null,           // estado de la vista previa del test que se está montando
   error: null
 };
 
@@ -197,6 +198,7 @@ function committeeView(v){
   if(v === 'committeeAdmin') return cmTrainingView();
   if(v === 'committeeTraining') return cmTrainingView();
   if(v === 'committeeBuilder') return cmBuilderView();
+  if(v === 'committeePreview') return cmPreviewView();
   if(v === 'committeeTestDetail') return cmTestDetailView();
   if(v === 'committeeRun') return cmRunView();
   if(v === 'committeeResult') return cmResultView();
@@ -1040,12 +1042,22 @@ function cmBuilderView(){
   const b = COMMITTEE.builder;
   if(!b) return cmAdminView();
   qnumSync();
+  const ic = (n) => shellIcon(n);
   const numOf = cmQuestionNumbers().numOf;
   const numTag = (q) => numOf[q.id] ? `<span class="cm-qnum" title="Número en la base de datos">#${numOf[q.id]}</span>` : '';
   const curSeason = parseInt(cmCurrentSeason(), 10);
   const seasonSet = new Set([-1, 0, 1, 2].map(d => String(curSeason + d)));
   if(b.season) seasonSet.add(String(b.season));
   const seasonOpts = Array.from(seasonSet).sort();
+  const n = b.selected.length;
+  const monthName = CM_MONTHS[parseInt(b.mon, 10) - 1] || '';
+  const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  const timerLabel = cmTimerText({ timer_mode: b.timerMode, time_minutes: parseInt(b.minutes, 10) || null, seconds_per_question: parseInt(b.secPerQ, 10) || null });
+  const fmt = (v) => v ? cmFmtDate(new Date(v).toISOString()) : '';
+  const missing = [];
+  if(!b.title.trim()) missing.push('el título');
+  if(!n) missing.push('las preguntas');
+
   const selHtml = b.selected.map((q, i) => {
     const open = !!b.expanded[q.id];
     return `<div class="cm-sel-item">
@@ -1053,109 +1065,201 @@ function cmBuilderView(){
         <span class="cm-sel-num">${i + 1}.</span>
         <span style="flex:1;">${esc(q.question)}<div style="margin-top:3px;">${numTag(q)} <span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${cmRuleShort(q)}</span></div></span>
         <span class="cm-sel-tools">
-          <button class="icon-btn" title="Subir" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>${shellIcon('up')}</button>
-          <button class="icon-btn" title="Bajar" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="1" ${i === b.selected.length - 1 ? 'disabled' : ''}>${shellIcon('down')}</button>
-          <button class="icon-btn" title="${open ? 'Ocultar respuestas' : 'Ver respuestas'}" data-action="committee-b-expand" data-qid="${esc(q.id)}">${shellIcon('eye')}</button>
-          <button class="icon-btn" title="Quitar" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${shellIcon('trash')}</button>
+          <button class="icon-btn" title="Subir" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button>
+          <button class="icon-btn" title="Bajar" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="1" ${i === n - 1 ? 'disabled' : ''}>${ic('down')}</button>
+          <button class="icon-btn" title="${open ? 'Ocultar respuestas' : 'Ver respuestas'}" data-action="committee-b-expand" data-qid="${esc(q.id)}">${ic('eye')}</button>
+          <button class="icon-btn" title="Quitar" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${ic('trash')}</button>
         </span>
       </div>
       ${open ? `<div style="padding-left:32px;">${cmQuestionDetail(q)}</div>` : ''}
     </div>`;
   }).join('');
 
-
   return `
   <button class="backbtn" data-action="committee-b-cancel">&larr; Cancelar</button>
-  <h2 style="margin-bottom:14px;">${b.editId ? 'Editar test' : 'Nuevo test'}</h2>
-
-  <div class="cm-card">
-    <div class="cm-sec-title">Datos del test</div>
-    <div class="cm-fields">
-      <div class="full"><label for="cm-b-title" style="margin-top:0;">Título</label><input type="text" id="cm-b-title" data-cm-field="builder.title" value="${esc(b.title)}" placeholder="Ej.: Test de octubre" maxlength="120"></div>
-      <div><label for="cm-b-season">Temporada (clasificación)</label>
-        <select id="cm-b-season" data-cm-field="builder.season" data-cm-rerender>
-          ${seasonOpts.map(s => `<option value="${s}" ${String(b.season) === s ? 'selected' : ''}>${cmSeasonLabel(s)}</option>`).join('')}
-        </select></div>
-      <div><label for="cm-b-mon">Mes</label>
-        <select id="cm-b-mon" data-cm-field="builder.mon" data-cm-rerender>
-          ${CM_SEASON_ORDER.map(n => `<option value="${n}" ${String(b.mon) === String(n) ? 'selected' : ''}>${CM_MONTHS[n - 1].charAt(0).toUpperCase() + CM_MONTHS[n - 1].slice(1)}</option>`).join('')}
-        </select></div>
-      <div class="full cm-season-note">${shellIcon('trophy')}<span>Este test cuenta para la clasificación de la temporada <b>${cmSeasonLabel(b.season)}</b>, mes de <b>${CM_MONTHS[parseInt(b.mon, 10) - 1]} de ${cmBuilderMonth(b).slice(0, 4)}</b>. Cada temporada tiene su propia clasificación.</span></div>
-      <div><label for="cm-b-attempts">Intentos permitidos</label><input type="number" id="cm-b-attempts" min="1" max="20" data-cm-field="builder.maxAttempts" value="${esc(String(b.maxAttempts))}"></div>
-      <div><label for="cm-b-opens">Abre (vacío = ahora)</label><input type="datetime-local" id="cm-b-opens" data-cm-field="builder.opens" value="${esc(b.opens)}"></div>
-      <div><label for="cm-b-closes">Cierra (opcional)</label><input type="datetime-local" id="cm-b-closes" data-cm-field="builder.closes" value="${esc(b.closes)}"></div>
+  <section class="tc-hero">
+    <div>
+      <div class="home-eyebrow">Panel de Formación · CTA BAGES</div>
+      <h1>${b.editId ? 'Editar test' : 'Nuevo test'}</h1>
+      <p>Prepáralo en borrador, previsualízalo tal como lo verán los árbitros y publícalo en CTA BAGES cuando esté listo.</p>
     </div>
-    <div style="font-size:12.5px; color:var(--muted); margin-top:10px;">Las respuestas correctas se enseñan a los árbitros cuando el test cierra. Si no pones fecha de cierre, se enseñan al terminar.</div>
-  </div>
+    <div class="tc-hero-stat"><b>${n}</b><span>preguntas<br>en el test</span></div>
+  </section>
 
-  <div class="cm-card">
-    <div class="cm-sec-title">${cmIc('clock')} Temporización</div>
-    <div class="tc-opts three">
-      ${cmTimerOpt(b.timerMode === 'none', 'none', 'repeat', 'Sin límite', 'Cada árbitro va a su ritmo.')}
-      ${cmTimerOpt(b.timerMode === 'total', 'total', 'clock', 'Tiempo total', 'Un reloj para todo el test.')}
-      ${cmTimerOpt(b.timerMode === 'perQuestion', 'perQuestion', 'zap', 'Por pregunta', 'Cada pregunta con su cuenta atrás.')}
-    </div>
-    ${b.timerMode === 'total' ? `
-      <div class="cm-timer-field"><label for="cm-b-minutes">Minutos para todo el test</label>
-      <input type="number" id="cm-b-minutes" min="1" max="600" data-cm-field="builder.minutes" data-cm-rerender value="${esc(String(b.minutes))}">
-      <small>Al llegar a cero el test se envía solo con las respuestas que haya.</small></div>` : ''}
-    ${b.timerMode === 'perQuestion' ? `
-      <div class="cm-timer-field"><label for="cm-b-secq">Segundos por pregunta</label>
-      <input type="number" id="cm-b-secq" min="5" max="3600" data-cm-field="builder.secPerQ" data-cm-rerender value="${esc(String(b.secPerQ))}">
-      <small>Al acabarse el tiempo de una pregunta pasa sola a la siguiente. En este modo no se puede volver atrás.</small></div>` : ''}
-    <div class="cm-season-note">${cmIc('clock')}<span>${esc(cmBuilderTimerSummary(b))}</span></div>
-  </div>
+  <div class="tc-layout">
+    <div class="tc-main">
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Datos del test</h3><small>El nombre que verán los árbitros</small></div></div>
+        <label for="cm-b-title" style="margin-top:0;">Título</label>
+        <input type="text" id="cm-b-title" data-cm-field="builder.title" value="${esc(b.title)}" placeholder="Ej.: Test de octubre" maxlength="120">
+      </div>
 
-  <div class="cm-builder">
-    <div class="cm-b-main">
-      <div class="cm-card">
-        <div class="cm-sec-title">${cmIc('list')} Montar el test con números de pregunta</div>
-        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Escribe los números que ves con <b>#</b> en la Base de datos. Sepáralos con comas, espacios o saltos de línea; también vale un rango (por ejemplo <b>120-125</b>). Se añaden en el orden que los escribas.</div>
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Temporada y mes</h3><small>Cada temporada tiene su propia clasificación</small></div></div>
+        <div class="cm-fields">
+          <div><label for="cm-b-season" style="margin-top:0;">Temporada</label>
+            <select id="cm-b-season" data-cm-field="builder.season" data-cm-rerender>
+              ${seasonOpts.map(s => `<option value="${s}" ${String(b.season) === s ? 'selected' : ''}>${cmSeasonLabel(s)}</option>`).join('')}
+            </select></div>
+          <div><label for="cm-b-mon" style="margin-top:0;">Mes</label>
+            <select id="cm-b-mon" data-cm-field="builder.mon" data-cm-rerender>
+              ${CM_SEASON_ORDER.map(m => `<option value="${m}" ${String(b.mon) === String(m) ? 'selected' : ''}>${CM_MONTHS[m - 1].charAt(0).toUpperCase() + CM_MONTHS[m - 1].slice(1)}</option>`).join('')}
+            </select></div>
+        </div>
+        <div class="cm-season-note">${ic('trophy')}<span>Cuenta para la clasificación de la temporada <b>${cmSeasonLabel(b.season)}</b>, mes de <b>${monthName} de ${cmBuilderMonth(b).slice(0, 4)}</b>.</span></div>
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">3</span><div><h3>Fechas e intentos</h3><small>Cuándo está disponible y cuántas veces se puede hacer</small></div></div>
+        <div class="cm-fields">
+          <div><label for="cm-b-opens" style="margin-top:0;">Abre <small class="cm-opt">(vacío = al publicar)</small></label><input type="datetime-local" id="cm-b-opens" data-cm-field="builder.opens" value="${esc(b.opens)}"></div>
+          <div><label for="cm-b-closes" style="margin-top:0;">Cierra <small class="cm-opt">(opcional)</small></label><input type="datetime-local" id="cm-b-closes" data-cm-field="builder.closes" value="${esc(b.closes)}"></div>
+          <div><label for="cm-b-attempts">Intentos permitidos</label><input type="number" id="cm-b-attempts" min="1" max="20" data-cm-field="builder.maxAttempts" value="${esc(String(b.maxAttempts))}"></div>
+        </div>
+        <div class="cm-season-note">${ic('lock')}<span>Las respuestas correctas se enseñan a los árbitros cuando el test cierra. Si no pones fecha de cierre, se enseñan al terminar.</span></div>
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">4</span><div><h3>Temporización</h3><small>Controla el ritmo del test</small></div></div>
+        <div class="tc-opts three">
+          ${cmTimerOpt(b.timerMode === 'none', 'none', 'repeat', 'Sin límite', 'Cada árbitro va a su ritmo.')}
+          ${cmTimerOpt(b.timerMode === 'total', 'total', 'clock', 'Tiempo total', 'Un reloj para todo el test.')}
+          ${cmTimerOpt(b.timerMode === 'perQuestion', 'perQuestion', 'zap', 'Por pregunta', 'Cada pregunta con su cuenta atrás.')}
+        </div>
+        ${b.timerMode === 'total' ? `
+          <div class="cm-timer-field"><label for="cm-b-minutes">Minutos para todo el test</label>
+          <input type="number" id="cm-b-minutes" min="1" max="600" data-cm-field="builder.minutes" data-cm-rerender value="${esc(String(b.minutes))}">
+          <small>Al llegar a cero el test se envía solo con las respuestas que haya.</small></div>` : ''}
+        ${b.timerMode === 'perQuestion' ? `
+          <div class="cm-timer-field"><label for="cm-b-secq">Segundos por pregunta</label>
+          <input type="number" id="cm-b-secq" min="5" max="3600" data-cm-field="builder.secPerQ" data-cm-rerender value="${esc(String(b.secPerQ))}">
+          <small>Al acabarse el tiempo de una pregunta pasa sola a la siguiente. En este modo no se puede volver atrás.</small></div>` : ''}
+        <div class="cm-season-note">${ic('clock')}<span>${esc(cmBuilderTimerSummary(b))}</span></div>
+      </div>
+
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">5</span><div><h3>Añadir preguntas</h3><small>Con los números de la Base de datos (los que ves con #)</small></div></div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Sepáralos con comas, espacios o saltos de línea; también vale un rango (por ejemplo <b>120-125</b>). Se añaden en el orden que los escribas y debajo ves cada pregunta con sus respuestas antes de añadirla.</div>
         <textarea id="cm-b-nums" data-cm-field="builder.numsText" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" style="margin:0;">${esc(b.numsText)}</textarea>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px;">
-          <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${cmIc('plus')} <span id="cm-b-add-label">${cmNumsAddLabel(b)}</span></button>
-          <span style="font-size:12.5px; color:var(--muted);">El número de cada pregunta es único y no cambia nunca, aunque se eliminen otras.</span>
+          <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${ic('plus')} <span id="cm-b-add-label">${cmNumsAddLabel(b)}</span></button>
+          <span style="font-size:12.5px; color:var(--muted);">El número de cada pregunta es único y no cambia nunca.</span>
         </div>
         ${cmNumsReportHtml(b.numsReport)}
         <div id="cm-nums-preview">${cmNumsPreviewHtml(b)}</div>
       </div>
 
-    </div>
-
-    <aside class="cm-b-side">
-      <div class="cm-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
-          <div class="cm-sec-title" style="margin:0;">Tu test (${b.selected.length})</div>
+      <div class="tc-card">
+        <div class="tc-card-head"><span class="tc-step">6</span><div><h3>Preguntas del test (${n})</h3><small>Ordénalas, revísalas o quítalas</small></div>
           <div class="cm-actions">
-            <button class="btn btn-ghost" style="padding:5px 10px;" data-action="committee-b-shuffle" ${b.selected.length < 2 ? 'disabled' : ''} title="Mezclar el orden">${cmIc('shuffle')}</button>
-            <button class="btn btn-ghost btn-danger-soft" style="padding:5px 10px;" data-action="committee-b-clear" ${b.selected.length ? '' : 'disabled'} title="Vaciar">${cmIc('trash')}</button>
+            <button class="btn btn-ghost" style="padding:6px 11px;" data-action="committee-b-shuffle" ${n < 2 ? 'disabled' : ''} title="Mezclar el orden">${cmIc('shuffle')}</button>
+            <button class="btn btn-ghost btn-danger-soft" style="padding:6px 11px;" data-action="committee-b-clear" ${n ? '' : 'disabled'} title="Vaciar">${cmIc('trash')}</button>
           </div>
         </div>
-        ${b.selected.length ? `<div class="cm-chips" style="margin-bottom:8px;">${cmComposition(b.selected)}</div>` : ''}
-        ${selHtml || '<div style="font-size:13px; color:var(--muted); padding:8px 0;">Todavía no has elegido ninguna pregunta. Escribe los números de las preguntas arriba o búscalas en el banco.</div>'}
-        <button class="btn btn-primary" style="width:100%; margin-top:14px;" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${b.saving ? 'Guardando...' : (b.editId ? 'Guardar cambios' : 'Guardar como borrador')}</button>
-        <div style="font-size:12px; color:var(--muted); margin-top:8px; text-align:center;">${b.editId ? 'Sigue en borrador: los árbitros no lo ven hasta que lo publiques.' : 'Después podrás revisarlo y publicarlo.'}</div>
+        ${n ? `<div class="cm-chips" style="margin-bottom:8px;">${cmComposition(b.selected)}</div>` : ''}
+        ${selHtml || `<div class="ac-empty" style="margin:0;">${ic('list')}<strong>Todavía no hay preguntas</strong><span>Escribe arriba los números de las preguntas que quieras incluir.</span></div>`}
+      </div>
+    </div>
+
+    <aside class="tc-side">
+      <div class="tc-summary">
+        <div class="tc-summary-title">Resumen del test</div>
+        <div class="tc-sum-row">${ic('file')}<span>Título</span><b>${b.title.trim() ? esc(b.title.trim()) : '—'}</b></div>
+        <div class="tc-sum-row">${ic('trophy')}<span>Temporada</span><b>${cmSeasonLabel(b.season)} · ${monthCap}</b></div>
+        <div class="tc-sum-row">${ic('book')}<span>Preguntas</span><b>${n}</b></div>
+        <div class="tc-sum-row">${ic('clock')}<span>Tiempo</span><b>${esc(timerLabel)}</b></div>
+        <div class="tc-sum-row">${ic('repeat')}<span>Intentos</span><b>${esc(String(parseInt(b.maxAttempts, 10) || 1))}</b></div>
+        <div class="tc-sum-row">${ic('calendar')}<span>Abre</span><b>${b.opens ? esc(fmt(b.opens)) : 'Al publicar'}</b></div>
+        <div class="tc-sum-row">${ic('lock')}<span>Cierra</span><b>${b.closes ? esc(fmt(b.closes)) : 'Sin cierre'}</b></div>
+        ${missing.length ? `<div class="cm-sum-warn">${ic('flag')}<span>Falta ${missing.join(' y ')}.</span></div>` : ''}
+        <button class="btn btn-glass tc-go" data-action="committee-b-preview" ${n ? '' : 'disabled'}>${ic('eye')} Previsualizar test</button>
+        <button class="btn btn-yellow tc-go cm-save-go" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${ic('file')} ${b.saving ? 'Guardando...' : (b.editId ? 'Guardar cambios' : 'Guardar como borrador')}</button>
+        <div class="cm-sum-note">${b.editId ? 'Sigue en borrador: los árbitros no lo ven hasta que lo publiques.' : 'Se guarda como borrador: los árbitros no lo ven hasta que lo publiques.'}</div>
       </div>
     </aside>
   </div>`;
 }
 
+/* ---------- vista previa del test (como lo verá el árbitro; no guarda nada) ---------- */
+function cmPreviewView(){
+  const b = COMMITTEE.builder, pv = COMMITTEE.pv;
+  if(!b) return cmAdminView();
+  if(!pv || !b.selected.length) return cmBuilderView();
+  const ic = (n) => shellIcon(n);
+  const qs = b.selected;
+  if(pv.idx >= qs.length) pv.idx = qs.length - 1;
+  if(pv.idx < 0) pv.idx = 0;
+  const q = qs[pv.idx];
+  const letters = CM_LETTERS;
+  const sel = pv.answers[q.id];
+  const answered = Object.keys(pv.answers).length;
+  const isLast = pv.idx === qs.length - 1;
+  const numOf = cmQuestionNumbers().numOf;
+  const perQ = b.timerMode === 'perQuestion';
+  const secs = b.timerMode === 'total' ? (parseInt(b.minutes, 10) || 0) * 60 : (b.timerMode === 'perQuestion' ? (parseInt(b.secPerQ, 10) || 0) : null);
+  const timerChip = secs ? `<span class="qz-chip">${ic(perQ ? 'timer' : 'clock')}<span class="mono">${formatTime(secs)}</span></span>` : '';
+  const dots = qs.map((x, i) => `<button class="cm-dot ${pv.answers[x.id] ? 'answered' : ''} ${i === pv.idx ? 'current' : ''}" data-action="committee-pv-goto" data-idx="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('');
+  const optCls = (l) => {
+    let c = 'option';
+    if(pv.solution){
+      if(l === q.correct) c += ' correct';
+      else if(sel === l) c += ' incorrect';
+    } else if(sel === l) c += ' selected';
+    return c;
+  };
+  return `
+  <div class="cm-pvbar">
+    <span class="cm-pvbar-badge">${ic('eye')} Vista previa</span>
+    <span class="cm-pvbar-text">Así lo verán los árbitros. Nada se guarda ni se envía.</span>
+    <div class="cm-pvbar-actions">
+      <button class="btn btn-ghost" data-action="committee-pv-solution">${ic('check')} ${pv.solution ? 'Ocultar solución' : 'Ver solución'}</button>
+      <button class="btn btn-secondary" data-action="committee-pv-back">${ic('pencil')} Volver a editar</button>
+      <button class="btn btn-primary" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${ic('file')} ${b.saving ? 'Guardando...' : (b.editId ? 'Guardar cambios' : 'Guardar como borrador')}</button>
+    </div>
+  </div>
+  <div class="qz">
+    <header class="qz-top">
+      <button class="qz-exit" data-action="committee-pv-back" aria-label="Volver a editar">${ic('chevron')}<span>Editar</span></button>
+      <div class="qz-info"><strong>${esc(b.title.trim() || 'Test sin título')}</strong><small>Pregunta ${pv.idx + 1} de ${qs.length} · ${answered} respondidas</small></div>
+      <div class="qz-status">${timerChip}<span class="qz-chip soft">${ic('check')} ${answered}/${qs.length}</span></div>
+    </header>
+    <div class="qz-progress"><i style="width:${Math.round(answered / qs.length * 100)}%"></i></div>
+    <article class="qz-card">
+      <div class="qz-tag">${q.domain === 'glossary' ? 'Glosario' : (q.rule ? 'Regla ' + q.rule + ' · ' + esc(LAW_NAMES[q.rule] || '') : 'CTA BAGES')}${numOf[q.id] ? ` · <span class="cm-pv-adminnum">#${numOf[q.id]} (solo lo ves tú)</span>` : ''}</div>
+      <h2 class="qz-text">${esc(q.question)}</h2>
+      <div class="qz-options">
+        ${q.options.map((o, i) => `<button class="${optCls(letters[i])}" data-action="committee-pv-answer" data-letter="${letters[i]}"><span class="letter">${letters[i].toUpperCase()}</span><span class="opt-text">${esc(o)}</span></button>`).join('')}
+      </div>
+      ${pv.solution && q.explanation ? `<div class="ac-q-expl" style="margin-top:14px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+    </article>
+    <div class="qz-actions">
+      <button class="btn btn-secondary" data-action="committee-pv-prev" ${pv.idx === 0 ? 'disabled' : ''}>&larr; Anterior</button>
+      ${isLast
+        ? `<button class="btn btn-primary" data-action="committee-pv-back">Volver a editar</button>`
+        : `<button class="btn btn-primary" data-action="committee-pv-next">Siguiente &rarr;</button>`}
+    </div>
+    <div class="cm-dots">${dots}</div>
+    ${perQ ? `<div class="cm-allanswered">En el test real, con tiempo por pregunta, no se podrá volver a la pregunta anterior.</div>` : ''}
+  </div>`;
+}
+
 async function cmSaveBuilder(){
   const b = COMMITTEE.builder;
-  if(!b.title.trim()){ cmToast('Ponle un título al test.'); return; }
-  if(!b.selected.length){ cmToast('Elige al menos una pregunta.'); return; }
+  const bad = (m) => { if(STATE.view === 'committeePreview'){ STATE.view = 'committeeBuilder'; render(); } cmToast(m); };
+  if(!b.title.trim()){ bad('Ponle un título al test.'); return; }
+  if(!b.selected.length){ bad('Elige al menos una pregunta.'); return; }
   const opens = b.opens ? new Date(b.opens) : null;
   const closes = b.closes ? new Date(b.closes) : null;
-  if(closes && opens && closes <= opens){ cmToast('La fecha de cierre tiene que ser posterior a la de apertura.'); return; }
-  if(closes && !opens && closes.getTime() <= Date.now()){ cmToast('La fecha de cierre ya ha pasado.'); return; }
+  if(closes && opens && closes <= opens){ bad('La fecha de cierre tiene que ser posterior a la de apertura.'); return; }
+  if(closes && !opens && closes.getTime() <= Date.now()){ bad('La fecha de cierre ya ha pasado.'); return; }
   const attempts = Math.max(1, parseInt(b.maxAttempts, 10) || 1);
   if(b.timerMode === 'total'){
     const mins = parseInt(b.minutes, 10);
-    if(!(mins >= 1 && mins <= 600)){ cmToast('El tiempo total tiene que estar entre 1 y 600 minutos.'); return; }
+    if(!(mins >= 1 && mins <= 600)){ bad('El tiempo total tiene que estar entre 1 y 600 minutos.'); return; }
   }
   if(b.timerMode === 'perQuestion'){
     const secs = parseInt(b.secPerQ, 10);
-    if(!(secs >= 5 && secs <= 3600)){ cmToast('Los segundos por pregunta tienen que estar entre 5 y 3600.'); return; }
+    if(!(secs >= 5 && secs <= 3600)){ bad('Los segundos por pregunta tienen que estar entre 5 y 3600.'); return; }
   }
   // Si el SQL de temporización aún no se ha ejecutado y no se usa tiempo, no se envían esas columnas.
   const withTimer = b.timerMode !== 'none' || b.hadTimerCols;
@@ -1191,7 +1295,7 @@ async function cmSaveBuilder(){
   const wasEdit = !!b.editId;
   b.saving = false;
   if(error){ cmToast(cmErrText(error)); return; }
-  COMMITTEE.builder = null;
+  COMMITTEE.builder = null; COMMITTEE.pv = null;
   COMMITTEE.tab = 'tests';
   STATE.view = 'committeeTraining';
   STATE.toast = timerErr
@@ -1442,7 +1546,7 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-new'){ COMMITTEE.builder = cmNewBuilder(); STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-b-cancel'){
     if(b && b.selected.length && !confirm('¿Descartar este test sin guardar?')) return;
-    COMMITTEE.builder = null; STATE.view = 'committeeTraining'; render();
+    COMMITTEE.builder = null; COMMITTEE.pv = null; STATE.view = 'committeeTraining'; render();
   }
   else if(action === 'committee-b-toggle'){
     if(!b) return;
@@ -1480,6 +1584,22 @@ async function committeeOnAction(action, el){
     b.numsText = rep.missing.join(', ');
     render();
   }
+  else if(action === 'committee-b-preview'){
+    if(!b) return;
+    if(!b.selected.length){ cmToast('Añade alguna pregunta para poder previsualizar el test.'); return; }
+    COMMITTEE.pv = { idx: 0, answers: {}, solution: false };
+    STATE.view = 'committeePreview'; render(); window.scrollTo(0, 0);
+  }
+  else if(action === 'committee-pv-back'){ STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0); }
+  else if(action === 'committee-pv-solution'){ if(COMMITTEE.pv){ COMMITTEE.pv.solution = !COMMITTEE.pv.solution; render(); } }
+  else if(action === 'committee-pv-answer'){
+    const pv = COMMITTEE.pv; if(!pv || !b) return;
+    const q = b.selected[pv.idx]; if(!q) return;
+    pv.answers[q.id] = el.dataset.letter; render();
+  }
+  else if(action === 'committee-pv-goto'){ if(COMMITTEE.pv){ COMMITTEE.pv.idx = parseInt(el.dataset.idx, 10) || 0; render(); } }
+  else if(action === 'committee-pv-prev'){ if(COMMITTEE.pv && COMMITTEE.pv.idx > 0){ COMMITTEE.pv.idx--; render(); } }
+  else if(action === 'committee-pv-next'){ if(COMMITTEE.pv && b && COMMITTEE.pv.idx < b.selected.length - 1){ COMMITTEE.pv.idx++; render(); } }
   else if(action === 'committee-b-timer-mode'){ if(b){ b.timerMode = el.dataset.mode; render(); } }
   else if(action === 'committee-b-save'){ cmSaveBuilder(); }
 }

@@ -2103,3 +2103,24 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 .cm-pv-state.warn{background:#FFF6E0; color:#7A5600;}
 .cm-pv-state.bad{background:#fff; color:#9B1C1C;}
 .cm-pv-q{font-weight:600; font-size:14.5px; line-height:1.4; margin-bottom:4px;}
+
+/* ---------- Constructor de tests: rediseño + vista previa ---------- */
+.tc-card-head > .cm-actions{flex:0 0 auto;}
+.cm-opt{font-weight:500; text-transform:none; letter-spacing:0; color:var(--muted); font-size:12px;}
+.tc-card .cm-fields .cm-season-note{grid-column:1 / -1;}
+.tc-card > .cm-season-note{margin-top:14px;}
+.tc-summary .tc-sum-row b{max-width:62%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.cm-sum-warn{display:flex; align-items:center; gap:8px; margin-top:14px; padding:10px 12px; border-radius:12px; background:rgba(255,200,0,0.14); color:var(--yellow); font-size:13px; font-weight:600;}
+.cm-sum-warn svg{width:16px; height:16px; flex-shrink:0;}
+.tc-summary .tc-go + .tc-go{margin-top:10px;}
+.tc-summary .tc-go[disabled]{opacity:0.45; cursor:not-allowed;}
+.cm-sum-note{margin-top:12px; text-align:center; font-size:12px; line-height:1.45; color:rgba(255,255,255,0.6);}
+.cm-pvbar{position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; max-width:900px; margin:0 auto 14px; padding:10px 14px; background:#FFF5EF; border:1.5px solid var(--accent); border-radius:14px; box-shadow:0 8px 22px rgba(20,20,22,0.12);}
+.cm-pvbar-badge{display:inline-flex; align-items:center; gap:7px; background:var(--accent); color:#fff; border-radius:20px; padding:5px 12px; font:700 12px 'Work Sans'; letter-spacing:0.04em; text-transform:uppercase;}
+.cm-pvbar-badge svg{width:15px; height:15px;}
+.cm-pvbar-text{flex:1; min-width:180px; font-size:13px; color:var(--ink);}
+.cm-pvbar-actions{display:flex; gap:8px; flex-wrap:wrap;}
+.cm-pvbar-actions .btn{display:inline-flex; align-items:center; gap:7px; padding:8px 13px; font-size:13px;}
+.cm-pvbar-actions .btn svg{width:15px; height:15px;}
+.cm-pv-adminnum{color:var(--accent); font-weight:700;}
+@media (max-width:640px){ .cm-pvbar-actions{width:100%;} .cm-pvbar-actions .btn{flex:1; justify-content:center;} }
