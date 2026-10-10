@@ -2164,3 +2164,22 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
   .mb-sort{flex:1;}
   .mb-sort select{flex:1; min-width:0;}
 }
+
+/* ---------- editar un test publicado ---------- */
+.cm-warn-banner{display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:16px; background:#FFF6E0; border:1px solid #F1D79A; color:#5E4400;}
+.cm-warn-banner svg{width:20px; height:20px; flex-shrink:0; margin-top:2px; color:#B07A00;}
+.cm-warn-banner strong{display:block; font-size:14.5px; margin-bottom:2px;}
+.cm-warn-banner span{display:block; font-size:13px; line-height:1.5;}
+.cm-repl{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:8px 0 2px 32px; padding:10px 12px; border-radius:12px; background:var(--chalk); border:1px solid var(--line);}
+.cm-repl label{margin:0; font:600 12.5px 'Work Sans'; text-transform:none; letter-spacing:0;}
+.cm-repl input{width:96px; margin:0; padding:7px 10px;}
+.cm-repl .btn{padding:7px 12px; font-size:13px;}
+.cm-repl small{flex-basis:100%; color:var(--muted); font-size:12px;}
+.cm-dq{border-bottom:1px solid var(--line);}
+.cm-dq:last-child{border-bottom:none;}
+.cm-dq > summary{display:flex; align-items:flex-start; gap:10px; padding:10px 0; cursor:pointer; list-style:none; font-size:13.5px;}
+.cm-dq > summary::-webkit-details-marker{display:none;}
+.cm-dq-n{width:26px; flex-shrink:0; color:var(--muted);}
+.cm-dq-t{flex:1;}
+.cm-dq[open] > summary .cm-dq-t{font-weight:600;}
+.cm-dq > div{padding:0 0 8px 36px;}
