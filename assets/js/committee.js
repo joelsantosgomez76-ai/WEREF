@@ -12,6 +12,7 @@ const COMMITTEE = {
   attempts: null,
   ruleStats: null,
   qStats: null,
+  detailQuestions: null,
   usedMap: null,      // texto normalizado de pregunta -> títulos de los tests donde ya salió
   tab: 'tests',
   rankMonth: 'all',
@@ -751,7 +752,7 @@ function cmTestsTab(){
         : `<div class="tx-draftnote">${ic('lock')} Borrador: los árbitros todavía no lo ven</div>`}
       <div class="tx-actions">
         <button class="btn ${t.published ? 'btn-ghost' : 'btn-primary'} tx-main" data-action="committee-toggle-pub" data-tid="${t.id}">${ic(t.published ? 'lock' : 'play')} ${t.published ? 'Quitar de CTA BAGES' : 'Publicar en CTA BAGES'}</button>
-        ${t.published ? '' : `<button class="tx-icon" data-action="committee-edit-test" data-tid="${t.id}" title="Editar test" aria-label="Editar test">${ic('pencil')}</button>`}
+        <button class="tx-icon" data-action="committee-edit-test" data-tid="${t.id}" title="Editar test" aria-label="Editar test">${ic('pencil')}</button>
         <button class="tx-icon" data-action="committee-detail" data-tid="${t.id}" title="Resultados y ajustes" aria-label="Resultados y ajustes">${ic('chart')}</button>
         <button class="tx-icon" data-action="committee-duplicate" data-tid="${t.id}" title="Duplicar" aria-label="Duplicar">${ic('copy')}</button>
         <button class="tx-icon danger" data-action="committee-delete-test" data-tid="${t.id}" title="Eliminar" aria-label="Eliminar">${ic('trash')}</button>
@@ -1040,13 +1041,18 @@ function cmTrainingView(){
 async function cmOpenDetail(tid){
   COMMITTEE.detailTestId = tid;
   COMMITTEE.qStats = null;
+  COMMITTEE.detailQuestions = null;
   const t = (COMMITTEE.tests || []).find(x => x.id === tid);
   COMMITTEE.settings = t ? { opens: cmToLocalInput(t.opens_at), closes: cmToLocalInput(t.closes_at), max: String(t.max_attempts) } : null;
   STATE.view = 'committeeTestDetail';
   render();
-  const { data, error } = await supabaseClient.rpc('committee_admin_question_stats', { p_test_id: tid });
-  COMMITTEE.qStats = error ? [] : (data || []);
-  if(error) STATE.toast = cmErrText(error);
+  const [st, qs] = await Promise.all([
+    supabaseClient.rpc('committee_admin_question_stats', { p_test_id: tid }),
+    supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos')
+  ]);
+  COMMITTEE.qStats = st.error ? [] : (st.data || []);
+  COMMITTEE.detailQuestions = qs.error ? [] : (qs.data || []);
+  if(st.error) STATE.toast = cmErrText(st.error);
   cmRefresh();
 }
 
@@ -1084,7 +1090,7 @@ function cmTestDetailView(){
   <button class="backbtn" data-action="committee-training">&larr; Volver al Panel de Formación</button>
   <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
     <h2 style="margin:0;">${esc(t.title)}</h2>${cmStatusChip(t)}
-    ${t.published ? '' : `<button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-edit-test" data-tid="${t.id}">${cmIc('pencil')} Editar test</button>`}
+    <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-edit-test" data-tid="${t.id}">${cmIc('pencil')} Editar test</button>
     <button class="btn btn-secondary" style="margin-left:auto; display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-test" data-tid="${t.id}">${cmIc('download')} Exportar a Excel</button>
   </div>
   <div class="home-kpis" style="margin-bottom:18px;">
@@ -1110,6 +1116,18 @@ function cmTestDetailView(){
   </div>
   ${pending.length ? `<div class="cm-card"><div class="cm-sec-title">Pendientes de hacerlo (${pending.length})</div><div class="cm-chips">${pending.map(m => `<span class="cm-chip soft">${esc(cmWho(m))}</span>`).join('')}</div></div>` : ''}
   <div class="cm-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+      <div class="cm-sec-title" style="margin:0;">Preguntas del test${COMMITTEE.detailQuestions ? ' (' + COMMITTEE.detailQuestions.length + ')' : ''}</div>
+      <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-edit-test" data-tid="${t.id}">${cmIc('pencil')} Modificar preguntas</button>
+    </div>
+    ${t.published ? `<div class="st-note" style="margin-bottom:12px;">Este test está publicado: puedes corregirlo igualmente. Los cambios se ven al momento y, si cambias una respuesta correcta, podrás recalcular los resultados ya hechos.</div>` : ''}
+    ${COMMITTEE.detailQuestions === null ? '<div style="font-size:13.5px; color:var(--muted);">Cargando...</div>' : (COMMITTEE.detailQuestions.length ? COMMITTEE.detailQuestions.map(q => `
+      <details class="cm-dq">
+        <summary><span class="mono cm-dq-n">${q.pos}.</span><span class="cm-dq-t">${esc(q.question)}</span><span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${q.rule ? 'R' + q.rule : '—'}</span></summary>
+        ${cmQuestionDetail({ options: q.options || [], correct: q.correct, explanation: q.explanation })}
+      </details>`).join('') : '<div style="font-size:13.5px; color:var(--muted);">Este test no tiene preguntas.</div>')}
+  </div>
+  <div class="cm-card">
     <div class="cm-sec-title">Acierto por pregunta</div>
     ${COMMITTEE.qStats === null ? '<div style="font-size:13.5px; color:var(--muted);">Cargando...</div>' : (qrows || '<div style="font-size:13.5px; color:var(--muted);">Sin datos.</div>')}
   </div>`;
@@ -1124,6 +1142,7 @@ function cmNewBuilder(){
     editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: 1,
     timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
     shuffleMode: 'fixed', hadShuffleCol: false,
+    published: false, attemptCount: 0, orig: null, replacingId: null,
     selected: [], expanded: {},
     numsText: '', numsReport: null,
     saving: false
@@ -1264,10 +1283,18 @@ function cmBuilderView(){
           <button class="icon-btn" title="Subir" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button>
           <button class="icon-btn" title="Bajar" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="1" ${i === n - 1 ? 'disabled' : ''}>${ic('down')}</button>
           <button class="icon-btn" title="${open ? 'Ocultar respuestas' : 'Ver respuestas'}" data-action="committee-b-expand" data-qid="${esc(q.id)}">${ic('eye')}</button>
+          <button class="icon-btn" title="Sustituir por otra pregunta (por su número)" data-action="committee-b-repl-open" data-qid="${esc(q.id)}">${ic('repeat')}</button>
           <button class="icon-btn" title="Quitar" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${ic('trash')}</button>
         </span>
       </div>
       ${open ? `<div style="padding-left:32px;">${cmQuestionDetail(q)}</div>` : ''}
+      ${b.replacingId === q.id ? `<div class="cm-repl">
+        <label for="cm-b-repl-n">Sustituir por la pregunta nº</label>
+        <input type="number" id="cm-b-repl-n" min="1" placeholder="#">
+        <button class="btn btn-primary" data-action="committee-b-repl-do" data-qid="${esc(q.id)}">Sustituir</button>
+        <button class="btn btn-ghost" data-action="committee-b-repl-cancel">Cancelar</button>
+        <small>Se queda en la misma posición, así que los resultados anteriores siguen cuadrando.</small>
+      </div>` : ''}
     </div>`;
   }).join('');
 
@@ -1284,6 +1311,7 @@ function cmBuilderView(){
 
   <div class="tc-layout">
     <div class="tc-main">
+      ${b.published ? `<div class="cm-warn-banner">${ic('flag')}<div><strong>Este test está publicado</strong><span>Los árbitros verán los cambios al momento.${b.attemptCount ? ` Ya hay ${b.attemptCount} ${b.attemptCount === 1 ? 'intento hecho' : 'intentos hechos'}: si cambias una respuesta correcta, al guardar podrás recalcular sus resultados.` : ''} Para no descuadrar nada, usa <b>Sustituir</b> en una pregunta (mantiene su posición) en vez de quitarla y añadir otra.</span></div></div>` : ''}
       <div class="tc-card">
         <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Datos del test</h3><small>El nombre que verán los árbitros</small></div></div>
         <label for="cm-b-title" style="margin-top:0;">Título</label>
@@ -1382,7 +1410,7 @@ function cmBuilderView(){
         ${missing.length ? `<div class="cm-sum-warn">${ic('flag')}<span>Falta ${missing.join(' y ')}.</span></div>` : ''}
         <button class="btn btn-glass tc-go" data-action="committee-b-preview" ${n ? '' : 'disabled'}>${ic('eye')} Previsualizar test</button>
         <button class="btn btn-yellow tc-go cm-save-go" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${ic('file')} ${b.saving ? 'Guardando...' : (b.editId ? 'Guardar cambios' : 'Guardar como borrador')}</button>
-        <div class="cm-sum-note">${b.editId ? 'Sigue en borrador: los árbitros no lo ven hasta que lo publiques.' : 'Se guarda como borrador: los árbitros no lo ven hasta que lo publiques.'}</div>
+        <div class="cm-sum-note">${b.editId ? (b.published ? 'Test publicado: los cambios se aplican al momento.' : 'Sigue en borrador: los árbitros no lo ven hasta que lo publiques.') : 'Se guarda como borrador: los árbitros no lo ven hasta que lo publiques.'}</div>
       </div>
     </aside>
   </div>`;
@@ -1473,11 +1501,23 @@ async function cmSaveBuilder(){
   // Si el SQL de temporización aún no se ha ejecutado y no se usa tiempo, no se envían esas columnas.
   const extras = cmBuilderTimerFields(b);
   const withTimer = Object.keys(extras).length > 0;
-  b.saving = true; render();
   const questions = b.selected.map(q => ({
     question: q.question, options: q.options, correct: q.correct,
     rule: q.domain === 'glossary' ? null : (q.rule || null), explanation: q.explanation || ''
   }));
+  // ¿Los cambios alteran las notas ya puestas? (distinto nº de preguntas o respuesta correcta distinta en alguna posición)
+  const affectsScore = !!(b.editId && b.published && b.attemptCount > 0 && b.orig &&
+    (questions.length !== b.orig.length || questions.some((q, i) => b.orig[i] && q.correct !== b.orig[i].correct)));
+  if(b.editId && b.published){
+    const hecho = b.attemptCount > 0 ? ` Ya hay ${b.attemptCount} ${b.attemptCount === 1 ? 'intento hecho' : 'intentos hechos'}.` : '';
+    const ok = await appConfirm({
+      title: '¿Guardar cambios en un test publicado?',
+      message: 'Los árbitros verán los cambios al momento.' + hecho,
+      confirmText: 'Guardar cambios', cancelText: 'Seguir editando', icon: 'pencil'
+    });
+    if(!ok) return;
+  }
+  b.saving = true; render();
   let error, timerErr = null;
   if(b.editId){
     // Edición de un borrador: se actualizan los datos y se reemplazan las preguntas.
@@ -1503,14 +1543,34 @@ async function cmSaveBuilder(){
     }
   }
   const wasEdit = !!b.editId;
+  const wasPublished = !!b.published;
+  const editedId = b.editId;
+  const nAttempts = b.attemptCount;
   b.saving = false;
   if(error){ cmToast(cmErrText(error)); return; }
   COMMITTEE.builder = null; COMMITTEE.pv = null;
   COMMITTEE.tab = 'tests';
   STATE.view = 'committeeTraining';
+  render();
+  let rescoreNote = '';
+  if(affectsScore){
+    const yes = await appConfirm({
+      title: '¿Recalcular los resultados?',
+      message: `Has cambiado respuestas correctas o el número de preguntas y ya hay ${nAttempts} ${nAttempts === 1 ? 'intento hecho' : 'intentos hechos'}. ¿Quieres recalcular sus notas con las preguntas actuales?`,
+      confirmText: 'Recalcular', cancelText: 'Dejarlos como están', icon: 'repeat'
+    });
+    if(yes){
+      const rs = await supabaseClient.rpc('committee_admin_rescore_test', { p_test_id: editedId });
+      rescoreNote = rs.error ? ' No se pudieron recalcular los resultados: ' + cmErrText(rs.error) : ` Se recalcularon ${rs.data} ${rs.data === 1 ? 'resultado' : 'resultados'}.`;
+    } else {
+      rescoreNote = ' Los resultados anteriores se han dejado como estaban.';
+    }
+  }
   STATE.toast = timerErr
     ? 'El test se guardó, pero no se pudo guardar el tiempo (' + cmErrText(timerErr) + '). Edítalo para ponerlo.'
-    : (wasEdit ? 'Cambios guardados. El test sigue en borrador.' : 'Test guardado como borrador. Publícalo cuando esté listo.');
+    : (wasEdit
+        ? (wasPublished ? 'Cambios guardados en el test publicado.' : 'Cambios guardados. El test sigue en borrador.') + rescoreNote
+        : 'Test guardado como borrador. Publícalo cuando esté listo.');
   render();
   cmLoadAdminData();
 }
@@ -1722,7 +1782,6 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-edit-test'){
     if(!isDevUser()) return;
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
-    if(t.published){ cmToast('Quita el test de CTA BAGES para poder editar sus preguntas.'); return; }
     const { data, error } = await supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos');
     if(error){ cmToast(cmErrText(error)); return; }
     // Si la pregunta sigue en el banco se usa la del banco (para que los filtros la marquen como elegida);
@@ -1743,6 +1802,9 @@ async function committeeOnAction(action, el){
       const base = match ? Object.assign({}, match) : { id: 'tq-' + t.id + '-' + i, domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user' };
       return Object.assign(base, { question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation || '' });
     });
+    nb.published = !!t.published;
+    nb.attemptCount = (COMMITTEE.attempts || []).filter(a => a.test_id === t.id).length;
+    nb.orig = (data || []).map(q => ({ correct: q.correct }));
     COMMITTEE.builder = nb;
     STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0);
   }
@@ -1842,6 +1904,27 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-pv-next'){ if(COMMITTEE.pv && b && COMMITTEE.pv.idx < b.selected.length - 1){ COMMITTEE.pv.idx++; render(); } }
   else if(action === 'committee-b-timer-mode'){ if(b){ b.timerMode = el.dataset.mode; render(); } }
   else if(action === 'committee-b-order-mode'){ if(b){ b.shuffleMode = el.dataset.mode === 'shuffled' ? 'shuffled' : 'fixed'; render(); } }
+  else if(action === 'committee-b-repl-open'){
+    if(!b) return;
+    b.replacingId = el.dataset.qid; render();
+    setTimeout(() => { const i = document.getElementById('cm-b-repl-n'); if(i) i.focus(); }, 30);
+  }
+  else if(action === 'committee-b-repl-cancel'){ if(b){ b.replacingId = null; render(); } }
+  else if(action === 'committee-b-repl-do'){
+    if(!b) return;
+    const inp = document.getElementById('cm-b-repl-n');
+    const n = parseInt(inp && inp.value, 10);
+    if(!(n > 0)){ cmToast('Escribe el número de la pregunta nueva.'); return; }
+    const nq = questionsByNumber()[n];
+    if(!nq){ cmToast('No existe ninguna pregunta con el número ' + n + '.'); return; }
+    if(b.selected.some(x => x.id === nq.id)){ cmToast('La pregunta ' + n + ' ya está en el test.'); return; }
+    const i = b.selected.findIndex(x => x.id === el.dataset.qid);
+    if(i < 0) return;
+    b.selected[i] = nq;
+    b.replacingId = null;
+    STATE.toast = 'Pregunta sustituida: ocupa la misma posición.';
+    render();
+  }
   else if(action === 'committee-b-save'){ cmSaveBuilder(); }
 }
 
