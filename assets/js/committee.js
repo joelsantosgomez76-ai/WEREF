@@ -10,6 +10,7 @@ const COMMITTEE = {
   myAttempts: [],
   memberTab: 'tests',
   memberSeason: null,
+  previewMember: null,
   tests: null,        // admin: tabla committee_tests (con nº de preguntas)
   members: null,
   attempts: null,
@@ -259,16 +260,33 @@ function cmRingBlock(pct, label, sub){
 /* ---------- miembro: mi rendimiento durante la temporada ---------- */
 function cmMemberPerformance(){
   const ic = (n) => shellIcon(n);
-  if(COMMITTEE.myTests === null) return `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+  const st = COMMITTEE.status || {};
+  const preview = !!st.is_admin && !st.is_member;
+  let srcTests, srcAttempts, who = null, memberSel = '';
+  if(preview){
+    // El administrador mira el rendimiento de un árbitro concreto, tal como él lo ve.
+    if(COMMITTEE.tests === null) return `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+    const members = (COMMITTEE.members || []).slice().sort((a, b) => cmCollate(cmSurnameName(a), cmSurnameName(b)));
+    if(!members.length) return `<div class="ac-empty">${ic('users')}<strong>Todavía no hay árbitros</strong><span>Añade árbitros en el Panel de Formación para ver su rendimiento.</span></div>`;
+    who = members.find(m => m.user_id === COMMITTEE.previewMember) || members[0];
+    srcTests = (COMMITTEE.tests || []).filter(t => t.published);
+    srcAttempts = (COMMITTEE.attempts || []).filter(a => a.user_id === who.user_id);
+    memberSel = `<div class="mp-asnote">${ic('eye')}<span>Vista previa: así ve su rendimiento este árbitro.</span>
+      <select id="cm-mp-member" data-cm-field="previewMember" data-cm-rerender aria-label="Árbitro">${members.map(m => `<option value="${m.user_id}" ${m.user_id === who.user_id ? 'selected' : ''}>${esc(cmSurnameName(m))}</option>`).join('')}</select></div>`;
+  } else {
+    if(COMMITTEE.myTests === null) return `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+    srcTests = COMMITTEE.myTests || [];
+    srcAttempts = COMMITTEE.myAttempts || [];
+  }
   const now = Date.now();
-  const tests = (COMMITTEE.myTests || []).filter(t => Date.parse(t.opens_at) <= now);   // solo los que ya han abierto
+  const tests = srcTests.filter(t => Date.parse(t.opens_at) <= now);   // solo los que ya han abierto
   const seasons = Array.from(new Set(tests.map(cmSeasonOfTest).concat([cmCurrentSeason()]))).sort().reverse();
   const season = seasons.includes(COMMITTEE.memberSeason) ? COMMITTEE.memberSeason : cmCurrentSeason();
   const inSeason = tests.filter(t => cmSeasonOfTest(t) === season)
     .sort((a, b) => String(a.month || '').localeCompare(String(b.month || '')) || Date.parse(a.opens_at) - Date.parse(b.opens_at));
   // Mejor intento de cada test: más puntos y, a igualdad, menos tiempo (igual que en la clasificación).
   const best = {};
-  (COMMITTEE.myAttempts || []).forEach(a => {
+  srcAttempts.forEach(a => {
     const c = best[a.test_id];
     if(!c || a.score > c.score || (a.score === c.score && (a.duration_sec || 0) < (c.duration_sec || 0))) best[a.test_id] = a;
   });
@@ -300,8 +318,9 @@ function cmMemberPerformance(){
   const seasonSel = seasons.length > 1 ? `<div class="rk-period"><label for="cm-mp-season">Temporada</label>
       <select id="cm-mp-season" data-cm-field="memberSeason" data-cm-rerender>${seasons.map(s => `<option value="${esc(s)}" ${s === season ? 'selected' : ''}>${cmSeasonLabel(s)}</option>`).join('')}</select></div>` : '';
   return `
+  ${memberSel}
   <div class="tx-toolbar">
-    <div><div class="lg-section-head" style="margin:0;"><h2>Mi rendimiento</h2><span>Temporada ${cmSeasonLabel(season)}</span></div></div>
+    <div><div class="lg-section-head" style="margin:0;"><h2>${who ? esc(cmSurnameName(who)) : 'Mi rendimiento'}</h2><span>Temporada ${cmSeasonLabel(season)}</span></div></div>
     ${seasonSel}
   </div>
   <div class="home-kpis" style="margin-bottom:16px;">
@@ -384,10 +403,10 @@ function cmMemberView(){
   const total = list ? list.length : 0;
   const done = list ? list.filter(t => t.attempts_used > 0).length : 0;
   const pct = total ? Math.round(done / total * 100) : 0;
-  const memberTab = (!preview && COMMITTEE.memberTab === 'perf') ? 'perf' : 'tests';
-  const tabsBar = preview ? '' : `<div class="tx-filters mp-tabs">
+  const memberTab = COMMITTEE.memberTab === 'perf' ? 'perf' : 'tests';
+  const tabsBar = `<div class="tx-filters mp-tabs">
       <button class="tx-filter ${memberTab === 'tests' ? 'active' : ''}" data-action="committee-member-tab" data-tab="tests">${ic('book')} Tests</button>
-      <button class="tx-filter ${memberTab === 'perf' ? 'active' : ''}" data-action="committee-member-tab" data-tab="perf">${ic('chart')} Mi rendimiento</button>
+      <button class="tx-filter ${memberTab === 'perf' ? 'active' : ''}" data-action="committee-member-tab" data-tab="perf">${ic('chart')} ${preview ? 'Rendimiento de un árbitro' : 'Mi rendimiento'}</button>
     </div>`;
   return `
   ${cmHero('Comité de árbitros · Bages', 'CTA BAGES',
