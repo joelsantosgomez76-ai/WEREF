@@ -13,6 +13,8 @@ const COMMITTEE = {
   ruleStats: null,
   qStats: null,
   detailQuestions: null,
+  grants: {},
+  grantsMissing: false,
   usedMap: null,      // texto normalizado de pregunta -> títulos de los tests donde ya salió
   tab: 'tests',
   rankMonth: 'all',
@@ -1189,12 +1191,16 @@ async function cmOpenDetail(tid){
   const t = (COMMITTEE.tests || []).find(x => x.id === tid);
   STATE.view = 'committeeTestDetail';
   render();
-  const [st, qs] = await Promise.all([
+  const [st, qs, gr] = await Promise.all([
     supabaseClient.rpc('committee_admin_question_stats', { p_test_id: tid }),
-    supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos')
+    supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos'),
+    supabaseClient.from('committee_attempt_grants').select('*').eq('test_id', tid)
   ]);
   COMMITTEE.qStats = st.error ? [] : (st.data || []);
   COMMITTEE.detailQuestions = qs.error ? [] : (qs.data || []);
+  COMMITTEE.grants = {};
+  COMMITTEE.grantsMissing = !!gr.error;
+  (gr.error ? [] : (gr.data || [])).forEach(g => { COMMITTEE.grants[g.user_id] = g.extra; });
   if(st.error) STATE.toast = cmErrText(st.error);
   cmRefresh();
 }
@@ -1208,13 +1214,21 @@ function cmTestDetailView(){
   const pending = (COMMITTEE.members || []).filter(m => !doneIds.has(m.user_id));
   const avgPct = attempts.length ? Math.round(attempts.reduce((s, a) => s + a.score / a.total * 100, 0) / attempts.length) : null;
   const avgDur = attempts.length ? Math.round(attempts.reduce((s, a) => s + (a.duration_sec || 0), 0) / attempts.length) : null;
+  const lastNo = {};
+  attempts.forEach(a => { lastNo[a.user_id] = Math.max(lastNo[a.user_id] || 0, a.attempt_no); });
+  const memberOf = (uid) => (COMMITTEE.members || []).find(m => m.user_id === uid);
+  const labelOf = (a) => { const m = memberOf(a.user_id); return m ? cmSurnameName(m) : cmWho(a); };
+  const grantBtn = (uid, label) => `<button class="btn btn-ghost cm-grant" data-action="committee-grant-attempt" data-tid="${t.id}" data-uid="${uid}" ${COMMITTEE.grantsMissing ? 'disabled' : ''}>${cmIc('repeat')} ${label}</button>`;
+  const extraChip = (uid) => COMMITTEE.grants[uid]
+    ? `<span class="cm-chip open cm-extra">+${COMMITTEE.grants[uid]} ${COMMITTEE.grants[uid] === 1 ? 'intento extra' : 'intentos extra'}<button class="cm-extra-x" data-action="committee-revoke-attempt" data-tid="${t.id}" data-uid="${uid}" title="Quitar el intento extra" aria-label="Quitar el intento extra">×</button></span>` : '';
   const rows = attempts.map(a => `<tr>
-    <td><strong>${esc(cmWho(a))}</strong></td>
+    <td><strong>${esc(labelOf(a))}</strong> ${a.attempt_no === lastNo[a.user_id] ? extraChip(a.user_id) : ''}</td>
     <td class="mono">${a.attempt_no}</td>
     <td class="mono">${a.score}/${a.total}</td>
     <td>${accuracyBadge(Math.round(a.score / a.total * 100))}</td>
     <td class="mono">${cmFmtDur(a.duration_sec)}</td>
     <td class="mono">${cmFmtDate(a.finished_at)}</td>
+    <td class="cm-grant-cell">${a.attempt_no === lastNo[a.user_id] ? grantBtn(a.user_id, 'Otro intento') : ''}</td>
   </tr>`).join('');
   const qrows = (COMMITTEE.qStats || []).map(s => {
     const pct = s.answered ? Math.round(s.correct_count / s.answered * 100) : 0;
@@ -1244,9 +1258,14 @@ function cmTestDetailView(){
 
   <div class="cm-card" style="overflow-x:auto;">
     <div class="cm-sec-title">Resultados</div>
-    ${attempts.length ? `<table class="stat-table"><tr><th>Árbitro</th><th>Intento</th><th>Puntos</th><th>Acierto</th><th>Tiempo</th><th>Fecha</th></tr>${rows}</table>` : '<div style="font-size:13.5px; color:var(--muted);">Nadie ha hecho este test todavía.</div>'}
+    ${attempts.length ? `<table class="stat-table"><tr><th>Árbitro</th><th>Intento</th><th>Puntos</th><th>Acierto</th><th>Tiempo</th><th>Fecha</th><th></th></tr>${rows}</table>` : '<div style="font-size:13.5px; color:var(--muted);">Nadie ha hecho este test todavía.</div>'}
   </div>
-  ${pending.length ? `<div class="cm-card"><div class="cm-sec-title">Pendientes de hacerlo (${pending.length})</div><div class="cm-chips">${pending.map(m => `<span class="cm-chip soft">${esc(cmWho(m))}</span>`).join('')}</div></div>` : ''}
+  ${pending.length ? `<div class="cm-card"><div class="cm-sec-title">Pendientes de hacerlo (${pending.length})</div>
+    ${COMMITTEE.grantsMissing ? `<div class="st-note" style="margin-bottom:10px;">Para dar otro intento falta ejecutar el SQL <b>committee-extra-attempt.sql</b> en Supabase.</div>` : ''}
+    <div class="cm-pend">${pending.slice().sort((a, b) => cmCollate(cmSurnameName(a), cmSurnameName(b))).map(m => `<div class="cm-pend-row">
+      <span class="cm-pend-name">${esc(cmSurnameName(m))}</span>${extraChip(m.user_id)}
+      ${grantBtn(m.user_id, 'Dar un intento')}
+    </div>`).join('')}</div></div>` : ''}
   <div class="cm-card">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
       <div class="cm-sec-title" style="margin:0;">Preguntas del test${COMMITTEE.detailQuestions ? ' (' + COMMITTEE.detailQuestions.length + ')' : ''}</div>
@@ -1999,6 +2018,29 @@ async function committeeOnAction(action, el){
     const lb = document.getElementById('cm-dq-all-label'); if(lb) lb.textContent = open ? 'Ocultar todas' : 'Ver todas';
   }
   else if(action === 'committee-detail'){ cmOpenDetail(tid); window.scrollTo(0, 0); }
+  else if(action === 'committee-grant-attempt'){
+    if(!isDevUser()) return;
+    const uid = el.dataset.uid;
+    const m = (COMMITTEE.members || []).find(x => x.user_id === uid);
+    const t = (COMMITTEE.tests || []).find(x => x.id === tid);
+    const ok = await appConfirm({
+      title: '¿Dar otro intento?',
+      message: (m ? cmSurnameName(m) : 'Este árbitro') + ' podrá volver a hacer «' + (t ? t.title : 'el test') + '», aunque el test haya cerrado o ya no le queden intentos. Su resultado anterior se conserva y en la clasificación cuenta el mejor.',
+      confirmText: 'Dar otro intento', cancelText: 'Cancelar', icon: 'repeat'
+    });
+    if(!ok) return;
+    const { error } = await supabaseClient.rpc('committee_admin_grant_attempt', { p_test_id: tid, p_user_id: uid });
+    if(error){ cmToast(cmErrText(error)); return; }
+    STATE.toast = 'Intento extra concedido.';
+    await cmOpenDetail(tid);
+  }
+  else if(action === 'committee-revoke-attempt'){
+    if(!isDevUser()) return;
+    const { error } = await supabaseClient.rpc('committee_admin_revoke_attempt', { p_test_id: tid, p_user_id: el.dataset.uid });
+    if(error){ cmToast(cmErrText(error)); return; }
+    STATE.toast = 'Intento extra retirado.';
+    await cmOpenDetail(tid);
+  }
   else if(action === 'committee-export-test'){
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
     const rows = (COMMITTEE.attempts || []).filter(a => a.test_id === tid).map(a => ({
