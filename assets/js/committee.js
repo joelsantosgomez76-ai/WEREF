@@ -928,7 +928,6 @@ function cmNewBuilder(){
     timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
     selected: [], expanded: {},
     numsText: '', numsReport: null,
-    showCustom: false, custom: { q: '', a: '', b: '', c: '', d: '', correct: 'a', rule: '', expl: '' },
     saving: false
   };
 }
@@ -1064,21 +1063,6 @@ function cmBuilderView(){
     </div>`;
   }).join('');
 
-  const c = b.custom;
-  const customHtml = b.showCustom ? `<div class="cm-card">
-    <div class="cm-sec-title">Pregunta propia del comité</div>
-    <label for="cm-c-q" style="margin-top:0;">Enunciado</label><textarea id="cm-c-q" data-cm-field="builder.custom.q" maxlength="1000">${esc(c.q)}</textarea>
-    <div class="cm-fields">
-      <div><label for="cm-c-a">Respuesta a)</label><input type="text" id="cm-c-a" data-cm-field="builder.custom.a" value="${esc(c.a)}" maxlength="300"></div>
-      <div><label for="cm-c-b">Respuesta b)</label><input type="text" id="cm-c-b" data-cm-field="builder.custom.b" value="${esc(c.b)}" maxlength="300"></div>
-      <div><label for="cm-c-c">Respuesta c)</label><input type="text" id="cm-c-c" data-cm-field="builder.custom.c" value="${esc(c.c)}" maxlength="300"></div>
-      <div><label for="cm-c-d">Respuesta d)</label><input type="text" id="cm-c-d" data-cm-field="builder.custom.d" value="${esc(c.d)}" maxlength="300" placeholder="Ninguna respuesta es correcta."></div>
-      <div><label for="cm-c-correct">Correcta</label><select id="cm-c-correct" data-cm-field="builder.custom.correct">${CM_LETTERS.map(l => `<option value="${l}" ${c.correct === l ? 'selected' : ''}>${l})</option>`).join('')}</select></div>
-      <div><label for="cm-c-rule">Regla (opcional)</label><select id="cm-c-rule" data-cm-field="builder.custom.rule"><option value="">Sin regla</option>${Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<option value="${i}" ${String(c.rule) === String(i) ? 'selected' : ''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('')}</select></div>
-      <div class="full"><label for="cm-c-expl">Explicación (opcional)</label><input type="text" id="cm-c-expl" data-cm-field="builder.custom.expl" value="${esc(c.expl)}" maxlength="500"></div>
-    </div>
-    <div style="margin-top:14px;"><button class="btn btn-primary" data-action="committee-b-add-custom">+ Añadir al test</button></div>
-  </div>` : '';
 
   return `
   <button class="backbtn" data-action="committee-b-cancel">&larr; Cancelar</button>
@@ -1130,14 +1114,12 @@ function cmBuilderView(){
         <textarea id="cm-b-nums" data-cm-field="builder.numsText" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" style="margin:0;">${esc(b.numsText)}</textarea>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px;">
           <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${cmIc('plus')} <span id="cm-b-add-label">${cmNumsAddLabel(b)}</span></button>
-          <button class="btn btn-ghost" data-action="committee-b-toggle-custom">${cmIc('pencil')} ${b.showCustom ? 'Cerrar pregunta propia' : 'Escribir una pregunta propia'}</button>
           <span style="font-size:12.5px; color:var(--muted);">El número de cada pregunta es único y no cambia nunca, aunque se eliminen otras.</span>
         </div>
         ${cmNumsReportHtml(b.numsReport)}
         <div id="cm-nums-preview">${cmNumsPreviewHtml(b)}</div>
       </div>
 
-      ${customHtml}
     </div>
 
     <aside class="cm-b-side">
@@ -1498,22 +1480,7 @@ async function committeeOnAction(action, el){
     b.numsText = rep.missing.join(', ');
     render();
   }
-  else if(action === 'committee-b-toggle-custom'){ if(b){ b.showCustom = !b.showCustom; render(); } }
   else if(action === 'committee-b-timer-mode'){ if(b){ b.timerMode = el.dataset.mode; render(); } }
-  else if(action === 'committee-b-add-custom'){
-    if(!b) return;
-    const c = b.custom;
-    if(!c.q.trim() || !c.a.trim() || !c.b.trim() || !c.c.trim()){ cmToast('Rellena el enunciado y al menos las respuestas a, b y c.'); return; }
-    const rule = c.rule ? parseInt(c.rule, 10) : null;
-    b.selected.push({
-      id: 'custom-' + Date.now(), question: c.q.trim(), options: [c.a.trim(), c.b.trim(), c.c.trim(), c.d.trim() || 'Ninguna respuesta es correcta.'],
-      correct: c.correct, rule, explanation: c.expl.trim(), domain: rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user'
-    });
-    b.custom = { q: '', a: '', b: '', c: '', d: '', correct: 'a', rule: '', expl: '' };
-    b.showCustom = false;
-    STATE.toast = 'Pregunta propia añadida al test.';
-    render();
-  }
   else if(action === 'committee-b-save'){ cmSaveBuilder(); }
 }
 
