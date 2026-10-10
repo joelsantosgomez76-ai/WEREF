@@ -18,6 +18,7 @@ const COMMITTEE = {
   rankMonth: 'all',
   rankSeason: null,
   memberReport: null,
+  memberAddOpen: false,
   memberSortKey: 'surname',
   memberSortDir: 'asc',
   memberFilters: { last: '', first: '', email: '', cat: 'all' },
@@ -878,11 +879,23 @@ function cmMembersTab(){
   const catFilterOpts = `<option value="all" ${f.cat === 'all' ? 'selected' : ''}>Todas</option><option value="none" ${f.cat === 'none' ? 'selected' : ''}>Sin categoría</option>` +
     cats.map(c => `<option value="${esc(c.id)}" ${f.cat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   return `
-  <div class="tp-layout mb-layout">
+  <div class="mb-fullwidth">
     <div class="mb-main">
+      ${COMMITTEE.memberAddOpen ? `<div class="tc-card mb-addpanel">
+        <div class="tc-card-head"><span class="tc-step">${ic('userplus')}</span><div><h3>Añadir árbitros</h3><small>Uno o varios correos, separados por comas, espacios o saltos de línea</small></div>
+          <button class="tx-icon" data-action="committee-member-add-toggle" title="Cerrar" aria-label="Cerrar">${ic('up')}</button>
+        </div>
+        <div class="mb-addrow">
+          <textarea id="cm-new-member" data-cm-field="newMemberEmail" rows="3" placeholder="correo@ejemplo.com&#10;otro@ejemplo.com" style="margin:0;">${esc(COMMITTEE.newMemberEmail)}</textarea>
+          <button class="btn btn-primary" data-action="committee-add-member">${ic('userplus')} Añadir</button>
+        </div>
+        ${repHtml}
+        <div class="st-note" style="margin-top:12px;">Cada persona tiene que haberse registrado antes en we-ref.com con ese mismo correo.</div>
+      </div>` : ''}
       <div class="tc-card mb-listcard" id="cm-members-table">
         <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small id="cm-members-count">${cmMembersCountText()}</small></div>
           <div class="cm-actions">
+            <button class="btn btn-primary" data-action="committee-member-add-toggle">${ic('userplus')} Añadir árbitros</button>
             <button class="btn btn-ghost" data-action="committee-member-clear-filters">${ic('repeat')} Limpiar filtros</button>
             <button class="btn btn-ghost" data-action="committee-export-members">${ic('download')} Exportar</button>
           </div>
@@ -912,13 +925,6 @@ function cmMembersTab(){
         </div>
       </div>
     </div>
-    <aside class="tc-card mb-add">
-      <div class="tc-card-head"><span class="tc-step">${ic('userplus')}</span><div><h3>Añadir árbitros</h3><small>Uno o varios correos</small></div></div>
-      <textarea id="cm-new-member" data-cm-field="newMemberEmail" rows="4" placeholder="correo@ejemplo.com&#10;otro@ejemplo.com" style="margin:0;">${esc(COMMITTEE.newMemberEmail)}</textarea>
-      <button class="btn btn-primary" style="width:100%; margin-top:12px; display:inline-flex; align-items:center; justify-content:center; gap:8px;" data-action="committee-add-member">${ic('userplus')} Añadir</button>
-      ${repHtml}
-      <div class="st-note" style="margin-top:12px;">Puedes pegar varios correos separados por comas, espacios o saltos de línea. Cada persona tiene que haberse registrado antes en we-ref.com con ese mismo correo.</div>
-    </aside>
   </div>`;
 }
 
@@ -1877,6 +1883,7 @@ async function committeeOnAction(action, el){
     }
     COMMITTEE.newMemberEmail = keep.concat(invalid).join('\n');
     COMMITTEE.memberReport = rep;
+    COMMITTEE.memberAddOpen = true;
     render();
     cmLoadAdminData();
   }
@@ -1885,6 +1892,12 @@ async function committeeOnAction(action, el){
     if(COMMITTEE.memberSortKey === k) COMMITTEE.memberSortDir = COMMITTEE.memberSortDir === 'asc' ? 'desc' : 'asc';
     else { COMMITTEE.memberSortKey = k; COMMITTEE.memberSortDir = (k === 'done' || k === 'acc' || k === 'added' || k === 'last') ? 'desc' : 'asc'; }
     render();
+  }
+  else if(action === 'committee-member-add-toggle'){
+    COMMITTEE.memberAddOpen = !COMMITTEE.memberAddOpen;
+    if(!COMMITTEE.memberAddOpen) COMMITTEE.memberReport = null;
+    render();
+    if(COMMITTEE.memberAddOpen) setTimeout(() => { const t = document.getElementById('cm-new-member'); if(t) t.focus(); }, 30);
   }
   else if(action === 'committee-member-cat-filter'){ COMMITTEE.memberFilters.cat = el.dataset.cat; render(); }
   else if(action === 'committee-member-clear-filters'){
