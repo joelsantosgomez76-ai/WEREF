@@ -396,6 +396,51 @@ function startTimer(){
    Preguntas añadidas por el administrador + sus cambios sobre las preguntas base
    (editar / eliminar). Lo leen todos los usuarios; solo el administrador escribe. */
 const SHARED = { ready:false, rows:{}, added:[], over:{} };
+
+/* Número único y permanente de cada pregunta (tabla question_numbers; solo lo ven los administradores).
+   Si la tabla aún no está instalada se usa la posición en el banco, como antes. */
+const QNUM = { map:{}, ready:false, busy:false, failed:false };
+function questionNumber(q, fallback){
+  if(!q) return null;
+  if(QNUM.map[q.id]) return QNUM.map[q.id];
+  return QNUM.failed ? (fallback || null) : null;
+}
+/* Mapa número -> pregunta (con el mismo criterio que questionNumber). */
+function questionsByNumber(){
+  const all = allQuestions(), out = {};
+  all.forEach((q, i) => { const n = questionNumber(q, i + 1); if(n) out[n] = q; });
+  return out;
+}
+async function qnumSync(){
+  if(QNUM.busy || QNUM.failed || !isDevUser() || typeof supabaseClient === 'undefined') return;
+  if(QNUM.ready && !allQuestions().some(q => !QNUM.map[q.id])) return;
+  QNUM.busy = true;
+  let changed = false;
+  try{
+    if(!QNUM.ready){
+      let from = 0;
+      while(true){
+        const { data, error } = await supabaseClient.from('question_numbers').select('qid,num').range(from, from + 999);
+        if(error) throw error;
+        (data || []).forEach(r => { QNUM.map[r.qid] = r.num; });
+        if(!data || data.length < 1000) break;
+        from += 1000;
+      }
+      QNUM.ready = true; changed = true;
+    }
+    const missing = allQuestions().filter(q => !QNUM.map[q.id]).map(q => q.id);
+    for(let i = 0; i < missing.length; i += 500){
+      const { data, error } = await supabaseClient.rpc('assign_question_numbers', { p_qids: missing.slice(i, i + 500) });
+      if(error) throw error;
+      (data || []).forEach(r => { QNUM.map[r.out_qid] = r.out_num; });
+      changed = true;
+    }
+  }catch(e){
+    QNUM.failed = true; changed = true;
+  }
+  QNUM.busy = false;
+  if(changed && typeof render === 'function' && (STATE.view === 'database' || STATE.view === 'committeeBuilder')) render();
+}
 let BASE_ID_SET = null;
 function baseIdSet(){
   if(!BASE_ID_SET) BASE_ID_SET = new Set(BASE_QUESTIONS.concat(ASSISTANT_QUESTIONS).map(q => q.id));
@@ -3881,7 +3926,13 @@ function filteredDbList(){
   else if(f.reviewStatus === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
   if(f.search && f.search.trim()){
     const s = f.search.trim().toLowerCase();
-    list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o => o.toLowerCase().includes(s)));
+    const numQuery = /^#\d+$/.test(s) ? parseInt(s.slice(1), 10) : null;
+    if(numQuery !== null){
+      const pos = {}; allQuestions().forEach((q, i) => { pos[q.id] = i + 1; });
+      list = list.filter(q => questionNumber(q, pos[q.id]) === numQuery);
+    } else {
+      list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o => o.toLowerCase().includes(s)));
+    }
   }
   if(f.reportedOnly){
     list = list.filter(q => (STATE.reports[q.id]||0) > 0);
@@ -3913,7 +3964,8 @@ function databaseView(){
 
   const all = allQuestions();
   const numberMap = {};
-  all.forEach((q,i) => { numberMap[q.id] = i+1; });
+  all.forEach((q,i) => { numberMap[q.id] = questionNumber(q, i+1); });
+  qnumSync();
   const dupIds = duplicateQuestionIds();
 
   const lawOptions = `<option value="all">Todas (todo el banco)</option>` +
@@ -3942,7 +3994,7 @@ function databaseView(){
     if(q.updatedAt) dates.push(`Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}`);
     return `<article class="ac-q db-q ${reportCount>0 ? 'reported' : (isReviewed ? 'reviewed' : '')}">
       <div class="db-q-head">
-        <span class="db-q-num">#${numberMap[q.id]}</span>
+        <span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || "…"}</span>
         <span class="db-q-scope">${scopeLabel(q)}</span>
         <div class="db-tags">${tags}</div>
         ${dates.length ? `<span class="db-q-dates">${dates.join(' · ')}</span>` : ''}
@@ -4018,7 +4070,7 @@ function databaseView(){
     <div class="tc-card-head"><span class="tc-step">${ic('search')}</span><div><h3>Buscar y filtrar</h3><small>${list.length} ${list.length === 1 ? 'pregunta coincide' : 'preguntas coinciden'} con el filtro</small></div></div>
     <div class="ac-search" style="margin-bottom:14px;">
       ${ic('search')}
-      <input type="text" id="db-search" placeholder="Busca por palabra en la pregunta o en las respuestas..." value="${esc(f.search)}" maxlength="100" aria-label="Buscar texto">
+      <input type="text" id="db-search" placeholder="Busca por palabra, o por número con # (por ejemplo #120)..." value="${esc(f.search)}" maxlength="100" aria-label="Buscar texto">
     </div>
     <div class="db-filter-row">
       <div class="db-status-group" role="group" aria-label="Estado">

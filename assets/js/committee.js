@@ -970,7 +970,7 @@ function cmComposition(selected){
 function cmQuestionNumbers(){
   const list = allQuestions();
   const numOf = {};
-  list.forEach((q, i) => { numOf[q.id] = i + 1; });
+  list.forEach((q, i) => { const n = questionNumber(q, i + 1); if(n) numOf[q.id] = n; });
   return { list, numOf };
 }
 /* "12, 15-18  40 41" -> [12, 15, 16, 17, 18, 40, 41] (en el orden escrito, sin repetir) */
@@ -988,12 +988,12 @@ function cmParseNumbers(text){
   return out;
 }
 function cmAddByNumbers(b){
-  const { list } = cmQuestionNumbers();
+  const byNum = questionsByNumber();
   const nums = cmParseNumbers(b.numsText);
   const inTest = new Set(b.selected.map(q => q.id));
   const rep = { added: 0, already: [], missing: [] };
   nums.forEach(n => {
-    const q = list[n - 1];
+    const q = byNum[n];
     if(!q){ rep.missing.push(n); return; }
     if(inTest.has(q.id)){ rep.already.push(n); return; }
     b.selected.push(q); inTest.add(q.id); rep.added++;
@@ -1008,13 +1008,14 @@ function cmNumsReportHtml(rep){
   const rows = [];
   if(rep.added) rows.push(`<div class="cm-nums-rep ok">${cmIc('check')}<span>Añadidas <b>${rep.added}</b> ${rep.added === 1 ? 'pregunta' : 'preguntas'} al test.</span></div>`);
   if(rep.already.length) rows.push(`<div class="cm-nums-rep warn">${cmIc('flag')}<span>Ya estaban en el test: <b>${rep.already.join(', ')}</b>.</span></div>`);
-  if(rep.missing.length) rows.push(`<div class="cm-nums-rep bad">${cmIc('flag')}<span>No existen en la base de datos: <b>${rep.missing.join(', ')}</b>.</span></div>`);
+  if(rep.missing.length) rows.push(`<div class="cm-nums-rep bad">${cmIc('flag')}<span>No existen (o se eliminaron): <b>${rep.missing.join(', ')}</b>.</span></div>`);
   return rows.join('');
 }
 
 function cmBuilderView(){
   const b = COMMITTEE.builder;
   if(!b) return cmAdminView();
+  qnumSync();
   const numOf = cmQuestionNumbers().numOf;
   const numTag = (q) => numOf[q.id] ? `<span class="cm-qnum" title="Número en la base de datos">#${numOf[q.id]}</span>` : '';
   const curSeason = parseInt(cmCurrentSeason(), 10);
@@ -1128,7 +1129,7 @@ function cmBuilderView(){
         <textarea id="cm-b-nums" data-cm-field="builder.numsText" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" style="margin:0;">${esc(b.numsText)}</textarea>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px;">
           <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${cmIc('plus')} Añadir al test</button>
-          <span style="font-size:12.5px; color:var(--muted);">El número es la posición en la Base de datos: si se borran o añaden preguntas, puede cambiar.</span>
+          <span style="font-size:12.5px; color:var(--muted);">El número de cada pregunta es único y no cambia nunca, aunque se eliminen otras.</span>
         </div>
         ${cmNumsReportHtml(b.numsReport)}
       </div>
