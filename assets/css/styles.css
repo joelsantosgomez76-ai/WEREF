@@ -2216,7 +2216,7 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 .mb-bulk select{width:auto; min-width:180px; margin:0; padding:7px 10px;}
 .mb-bulk .btn{padding:8px 13px; font-size:13px; display:inline-flex; align-items:center; gap:7px;}
 .mb-bulk .btn svg{width:15px; height:15px;}
-.cs-layout{grid-template-columns:minmax(0,1fr) 340px;}
+.cs-layout{grid-template-columns:minmax(0,1fr); max-width:860px;}
 .cs-list{display:flex; flex-direction:column; gap:8px; margin-bottom:6px;}
 .cs-cat{display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:12px; background:#fff;}
 .cs-color{width:40px; height:40px; padding:2px; border:1.5px solid var(--line); border-radius:10px; background:#fff; cursor:pointer; flex-shrink:0;}
