@@ -275,7 +275,7 @@ let STATE = {
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
-  dbFilter: { search: '', law: 'all', difficulty: 'all', status: 'all', pageSize: 25, flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', page: 1 },
+  dbFilter: { search: '', law: 'all', difficulty: 'all', status: 'all', pageSize: 25, flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', advOpen: null, page: 1 },
   reportedIds: {},
   reports: {},
   reportsLoaded: false,
@@ -4001,7 +4001,7 @@ function filteredDbList(){
     const field = f.dateField === 'updated' ? 'updatedAt' : 'createdAt';
     const fromTs = f.dateFrom ? new Date(f.dateFrom+'T00:00:00').getTime() : -Infinity;
     const toTs = f.dateTo ? new Date(f.dateTo+'T23:59:59.999').getTime() : Infinity;
-    list = list.filter(q => q[field] && q[field] >= fromTs && q[field] <= toTs);
+    list = list.filter(q => { const ts = Number(q[field]); return ts && ts >= fromTs && ts <= toTs; });
   }
   return list;
 }
@@ -4087,7 +4087,8 @@ function databaseView(){
     + lawChip('fcf', 'Reglament FCF', fcfCount, true);
 
   const statusChip = (key, label, n) => `<button class="db-status ${key} ${statusNow === key ? 'active' : ''}" data-action="db-set-status" data-status="${key}">${label}<em>${n}</em></button>`;
-  const advOpen = !!(f.dateFrom || f.dateTo || (f.dateField && f.dateField !== 'created'));
+  // Abierto/cerrado lo decide quien usa la página (se recuerda aunque la vista se repinte); si no ha tocado nada, se abre solo cuando hay un filtro de fecha activo.
+  const advOpen = f.advOpen !== null && f.advOpen !== undefined ? !!f.advOpen : !!(f.dateFrom || f.dateTo || (f.dateField && f.dateField !== 'created'));
   const from = list.length ? startIdx + 1 : 0;
   const to = Math.min(startIdx + pageSize, list.length);
 
@@ -4728,6 +4729,8 @@ function bindEvents(){
   if(dbReviewStatus){ dbReviewStatus.addEventListener('change', (e)=>{ STATE.dbFilter.reviewStatus = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dbPageSize = document.getElementById('db-page-size');
   if(dbPageSize){ dbPageSize.addEventListener('change', (e)=>{ STATE.dbFilter.pageSize = parseInt(e.target.value, 10) || 25; STATE.dbFilter.page = 1; render(); }); }
+  const dbAdv = document.querySelector('.db-adv');
+  if(dbAdv){ dbAdv.addEventListener('toggle', () => { STATE.dbFilter.advOpen = dbAdv.open; }); }
   const dbDateField = document.getElementById('db-date-field');
   if(dbDateField){ dbDateField.addEventListener('change', (e)=>{ STATE.dbFilter.dateField = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dbDateFrom = document.getElementById('db-date-from');
