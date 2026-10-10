@@ -58,8 +58,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=38">
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/css/styles.css?v=45">
+<script src="https://unpkg.com/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
 <script>
   let hcaptchaApiReady = false;
   function onHcaptchaApiLoad(){ hcaptchaApiReady = true; }
@@ -455,6 +455,7 @@
         <input type="password" id="auth-password" autocomplete="current-password" required minlength="6" maxlength="128">
         <div id="auth-password-hint" style="display:none; font-size:12px; color:var(--muted); margin-top:6px;">Mínimo 8 caracteres, con mayúsculas, minúsculas, números y un carácter especial.</div>
         <button type="button" id="auth-forgot-link" style="background:none; border:none; padding:0; margin-top:6px; color:var(--muted); font-size:12.5px; text-decoration:underline; cursor:pointer;">¿Has olvidado tu contraseña?</button>
+        <label class="auth-remember"><input type="checkbox" id="auth-remember" checked><span>Mantener la sesión iniciada en este dispositivo</span></label>
       </div>
 
       <div id="auth-consent-rows" style="display:none;">
@@ -635,6 +636,7 @@ document.querySelectorAll('.saas-card[data-action="open-register"], .dash-card[d
 modalEls.close.addEventListener('click', closeModal);
 
 document.getElementById('google-auth-btn').addEventListener('click', async ()=>{
+  setWerefRememberSession(document.getElementById('auth-remember').checked);
   els.error.style.display = 'none';
   const { error } = await doGoogleLogin();
   if(error){
@@ -654,6 +656,7 @@ els.forgotLink.addEventListener('click', ()=>{
 });
 
 els.form.addEventListener('submit', async (e)=>{
+  setWerefRememberSession(document.getElementById('auth-remember').checked);
   e.preventDefault();
   els.error.style.display = 'none';
   els.error.style.background = '';
