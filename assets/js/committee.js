@@ -29,7 +29,6 @@ const COMMITTEE = {
 };
 
 const CM_LETTERS = ['a', 'b', 'c', 'd'];
-const CM_PAGE_SIZE = 10;
 
 /* ---------- utilidades ---------- */
 function cmIc(name){ return `<span class="cm-ic">${shellIcon(name)}</span>`; }
@@ -928,29 +927,12 @@ function cmNewBuilder(){
     editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: 1,
     timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
     selected: [], expanded: {},
-    filterRule: 'all', filterDiff: 'all', filterText: '', hideUsed: false, page: 1,
     numsText: '', numsReport: null,
     showCustom: false, custom: { q: '', a: '', b: '', c: '', d: '', correct: 'a', rule: '', expl: '' },
     saving: false
   };
 }
 
-function cmBankPool(b){
-  let list = allQuestions().filter(q => q.domain === 'law' || q.domain === 'glossary');
-  if(b.filterDiff === 'hard') list = list.filter(q => q.difficulty === 'hard');
-  else if(b.filterDiff === 'normal') list = list.filter(q => q.difficulty !== 'hard');
-  if(b.hideUsed) list = list.filter(q => !cmUsedIn(q).length);
-  return list;
-}
-function cmBankCandidates(){
-  const b = COMMITTEE.builder;
-  let list = cmBankPool(b);
-  if(b.filterRule === 'glossary') list = list.filter(q => q.domain === 'glossary');
-  else if(b.filterRule !== 'all') list = list.filter(q => q.domain === 'law' && q.rule === parseInt(b.filterRule, 10));
-  const s = b.filterText.trim().toLowerCase();
-  if(s) list = list.filter(q => q.question.toLowerCase().includes(s) || q.options.some(o => o.toLowerCase().includes(s)));
-  return list;
-}
 
 function cmQuestionDetail(q){
   return `<div style="margin:8px 0 10px;">
@@ -1065,30 +1047,6 @@ function cmBuilderView(){
   const seasonSet = new Set([-1, 0, 1, 2].map(d => String(curSeason + d)));
   if(b.season) seasonSet.add(String(b.season));
   const seasonOpts = Array.from(seasonSet).sort();
-  const picked = new Set(b.selected.map(q => q.id));
-  const cands = cmBankCandidates();
-  const totalPages = Math.max(1, Math.ceil(cands.length / CM_PAGE_SIZE));
-  if(b.page > totalPages) b.page = totalPages;
-  const pageItems = cands.slice((b.page - 1) * CM_PAGE_SIZE, b.page * CM_PAGE_SIZE);
-  const ruleOpts = `<option value="all">Todas las reglas</option>` +
-    Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<option value="${i}" ${String(b.filterRule) === String(i) ? 'selected' : ''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
-    `<option value="glossary" ${b.filterRule === 'glossary' ? 'selected' : ''}>Glosario</option>`;
-
-  const candHtml = pageItems.map(q => {
-    const open = !!b.expanded[q.id];
-    const used = cmUsedIn(q);
-    return `<div class="cm-bank-q">
-      <div class="qtag" style="margin-bottom:4px;">${numTag(q)} ${cmRuleLabel(q)}${q.difficulty === 'hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}${q.source === 'user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Del comité</span>' : ''}</div>
-      <div style="font-size:13.5px; margin-bottom:6px;">${esc(q.question)}</div>
-      ${used.length ? `<div class="cm-used">Ya usada en: ${used.map(esc).join(', ')}</div>` : ''}
-      ${open ? cmQuestionDetail(q) : ''}
-      <div class="cm-actions" style="margin-top:8px;">
-        <button class="btn ${picked.has(q.id) ? 'btn-secondary' : 'btn-primary'}" data-action="committee-b-toggle" data-qid="${esc(q.id)}">${picked.has(q.id) ? '✓ Añadida · quitar' : '+ Añadir'}</button>
-        <button class="btn btn-ghost" data-action="committee-b-expand" data-qid="${esc(q.id)}">${open ? 'Ocultar respuestas' : 'Ver respuestas'}</button>
-      </div>
-    </div>`;
-  }).join('');
-
   const selHtml = b.selected.map((q, i) => {
     const open = !!b.expanded[q.id];
     return `<div class="cm-sel-item">
@@ -1172,38 +1130,14 @@ function cmBuilderView(){
         <textarea id="cm-b-nums" data-cm-field="builder.numsText" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" style="margin:0;">${esc(b.numsText)}</textarea>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px;">
           <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${cmIc('plus')} <span id="cm-b-add-label">${cmNumsAddLabel(b)}</span></button>
+          <button class="btn btn-ghost" data-action="committee-b-toggle-custom">${cmIc('pencil')} ${b.showCustom ? 'Cerrar pregunta propia' : 'Escribir una pregunta propia'}</button>
           <span style="font-size:12.5px; color:var(--muted);">El número de cada pregunta es único y no cambia nunca, aunque se eliminen otras.</span>
         </div>
         ${cmNumsReportHtml(b.numsReport)}
         <div id="cm-nums-preview">${cmNumsPreviewHtml(b)}</div>
       </div>
 
-      <div class="cm-card">
-        <div class="cm-sec-title">Buscar en el banco de preguntas</div>
-        <div class="cm-fields">
-          <div><label for="cm-b-rule" style="margin-top:0;">Regla</label><select id="cm-b-rule" data-cm-field="builder.filterRule" data-cm-rerender>${ruleOpts}</select></div>
-          <div><label for="cm-b-diff" style="margin-top:0;">Dificultad</label><select id="cm-b-diff" data-cm-field="builder.filterDiff" data-cm-rerender>
-            <option value="all" ${b.filterDiff === 'all' ? 'selected' : ''}>Todas</option>
-            <option value="hard" ${b.filterDiff === 'hard' ? 'selected' : ''}>Solo difíciles</option>
-            <option value="normal" ${b.filterDiff === 'normal' ? 'selected' : ''}>Solo normales</option>
-          </select></div>
-          <div class="full"><label for="cm-b-search">Buscar texto</label><input type="text" id="cm-b-search" data-cm-field="builder.filterText" data-cm-rerender value="${esc(b.filterText)}" placeholder="Palabra de la pregunta o respuestas..." maxlength="100"></div>
-        </div>
-        <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px; margin-top:12px; letter-spacing:0;">
-          <input type="checkbox" id="cm-b-hideused" style="width:auto;" data-cm-field="builder.hideUsed" data-cm-rerender ${b.hideUsed ? 'checked' : ''}> Ocultar las preguntas que ya salieron en otros tests
-        </label>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-          <button class="btn btn-ghost" data-action="committee-b-toggle-custom">${cmIc('pencil')} ${b.showCustom ? 'Cerrar pregunta propia' : 'Escribir una pregunta propia'}</button>
-        </div>
-      </div>
       ${customHtml}
-      <div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">${cands.length} preguntas coinciden</div>
-      ${candHtml || '<div class="empty-state">Ninguna pregunta coincide.</div>'}
-      ${cands.length > CM_PAGE_SIZE ? `<div style="display:flex; justify-content:center; align-items:center; gap:14px; margin:12px 0;">
-        <button class="btn btn-ghost" data-action="committee-b-prev" ${b.page <= 1 ? 'disabled' : ''}>&larr; Anterior</button>
-        <span class="mono" style="font-size:13px; color:var(--muted);">Página ${b.page} / ${totalPages}</span>
-        <button class="btn btn-ghost" data-action="committee-b-next" ${b.page >= totalPages ? 'disabled' : ''}>Siguiente &rarr;</button>
-      </div>` : ''}
     </div>
 
     <aside class="cm-b-side">
@@ -1580,8 +1514,6 @@ async function committeeOnAction(action, el){
     STATE.toast = 'Pregunta propia añadida al test.';
     render();
   }
-  else if(action === 'committee-b-prev'){ if(b && b.page > 1){ b.page--; render(); } }
-  else if(action === 'committee-b-next'){ if(b){ b.page++; render(); } }
   else if(action === 'committee-b-save'){ cmSaveBuilder(); }
 }
 
@@ -1591,7 +1523,6 @@ function cmSetPath(path, value){
   let obj = COMMITTEE;
   for(let i = 0; i < parts.length - 1; i++){ obj = obj[parts[i]]; if(!obj) return; }
   obj[parts[parts.length - 1]] = value;
-  if(path === 'builder.filterRule' || path === 'builder.filterText' || path === 'builder.filterDiff' || path === 'builder.hideUsed') COMMITTEE.builder.page = 1;
 }
 
 function committeeAfterRender(){
