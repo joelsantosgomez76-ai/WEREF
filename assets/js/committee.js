@@ -539,6 +539,7 @@ function cmTestsTab(){
         : `<div class="tx-draftnote">${ic('lock')} Borrador: los árbitros todavía no lo ven</div>`}
       <div class="tx-actions">
         <button class="btn ${t.published ? 'btn-ghost' : 'btn-primary'} tx-main" data-action="committee-toggle-pub" data-tid="${t.id}">${ic(t.published ? 'lock' : 'play')} ${t.published ? 'Quitar de CTA BAGES' : 'Publicar en CTA BAGES'}</button>
+        ${t.published ? '' : `<button class="tx-icon" data-action="committee-edit-test" data-tid="${t.id}" title="Editar test" aria-label="Editar test">${ic('pencil')}</button>`}
         <button class="tx-icon" data-action="committee-detail" data-tid="${t.id}" title="Resultados y ajustes" aria-label="Resultados y ajustes">${ic('chart')}</button>
         <button class="tx-icon" data-action="committee-duplicate" data-tid="${t.id}" title="Duplicar" aria-label="Duplicar">${ic('copy')}</button>
         <button class="tx-icon danger" data-action="committee-delete-test" data-tid="${t.id}" title="Eliminar" aria-label="Eliminar">${ic('trash')}</button>
@@ -736,6 +737,7 @@ function cmTestDetailView(){
   <button class="backbtn" data-action="committee-training">&larr; Volver al Panel de Formación</button>
   <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
     <h2 style="margin:0;">${esc(t.title)}</h2>${cmStatusChip(t)}
+    ${t.published ? '' : `<button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-edit-test" data-tid="${t.id}">${cmIc('pencil')} Editar test</button>`}
     <button class="btn btn-secondary" style="margin-left:auto; display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-test" data-tid="${t.id}">${cmIc('download')} Exportar a Excel</button>
   </div>
   <div class="home-kpis" style="margin-bottom:18px;">
@@ -771,7 +773,7 @@ function cmNewBuilder(){
   const now = new Date();
   const month = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
   return {
-    title: '', month, opens: '', closes: '', maxAttempts: 1,
+    editId: null, title: '', month, opens: '', closes: '', maxAttempts: 1,
     selected: [], expanded: {},
     filterRule: 'all', filterDiff: 'all', filterText: '', hideUsed: false, page: 1,
     genCount: 10, genRules: [],
@@ -874,7 +876,7 @@ function cmBuilderView(){
 
   return `
   <button class="backbtn" data-action="committee-b-cancel">&larr; Cancelar</button>
-  <h2 style="margin-bottom:14px;">Nuevo test</h2>
+  <h2 style="margin-bottom:14px;">${b.editId ? 'Editar test' : 'Nuevo test'}</h2>
 
   <div class="cm-card">
     <div class="cm-sec-title">Datos del test</div>
@@ -940,8 +942,8 @@ function cmBuilderView(){
         </div>
         ${b.selected.length ? `<div class="cm-chips" style="margin-bottom:8px;">${cmComposition(b.selected)}</div>` : ''}
         ${selHtml || '<div style="font-size:13px; color:var(--muted); padding:8px 0;">Todavía no has elegido ninguna pregunta. Genera un test equilibrado o añade desde el banco.</div>'}
-        <button class="btn btn-primary" style="width:100%; margin-top:14px;" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${b.saving ? 'Guardando...' : 'Guardar como borrador'}</button>
-        <div style="font-size:12px; color:var(--muted); margin-top:8px; text-align:center;">Después podrás revisarlo y publicarlo.</div>
+        <button class="btn btn-primary" style="width:100%; margin-top:14px;" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${b.saving ? 'Guardando...' : (b.editId ? 'Guardar cambios' : 'Guardar como borrador')}</button>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px; text-align:center;">${b.editId ? 'Sigue en borrador: los árbitros no lo ven hasta que lo publiques.' : 'Después podrás revisarlo y publicarlo.'}</div>
       </div>
     </aside>
   </div>`;
@@ -961,17 +963,31 @@ async function cmSaveBuilder(){
     question: q.question, options: q.options, correct: q.correct,
     rule: q.domain === 'glossary' ? null : (q.rule || null), explanation: q.explanation || ''
   }));
-  const { error } = await supabaseClient.rpc('committee_admin_create_test', {
-    p_title: b.title.trim(), p_month: b.month || null,
-    p_opens: opens ? opens.toISOString() : null, p_closes: closes ? closes.toISOString() : null,
-    p_max_attempts: attempts, p_questions: questions
-  });
+  let error;
+  if(b.editId){
+    // Edición de un borrador: se actualizan los datos y se reemplazan las preguntas.
+    const patch = { title: b.title.trim(), month: b.month || null, closes_at: closes ? closes.toISOString() : null, max_attempts: attempts };
+    if(opens) patch.opens_at = opens.toISOString();
+    ({ error } = await supabaseClient.from('committee_tests').update(patch).eq('id', b.editId));
+    if(!error){
+      const rows = questions.map((q, i) => ({ test_id: b.editId, pos: i + 1, question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation }));
+      ({ error } = await supabaseClient.from('committee_test_questions').upsert(rows, { onConflict: 'test_id,pos' }));
+      if(!error) ({ error } = await supabaseClient.from('committee_test_questions').delete().eq('test_id', b.editId).gt('pos', rows.length));
+    }
+  } else {
+    ({ error } = await supabaseClient.rpc('committee_admin_create_test', {
+      p_title: b.title.trim(), p_month: b.month || null,
+      p_opens: opens ? opens.toISOString() : null, p_closes: closes ? closes.toISOString() : null,
+      p_max_attempts: attempts, p_questions: questions
+    }));
+  }
+  const wasEdit = !!b.editId;
   b.saving = false;
   if(error){ cmToast(cmErrText(error)); return; }
   COMMITTEE.builder = null;
   COMMITTEE.tab = 'tests';
   STATE.view = 'committeeTraining';
-  STATE.toast = 'Test guardado como borrador. Publícalo cuando esté listo.';
+  STATE.toast = wasEdit ? 'Cambios guardados. El test sigue en borrador.' : 'Test guardado como borrador. Publícalo cuando esté listo.';
   render();
   cmLoadAdminData();
 }
@@ -1164,6 +1180,31 @@ async function committeeOnAction(action, el){
     COMMITTEE.builder = nb;
     STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0);
     STATE.toast = 'Test duplicado: cambia lo que quieras y guárdalo.'; render();
+  }
+  else if(action === 'committee-edit-test'){
+    if(!isDevUser()) return;
+    const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
+    if(t.published){ cmToast('Quita el test de CTA BAGES para poder editar sus preguntas.'); return; }
+    const { data, error } = await supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos');
+    if(error){ cmToast(cmErrText(error)); return; }
+    // Si la pregunta sigue en el banco se usa la del banco (para que los filtros la marquen como elegida);
+    // el contenido que manda es el guardado en el test.
+    const bank = {};
+    allQuestions().forEach(q => { bank[questionDedupeKey(q)] = q; });
+    const nb = cmNewBuilder();
+    nb.editId = t.id;
+    nb.title = t.title;
+    nb.month = t.month || nb.month;
+    nb.opens = cmToLocalInput(t.opens_at);
+    nb.closes = cmToLocalInput(t.closes_at);
+    nb.maxAttempts = t.max_attempts;
+    nb.selected = (data || []).map((q, i) => {
+      const match = bank[questionDedupeKey({ question: q.question, options: q.options })];
+      const base = match ? Object.assign({}, match) : { id: 'tq-' + t.id + '-' + i, domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user' };
+      return Object.assign(base, { question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation || '' });
+    });
+    COMMITTEE.builder = nb;
+    STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0);
   }
   else if(action === 'committee-detail'){ cmOpenDetail(tid); window.scrollTo(0, 0); }
   else if(action === 'committee-save-settings'){
