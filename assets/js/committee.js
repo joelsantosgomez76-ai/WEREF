@@ -43,9 +43,13 @@ function cmErrText(err){
     no_attempts_left: 'Ya has agotado los intentos de este test.',
     review_not_available: 'Las respuestas correctas se publicarán cuando cierre el test.',
     no_attempt: 'Todavía no has hecho este test.',
-    no_questions: 'El test no tiene preguntas.'
+    no_questions: 'El test no tiene preguntas.',
+    time_up: 'Se agotó el tiempo del test y no se ha podido guardar el intento.'
   };
   for(const k in known){ if(m.includes(k)) return known[k]; }
+  if(/timer_mode|time_minutes|seconds_per_question/.test(m)){
+    return 'Falta ejecutar el SQL de temporización (committee-timer.sql) en Supabase.';
+  }
   if(/Could not find the function|PGRST202|PGRST205|42883|42P01|does not exist|schema cache/i.test(m + ' ' + (err && err.code || ''))){
     return 'Falta ejecutar el archivo SQL del comité en Supabase.';
   }
@@ -253,7 +257,8 @@ function cmMemberView(){
     if(COMMITTEE.tests !== null){
       list = COMMITTEE.tests.filter(t => t.published).map(t => ({
         id: t.id, title: t.title, opens_at: t.opens_at, closes_at: t.closes_at, max_attempts: t.max_attempts,
-        attempts_used: 0, total_questions: t.question_count, preview: true
+        attempts_used: 0, total_questions: t.question_count, preview: true,
+        timer_mode: t.timer_mode, time_minutes: t.time_minutes, seconds_per_question: t.seconds_per_question
       }));
     }
   } else {
@@ -330,6 +335,65 @@ function cmMessagesTab(){
 
 /* ---------- Panel de Formación: aquí se prepara todo y se publica en CTA BAGES ---------- */
 /* ---------- miembro: hacer el test ---------- */
+/* Reloj del test: se calcula con Date.now() para que no se descuadre si la pestaña queda en segundo plano. */
+let CM_TIMER = null;
+function cmStopRunTimer(){ if(CM_TIMER){ clearInterval(CM_TIMER); CM_TIMER = null; } }
+function cmRunRemaining(r){
+  const t = r.test;
+  if(t.timer_mode === 'total' && t.time_minutes) return Math.ceil(t.time_minutes * 60 - (Date.now() - r.startedAt) / 1000);
+  if(t.timer_mode === 'perQuestion' && t.seconds_per_question) return Math.ceil(t.seconds_per_question - (Date.now() - (r.qStartedAt || r.startedAt)) / 1000);
+  return null;
+}
+function cmStartRunTimer(){
+  cmStopRunTimer();
+  const r0 = COMMITTEE.run;
+  if(!r0 || cmRunRemaining(r0) === null) return;
+  CM_TIMER = setInterval(() => {
+    const r = COMMITTEE.run;
+    if(!r || STATE.view !== 'committeeRun'){ cmStopRunTimer(); return; }
+    const rem = cmRunRemaining(r);
+    if(rem === null){ cmStopRunTimer(); return; }
+    const el = document.getElementById('cm-timer');
+    if(el){
+      el.textContent = formatTime(rem);
+      el.classList.toggle('time-low', rem <= (r.test.timer_mode === 'perQuestion' ? 10 : 60));
+    }
+    if(rem <= 0){
+      if(r.test.timer_mode === 'perQuestion' && r.idx < r.test.questions.length - 1){
+        r.idx++; r.qStartedAt = Date.now(); render();
+      } else {
+        cmStopRunTimer();
+        cmSubmitRun(true);
+      }
+    }
+  }, 500);
+}
+
+async function cmSubmitRun(auto){
+  const r = COMMITTEE.run; if(!r || r.submitting) return;
+  cmStopRunTimer();
+  r.submitting = true; render();
+  const { data, error } = await supabaseClient.rpc('committee_submit_attempt', {
+    p_test_id: r.test.id, p_answers: r.answers, p_duration: Math.round((Date.now() - r.startedAt) / 1000)
+  });
+  if(error){
+    r.submitting = false;
+    cmToast(cmErrText(error));
+    if(auto){
+      // Con el tiempo agotado no se puede seguir: se sale del test para no reintentar en bucle.
+      COMMITTEE.run = null; STATE.view = 'committee'; render(); cmLoadMyTests();
+    } else {
+      render(); cmStartRunTimer();
+    }
+    return;
+  }
+  COMMITTEE.result = { title: r.test.title, score: data.score, total: data.total, review: data.review };
+  COMMITTEE.run = null;
+  if(auto) STATE.toast = '¡Tiempo agotado! Tu test se ha enviado con las respuestas que tenías.';
+  STATE.view = 'committeeResult'; render(); window.scrollTo(0, 0);
+  cmLoadMyTests();
+}
+
 function cmRunView(){
   const r = COMMITTEE.run;
   if(!r) return cmMemberView();
@@ -338,13 +402,18 @@ function cmRunView(){
   const answered = Object.keys(r.answers).length;
   const sel = r.answers[q.pos];
   const isLast = r.idx === qs.length - 1;
-  const dots = qs.map((x, i) => `<button class="cm-dot ${r.answers[x.pos] ? 'answered' : ''} ${i === r.idx ? 'current' : ''}" data-action="committee-goto" data-idx="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('');
+  const perQ = r.test.timer_mode === 'perQuestion';
+  const rem = cmRunRemaining(r);
+  const dots = qs.map((x, i) => perQ
+    ? `<span class="cm-dot ${r.answers[x.pos] ? 'answered' : ''} ${i === r.idx ? 'current' : ''}" aria-label="Pregunta ${i + 1}">${i + 1}</span>`
+    : `<button class="cm-dot ${r.answers[x.pos] ? 'answered' : ''} ${i === r.idx ? 'current' : ''}" data-action="committee-goto" data-idx="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('');
+  const timerChip = rem === null ? '' : `<span class="qz-chip">${shellIcon(perQ ? 'timer' : 'clock')}<span class="mono ${rem <= (perQ ? 10 : 60) ? 'time-low' : ''}" id="cm-timer">${formatTime(rem)}</span></span>`;
   return `
   <div class="qz">
     <header class="qz-top">
       <button class="qz-exit" data-action="committee-exit-run" aria-label="Salir del test">${shellIcon('chevron')}<span>Salir</span></button>
       <div class="qz-info"><strong>${esc(r.test.title)}</strong><small>Pregunta ${r.idx + 1} de ${qs.length} · ${answered} respondidas</small></div>
-      <div class="qz-status"><span class="qz-chip soft">${shellIcon('check')} ${answered}/${qs.length}</span></div>
+      <div class="qz-status">${timerChip}<span class="qz-chip soft">${shellIcon('check')} ${answered}/${qs.length}</span></div>
     </header>
     <div class="qz-progress"><i style="width:${Math.round(answered / qs.length * 100)}%"></i></div>
     <article class="qz-card">
@@ -355,7 +424,7 @@ function cmRunView(){
       </div>
     </article>
     <div class="qz-actions">
-      <button class="btn btn-secondary" data-action="committee-prev" ${r.idx === 0 ? 'disabled' : ''}>&larr; Anterior</button>
+      ${perQ ? `<span></span>` : `<button class="btn btn-secondary" data-action="committee-prev" ${r.idx === 0 ? 'disabled' : ''}>&larr; Anterior</button>`}
       ${isLast
         ? `<button class="btn btn-primary" data-action="committee-finish" ${r.submitting ? 'disabled' : ''}>${r.submitting ? 'Enviando...' : 'Finalizar test'}</button>`
         : `<button class="btn btn-primary" data-action="committee-next">Siguiente &rarr;</button>`}
@@ -423,6 +492,7 @@ function cmMemberTestCard(t, now){
       <span>${cmIc('book')} ${t.total_questions} preguntas</span>
       <span>${cmIc('repeat')} Intentos: ${t.attempts_used}/${t.max_attempts}</span>
       ${t.closes_at ? `<span>${cmIc('clock')} Cierra el ${cmFmtDate(t.closes_at)}</span>` : ''}
+      ${t.timer_mode && t.timer_mode !== 'none' ? `<span>${cmIc('timer')} ${cmTimerText(t)}</span>` : ''}
     </div>
     ${result}
     ${action ? `<div class="cm-actions">${action}</div>` : ''}
@@ -514,6 +584,46 @@ function cmRankScope(){
   return { seasons, season, months, month };
 }
 
+/* ---------- temporización de los tests ---------- */
+function cmTimerText(t){
+  if(t && t.timer_mode === 'total' && t.time_minutes) return t.time_minutes + ' min en total';
+  if(t && t.timer_mode === 'perQuestion' && t.seconds_per_question) return t.seconds_per_question + ' s por pregunta';
+  return 'Sin límite de tiempo';
+}
+function cmTimerOpt(on, mode, icon, title, text){
+  return `<button type="button" class="tc-opt ${on ? 'active' : ''}" data-action="committee-b-timer-mode" data-mode="${mode}">
+    <span class="tc-opt-ic">${shellIcon(icon)}</span><span class="tc-opt-body"><strong>${title}</strong><small>${text}</small></span><span class="tc-opt-check">${shellIcon('check')}</span>
+  </button>`;
+}
+function cmFmtMinSec(sec){
+  const s = Math.max(0, Math.round(sec));
+  const m = Math.floor(s / 60), r = s % 60;
+  return m ? (r ? m + ' min ' + r + ' s' : m + ' min') : r + ' s';
+}
+function cmBuilderTimerSummary(b){
+  const n = b.selected.length;
+  if(b.timerMode === 'total'){
+    const mins = parseInt(b.minutes, 10) || 0;
+    return mins > 0
+      ? `El test tendrá ${mins} min en total` + (n ? ` (${n} preguntas · unos ${cmFmtMinSec(mins * 60 / n)} por pregunta).` : '.')
+      : 'Indica cuántos minutos tendrán para todo el test.';
+  }
+  if(b.timerMode === 'perQuestion'){
+    const s = parseInt(b.secPerQ, 10) || 0;
+    return s >= 5
+      ? `Cada pregunta tendrá ${s} s` + (n ? ` (${n} preguntas · ${cmFmtMinSec(s * n)} como máximo en total).` : '.')
+      : 'El mínimo son 5 segundos por pregunta.';
+  }
+  return 'Sin límite de tiempo: cada árbitro lo hace a su ritmo.';
+}
+function cmBuilderTimerFields(b){
+  return {
+    timer_mode: b.timerMode,
+    time_minutes: b.timerMode === 'total' ? Math.round(parseInt(b.minutes, 10)) : null,
+    seconds_per_question: b.timerMode === 'perQuestion' ? Math.round(parseInt(b.secPerQ, 10)) : null
+  };
+}
+
 /* ---------- administrador: clasificación ---------- */
 function cmComputeRanking(season, month){
   const tests = (COMMITTEE.tests || []).filter(t => t.published && cmSeasonOfTest(t) === season && (month === 'all' || t.month === month));
@@ -569,6 +679,7 @@ function cmTestsTab(){
         <li>${ic('book')}<span>${t.question_count} preguntas</span></li>
         <li>${ic('repeat')}<span>${t.max_attempts} ${t.max_attempts === 1 ? 'intento' : 'intentos'}</span></li>
         <li>${ic('clock')}<span>${cmFmtDate(t.opens_at)} → ${t.closes_at ? cmFmtDate(t.closes_at) : 'sin cierre'}</span></li>
+        <li>${ic('timer')}<span>${cmTimerText(t)}</span></li>
       </ul>
       ${t.published
         ? `<div class="tx-part"><div class="tx-part-top"><span>Participación</span><b>${people} de ${m}</b></div><div class="tx-part-bar"><i style="width:${pct}%"></i></div></div>`
@@ -815,6 +926,7 @@ function cmNewBuilder(){
   const mon = String(now.getMonth() + 1);
   return {
     editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: 1,
+    timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
     selected: [], expanded: {},
     filterRule: 'all', filterDiff: 'all', filterText: '', hideUsed: false, page: 1,
     genCount: 10, genRules: [],
@@ -943,6 +1055,24 @@ function cmBuilderView(){
     <div style="font-size:12.5px; color:var(--muted); margin-top:10px;">Las respuestas correctas se enseñan a los árbitros cuando el test cierra. Si no pones fecha de cierre, se enseñan al terminar.</div>
   </div>
 
+  <div class="cm-card">
+    <div class="cm-sec-title">${cmIc('clock')} Temporización</div>
+    <div class="tc-opts three">
+      ${cmTimerOpt(b.timerMode === 'none', 'none', 'repeat', 'Sin límite', 'Cada árbitro va a su ritmo.')}
+      ${cmTimerOpt(b.timerMode === 'total', 'total', 'clock', 'Tiempo total', 'Un reloj para todo el test.')}
+      ${cmTimerOpt(b.timerMode === 'perQuestion', 'perQuestion', 'zap', 'Por pregunta', 'Cada pregunta con su cuenta atrás.')}
+    </div>
+    ${b.timerMode === 'total' ? `
+      <div class="cm-timer-field"><label for="cm-b-minutes">Minutos para todo el test</label>
+      <input type="number" id="cm-b-minutes" min="1" max="600" data-cm-field="builder.minutes" data-cm-rerender value="${esc(String(b.minutes))}">
+      <small>Al llegar a cero el test se envía solo con las respuestas que haya.</small></div>` : ''}
+    ${b.timerMode === 'perQuestion' ? `
+      <div class="cm-timer-field"><label for="cm-b-secq">Segundos por pregunta</label>
+      <input type="number" id="cm-b-secq" min="5" max="3600" data-cm-field="builder.secPerQ" data-cm-rerender value="${esc(String(b.secPerQ))}">
+      <small>Al acabarse el tiempo de una pregunta pasa sola a la siguiente. En este modo no se puede volver atrás.</small></div>` : ''}
+    <div class="cm-season-note">${cmIc('clock')}<span>${esc(cmBuilderTimerSummary(b))}</span></div>
+  </div>
+
   <div class="cm-builder">
     <div class="cm-b-main">
       <div class="cm-card">
@@ -1011,16 +1141,27 @@ async function cmSaveBuilder(){
   if(closes && opens && closes <= opens){ cmToast('La fecha de cierre tiene que ser posterior a la de apertura.'); return; }
   if(closes && !opens && closes.getTime() <= Date.now()){ cmToast('La fecha de cierre ya ha pasado.'); return; }
   const attempts = Math.max(1, parseInt(b.maxAttempts, 10) || 1);
+  if(b.timerMode === 'total'){
+    const mins = parseInt(b.minutes, 10);
+    if(!(mins >= 1 && mins <= 600)){ cmToast('El tiempo total tiene que estar entre 1 y 600 minutos.'); return; }
+  }
+  if(b.timerMode === 'perQuestion'){
+    const secs = parseInt(b.secPerQ, 10);
+    if(!(secs >= 5 && secs <= 3600)){ cmToast('Los segundos por pregunta tienen que estar entre 5 y 3600.'); return; }
+  }
+  // Si el SQL de temporización aún no se ha ejecutado y no se usa tiempo, no se envían esas columnas.
+  const withTimer = b.timerMode !== 'none' || b.hadTimerCols;
   b.saving = true; render();
   const questions = b.selected.map(q => ({
     question: q.question, options: q.options, correct: q.correct,
     rule: q.domain === 'glossary' ? null : (q.rule || null), explanation: q.explanation || ''
   }));
-  let error;
+  let error, timerErr = null;
   if(b.editId){
     // Edición de un borrador: se actualizan los datos y se reemplazan las preguntas.
     const patch = { title: b.title.trim(), month: cmBuilderMonth(b), closes_at: closes ? closes.toISOString() : null, max_attempts: attempts };
     if(opens) patch.opens_at = opens.toISOString();
+    if(withTimer) Object.assign(patch, cmBuilderTimerFields(b));
     ({ error } = await supabaseClient.from('committee_tests').update(patch).eq('id', b.editId));
     if(!error){
       const rows = questions.map((q, i) => ({ test_id: b.editId, pos: i + 1, question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation }));
@@ -1028,11 +1169,16 @@ async function cmSaveBuilder(){
       if(!error) ({ error } = await supabaseClient.from('committee_test_questions').delete().eq('test_id', b.editId).gt('pos', rows.length));
     }
   } else {
-    ({ error } = await supabaseClient.rpc('committee_admin_create_test', {
+    let newId;
+    ({ data: newId, error } = await supabaseClient.rpc('committee_admin_create_test', {
       p_title: b.title.trim(), p_month: cmBuilderMonth(b),
       p_opens: opens ? opens.toISOString() : null, p_closes: closes ? closes.toISOString() : null,
       p_max_attempts: attempts, p_questions: questions
     }));
+    if(!error && withTimer && newId){
+      const tr = await supabaseClient.from('committee_tests').update(cmBuilderTimerFields(b)).eq('id', newId);
+      if(tr.error) timerErr = tr.error;
+    }
   }
   const wasEdit = !!b.editId;
   b.saving = false;
@@ -1040,7 +1186,9 @@ async function cmSaveBuilder(){
   COMMITTEE.builder = null;
   COMMITTEE.tab = 'tests';
   STATE.view = 'committeeTraining';
-  STATE.toast = wasEdit ? 'Cambios guardados. El test sigue en borrador.' : 'Test guardado como borrador. Publícalo cuando esté listo.';
+  STATE.toast = timerErr
+    ? 'El test se guardó, pero no se pudo guardar el tiempo (' + cmErrText(timerErr) + '). Edítalo para ponerlo.'
+    : (wasEdit ? 'Cambios guardados. El test sigue en borrador.' : 'Test guardado como borrador. Publícalo cuando esté listo.');
   render();
   cmLoadAdminData();
 }
@@ -1133,26 +1281,37 @@ async function committeeOnAction(action, el){
 
   /* miembro */
   else if(action === 'committee-start'){
+    const card = (COMMITTEE.myTests || []).find(x => x.id === tid);
+    if(card && card.timer_mode && card.timer_mode !== 'none'){
+      const extra = card.timer_mode === 'perQuestion' ? ' Cada pregunta se pasa sola al acabarse su tiempo y no se puede volver atrás.' : ' Al llegar a cero se envía solo.';
+      if(!confirm('Este test tiene tiempo limitado: ' + cmTimerText(card) + '.' + extra + ' El reloj empieza al aceptar. ¿Empezar ahora?')) return;
+    }
     const { data, error } = await supabaseClient.rpc('committee_get_test', { p_test_id: tid });
     if(error){ cmToast(cmErrText(error)); cmLoadMyTests(); return; }
-    COMMITTEE.run = { test: data, answers: {}, idx: 0, startedAt: Date.now(), submitting: false };
+    const now0 = Date.now();
+    COMMITTEE.run = { test: data, answers: {}, idx: 0, startedAt: now0, qStartedAt: now0, submitting: false };
     STATE.view = 'committeeRun'; render(); window.scrollTo(0, 0);
+    cmStartRunTimer();
   }
   else if(action === 'committee-answer'){
     const r = COMMITTEE.run; if(!r) return;
     r.answers[r.test.questions[r.idx].pos] = el.dataset.letter; render();
   }
   else if(action === 'committee-goto'){
-    const r = COMMITTEE.run; if(!r) return;
+    const r = COMMITTEE.run; if(!r || r.test.timer_mode === 'perQuestion') return;
     r.idx = parseInt(el.dataset.idx, 10) || 0; render();
   }
-  else if(action === 'committee-prev'){ if(COMMITTEE.run && COMMITTEE.run.idx > 0){ COMMITTEE.run.idx--; render(); } }
+  else if(action === 'committee-prev'){
+    const r = COMMITTEE.run;
+    if(r && r.test.timer_mode !== 'perQuestion' && r.idx > 0){ r.idx--; render(); }
+  }
   else if(action === 'committee-next'){
     const r = COMMITTEE.run;
-    if(r && r.idx < r.test.questions.length - 1){ r.idx++; render(); }
+    if(r && r.idx < r.test.questions.length - 1){ r.idx++; r.qStartedAt = Date.now(); render(); }
   }
   else if(action === 'committee-exit-run'){
     if(!confirm('¿Salir del test? No se guardará ninguna respuesta y no se gastará el intento.')) return;
+    cmStopRunTimer();
     COMMITTEE.run = null;
     STATE.view = 'committee';
     render(); cmLoadMyTests();
@@ -1164,15 +1323,7 @@ async function committeeOnAction(action, el){
       ? `Te quedan ${missing} preguntas sin responder (contarán como fallo). ¿Finalizar igualmente?`
       : '¿Finalizar el test? Después no podrás cambiar tus respuestas.';
     if(!confirm(msg)) return;
-    r.submitting = true; render();
-    const { data, error } = await supabaseClient.rpc('committee_submit_attempt', {
-      p_test_id: r.test.id, p_answers: r.answers, p_duration: Math.round((Date.now() - r.startedAt) / 1000)
-    });
-    if(error){ r.submitting = false; cmToast(cmErrText(error)); return; }
-    COMMITTEE.result = { title: r.test.title, score: data.score, total: data.total, review: data.review };
-    COMMITTEE.run = null;
-    STATE.view = 'committeeResult'; render(); window.scrollTo(0, 0);
-    cmLoadMyTests();
+    await cmSubmitRun(false);
   }
   else if(action === 'committee-review'){
     const { data, error } = await supabaseClient.rpc('committee_get_review', { p_test_id: tid });
@@ -1226,6 +1377,7 @@ async function committeeOnAction(action, el){
     const nb = cmNewBuilder();
     nb.title = 'Copia de ' + t.title;
     nb.maxAttempts = t.max_attempts;
+    nb.timerMode = t.timer_mode || 'none'; nb.minutes = t.time_minutes || nb.minutes; nb.secPerQ = t.seconds_per_question || nb.secPerQ;
     nb.selected = (data || []).map((q, i) => ({
       id: 'dup-' + Date.now() + '-' + i, question: q.question, options: q.options, correct: q.correct,
       rule: q.rule, explanation: q.explanation || '', domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user'
@@ -1250,7 +1402,8 @@ async function committeeOnAction(action, el){
     if(t.month){ nb.season = cmSeasonOfMonth(t.month); nb.mon = String(parseInt(t.month.slice(5, 7), 10)); }
     nb.opens = cmToLocalInput(t.opens_at);
     nb.closes = cmToLocalInput(t.closes_at);
-    nb.maxAttempts = t.max_attempts;
+    nb.maxAttempts = t.max_attempts; nb.hadTimerCols = ('timer_mode' in t);
+    nb.timerMode = t.timer_mode || 'none'; nb.minutes = t.time_minutes || nb.minutes; nb.secPerQ = t.seconds_per_question || nb.secPerQ;
     nb.selected = (data || []).map((q, i) => {
       const match = bank[questionDedupeKey({ question: q.question, options: q.options })];
       const base = match ? Object.assign({}, match) : { id: 'tq-' + t.id + '-' + i, domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user' };
@@ -1351,6 +1504,7 @@ async function committeeOnAction(action, el){
     render();
   }
   else if(action === 'committee-b-toggle-custom'){ if(b){ b.showCustom = !b.showCustom; render(); } }
+  else if(action === 'committee-b-timer-mode'){ if(b){ b.timerMode = el.dataset.mode; render(); } }
   else if(action === 'committee-b-add-custom'){
     if(!b) return;
     const c = b.custom;
