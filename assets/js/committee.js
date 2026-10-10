@@ -1092,17 +1092,6 @@ function cmRankingTab(){
   const ic = (n) => shellIcon(n);
   const scope = cmRankScope();
   const { rows, testCount } = cmComputeRanking(scope.season, scope.month);
-  const top = rows.filter(r => r.done > 0).slice(0, 3);
-  const medals = ['🥇', '🥈', '🥉'];
-  const pod = (r, i) => `<div class="lg-pod p${i + 1}">
-      ${i === 0 ? '<div class="lg-crown">👑</div>' : ''}
-      <div class="lg-pod-av">${cmAvatar(r.who, 'xl')}</div>
-      <div class="lg-pod-name">${esc(r.who)}</div>
-      <div class="lg-pod-meta">${r.score}/${r.total} · ${cmFmtDur(r.avgDur)}</div>
-      <div class="lg-pod-score">${Math.round(r.pct)}%</div>
-      <div class="lg-pod-step"><span>${i + 1}</span></div>
-    </div>`;
-  const podium = top.length ? `<div class="lg-podium cm-rank-podium">${[1, 0, 2].filter(i => i < top.length).map(i => pod(top[i], i)).join('')}</div>` : '';
   const list = rows.map((r, i) => `<div class="rk-line ${r.done ? '' : 'none'}">
       <span class="rk-pos">${r.done ? i + 1 : '—'}</span>
       ${cmAvatar(r.who)}
@@ -1128,7 +1117,6 @@ function cmRankingTab(){
     <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-ranking">${ic('download')} Exportar a Excel</button>
   </div>
   <div class="st-note" style="margin-bottom:14px;">Se cuenta el mejor intento de cada test publicado. Orden: % de acierto, puntos y tiempo medio. Esta clasificación solo la ven los administradores.</div>
-  ${podium}
   ${rows.length ? `<div class="rk-list">${list}</div>` : `<div class="ac-empty">${ic('trophy')}<strong>Todavía no hay resultados</strong><span>Cuando los árbitros hagan los tests publicados aparecerán aquí.</span></div>`}`;
 }
 
