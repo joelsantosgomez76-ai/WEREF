@@ -9,6 +9,7 @@ const COMMITTEE = {
   myTests: null,
   myAttempts: [],
   memberTab: 'tests',
+  feedAll: false,
   memberSeason: null,
   previewMember: null,
   tests: null,        // admin: tabla committee_tests (con nº de preguntas)
@@ -347,23 +348,99 @@ function cmFmtMsgDate(iso){
 }
 
 /* Novedades: mensajes publicados por el comité (los más recientes primero) */
+/* Resumen de la temporada para la cabecera de CTA BAGES (tests ya abiertos, mejor intento de cada uno). */
+function cmPerfSummary(srcTests, srcAttempts, season){
+  const now = Date.now();
+  const tests = (srcTests || []).filter(t => Date.parse(t.opens_at) <= now && cmSeasonOfTest(t) === season);
+  const best = {};
+  (srcAttempts || []).forEach(a => {
+    const c = best[a.test_id];
+    if(!c || a.score > c.score || (a.score === c.score && (a.duration_sec || 0) < (c.duration_sec || 0))) best[a.test_id] = a;
+  });
+  const done = tests.filter(t => best[t.id]);
+  const score = done.reduce((s, t) => s + best[t.id].score, 0);
+  const total = done.reduce((s, t) => s + best[t.id].total, 0);
+  return { count: tests.length, done: done.length, score, total, pct: total ? Math.round(score / total * 100) : null };
+}
+
 function cmMessagesFeed(){
   const list = cmPublishedMessages();
   if(!list.length) return '';
   const week = 7 * 86400000;
+  const LIMIT = 3;
+  const all = !!COMMITTEE.feedAll;
+  const shown = all ? list : list.slice(0, LIMIT);
+  const ic = (n) => shellIcon(n);
   return `<div class="lg-section-head"><h2>Novedades del comité</h2><span>${list.length} ${list.length === 1 ? 'mensaje' : 'mensajes'}</span></div>
-  <div class="cm-feed">${list.map(m => {
+  <div class="cm-feed">${shown.map(m => {
     const when = m.published_at || m.created_at;
     const isNew = when && (Date.now() - Date.parse(when)) < week;
-    return `<article class="cm-msg">
-      <span class="cm-msg-ic">${shellIcon('message')}</span>
+    return `<article class="cm-msg ${isNew ? 'new' : ''}">
+      <span class="cm-msg-ic">${ic('message')}</span>
       <div class="cm-msg-body">
         <div class="cm-msg-top"><strong>${esc(m.title)}</strong>${isNew ? '<em>Nuevo</em>' : ''}</div>
         <p>${esc(m.body)}</p>
-        <small>${cmFmtMsgDate(when)}</small>
+        <small>${ic('calendar')} ${cmFmtMsgDate(when)}</small>
       </div>
     </article>`;
-  }).join('')}</div>`;
+  }).join('')}
+  ${list.length > LIMIT ? `<button class="btn btn-ghost cm-feed-more" data-action="committee-feed-toggle">${all ? 'Ver menos' : (list.length - LIMIT === 1 ? 'Ver el mensaje anterior' : 'Ver los ' + (list.length - LIMIT) + ' mensajes anteriores')}</button>` : ''}</div>`;
+}
+
+function cmMemberTestCard(t, now){
+  const ic = (n) => shellIcon(n);
+  const opens = Date.parse(t.opens_at);
+  const closes = t.closes_at ? Date.parse(t.closes_at) : null;
+  const notOpen = now < opens;
+  const closed = closes !== null && now >= closes;
+  const left = t.max_attempts - t.attempts_used;
+  const done = t.best_total !== null && t.best_total !== undefined;   // tiene algún resultado enviado
+  const cutOff = !done && t.attempts_used > 0 && left <= 0;      // empezó, no envió y ya no le quedan intentos
+  let cls, chip, action = '';
+  if(notOpen){ cls = 'sched'; chip = `<span class="cm-chip sched">${ic('calendar')} Abre el ${cmFmtDate(t.opens_at)}</span>`; }
+  else if(closed){ cls = 'closed'; chip = '<span class="cm-chip closed">Cerrado</span>'; }
+  else {
+    cls = 'open'; chip = '<span class="cm-chip open">Abierto</span>';
+    if(closes !== null){
+      const days = Math.ceil((closes - now) / 86400000);
+      if(days <= 3){ cls = 'soon'; chip = `<span class="cm-chip sched">${ic('timer')} ${days <= 1 ? 'Cierra hoy o mañana' : 'Cierra en ' + days + ' días'}</span>`; }
+    }
+  }
+  if(t.preview){
+    action = '<span class="cm-chip soft">Vista previa</span>';
+  } else if(!notOpen && !closed && left > 0){
+    action = `<button class="btn btn-primary cm-tc-cta" data-action="committee-start" data-tid="${t.id}">${ic('play')} ${done ? 'Hacer otro intento' : 'Empezar test'}</button>`;
+  } else if(done && (closed || !closes)){
+    action = `<button class="btn btn-secondary" data-action="committee-review" data-tid="${t.id}">${ic('eye')} Ver respuestas</button>`;
+  } else if(cutOff && !notOpen){
+    action = `<div class="cm-cutmsg">${ic('flag')}<span>Empezaste este test y no llegaste a enviarlo, así que el intento se ha gastado. Habla con tu responsable del comité para que te dé otro intento.</span></div>`;
+  }
+  const pct = done ? Math.round(t.best_score / t.best_total * 100) : 0;
+  const result = done
+    ? `<div class="cm-tc-result">
+         <div class="cm-tc-score"><b>${t.best_score}</b><small>/ ${t.best_total}</small></div>
+         <div class="cm-tc-resbody">
+           <div class="cm-tc-restop"><strong>Tu mejor resultado</strong>${accuracyBadge(pct)}</div>
+           <div class="cm-tc-bar"><i style="width:${pct}%; background:${scoreColor(pct)};"></i></div>
+         </div>
+       </div>`
+    : '';
+  const monthTxt = t.month ? cmMonthNameCap(t.month) + ' · ' + cmSeasonLabel(cmSeasonOfTest(t)) : '';
+  return `<article class="cm-tcard ${cls} ${done ? 'done' : ''}">
+    <div class="cm-tc-top">
+      <span class="cm-tc-month">${monthTxt ? ic('calendar') + ' ' + esc(monthTxt) : ''}</span>
+      ${chip}
+    </div>
+    <h3>${esc(t.title)}</h3>
+    <ul class="cm-tc-facts">
+      <li>${ic('book')}<span>${t.total_questions} ${t.total_questions === 1 ? 'pregunta' : 'preguntas'}</span></li>
+      <li>${ic('repeat')}<span>Intentos: ${Math.min(t.attempts_used, t.max_attempts)}/${t.max_attempts}</span></li>
+      ${t.timer_mode && t.timer_mode !== 'none' ? `<li>${ic('timer')}<span>${esc(cmTimerText(t))}</span></li>` : ''}
+      ${t.closes_at ? `<li>${ic('clock')}<span>${closed ? 'Cerró el' : 'Cierra el'} ${cmFmtDate(t.closes_at)}</span></li>` : ''}
+    </ul>
+    ${result}
+    ${action ? `<div class="cm-tc-actions">${action}</div>` : ''}
+  </article>`;
 }
 
 /* ---------- CTA BAGES: lo que ven los árbitros (el administrador lo ve como vista previa) ---------- */
@@ -375,7 +452,7 @@ function cmMemberView(){
   if(preview){
     if(COMMITTEE.tests !== null){
       list = COMMITTEE.tests.filter(t => t.published).map(t => ({
-        id: t.id, title: t.title, opens_at: t.opens_at, closes_at: t.closes_at, max_attempts: t.max_attempts,
+        id: t.id, title: t.title, month: t.month, created_at: t.created_at, opens_at: t.opens_at, closes_at: t.closes_at, max_attempts: t.max_attempts,
         attempts_used: 0, total_questions: t.question_count, preview: true,
         timer_mode: t.timer_mode, time_minutes: t.time_minutes, seconds_per_question: t.seconds_per_question
       }));
@@ -386,7 +463,7 @@ function cmMemberView(){
   const now = Date.now();
   const previewBar = preview ? `<div class="cm-previewbar">${cmIc('eye')}<div><strong>Vista previa</strong><span>Así ven CTA BAGES los árbitros. Los tests y los mensajes se preparan y se publican desde el Panel de Formación.</span></div>
     <button class="btn btn-yellow" data-action="committee-training">${ic('target')} Ir al Panel de Formación</button></div>` : '';
-  const group = (title, sub, items) => items.length ? `<div class="lg-section-head"><h2>${title}</h2><span>${sub}</span></div><div class="cm-testlist">${items.map(t => cmMemberTestCard(t, now)).join('')}</div>` : '';
+  const group = (title, sub, items) => items.length ? `<div class="lg-section-head"><h2>${title} <em class="cm-count">${items.length}</em></h2><span>${sub}</span></div><div class="cm-testlist">${items.map(t => cmMemberTestCard(t, now)).join('')}</div>` : '';
   let body;
   if(COMMITTEE.error) body = `<div class="ac-empty">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>`;
   else if(list === null) body = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
@@ -400,18 +477,25 @@ function cmMemberView(){
     const past = list.filter(t => isClosed(t));
     body = group('Tests disponibles ahora', 'Puedes hacerlos ya', open) + group('Próximamente', 'Todavía no han abierto', upcoming) + group('Anteriores', 'Ya cerrados', past);
   }
-  const total = list ? list.length : 0;
-  const done = list ? list.filter(t => t.attempts_used > 0).length : 0;
-  const pct = total ? Math.round(done / total * 100) : 0;
   const memberTab = COMMITTEE.memberTab === 'perf' ? 'perf' : 'tests';
   const tabsBar = `<div class="tx-filters mp-tabs">
       <button class="tx-filter ${memberTab === 'tests' ? 'active' : ''}" data-action="committee-member-tab" data-tab="tests">${ic('book')} Tests</button>
       <button class="tx-filter ${memberTab === 'perf' ? 'active' : ''}" data-action="committee-member-tab" data-tab="perf">${ic('chart')} ${preview ? 'Rendimiento de un árbitro' : 'Mi rendimiento'}</button>
     </div>`;
+  const season = cmCurrentSeason();
+  let heroStats;
+  if(preview){
+    const nTests = list ? list.length : 0;
+    heroStats = [[nTests, 'Tests publicados'], [(COMMITTEE.members || []).length, 'Árbitros'], [cmPublishedMessages().length, 'Mensajes']];
+  } else {
+    const ps = cmPerfSummary(COMMITTEE.myTests || [], COMMITTEE.myAttempts || [], season);
+    heroStats = [[ps.total ? ps.score + '/' + ps.total : '—', 'Puntos'], [ps.pct !== null ? ps.pct + '%' : '—', 'Acierto'], [ps.count ? ps.done + '/' + ps.count : '—', 'Tests hechos']];
+  }
+  const heroRight = `<div class="lg-hero-stats cm-hero-stats cm-cta-stats">${heroStats.map(s => `<div class="lg-stat"><b>${s[0]}</b><span>${s[1]}</span></div>`).join('')}</div>`;
   return `
   ${cmHero('Comité de árbitros · Bages', 'CTA BAGES',
-      '',
-      '', preview ? '' : cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
+      preview ? 'Así ven los árbitros su espacio: tests, novedades del comité y su rendimiento.' : `Tus tests, las novedades del comité y tu rendimiento en la temporada ${cmSeasonLabel(season)}.`,
+      '', heroRight)}
   ${previewBar}
   ${tabsBar}
   ${memberTab === 'perf' ? cmMemberPerformance() : cmMessagesFeed() + body}`;
@@ -587,45 +671,6 @@ function cmResultView(){
 /* ---------- administrador: panel ---------- */
 /* ---------- administración: Panel de Formación (controla CTA BAGES) ---------- */
 /* ---------- miembro: lista de tests ---------- */
-function cmMemberTestCard(t, now){
-  const opens = Date.parse(t.opens_at);
-  const closes = t.closes_at ? Date.parse(t.closes_at) : null;
-  const notOpen = now < opens;
-  const closed = closes !== null && now >= closes;
-  const left = t.max_attempts - t.attempts_used;
-  const done = t.best_total !== null && t.best_total !== undefined;   // tiene algún resultado enviado
-  const cutOff = !done && t.attempts_used > 0 && left <= 0;      // empezó, no envió y ya no le quedan intentos
-  let cls, chip, action = '';
-  if(notOpen){ cls = 'sched'; chip = `<span class="cm-chip sched">Abre el ${cmFmtDate(t.opens_at)}</span>`; }
-  else if(closed){ cls = 'closed'; chip = '<span class="cm-chip closed">Cerrado</span>'; }
-  else { cls = 'open'; chip = '<span class="cm-chip open">Abierto</span>'; }
-  if(t.preview){
-    action = '<span class="cm-chip soft">Vista previa</span>';
-  } else if(!notOpen && !closed && left > 0){
-    action = `<button class="btn btn-primary" data-action="committee-start" data-tid="${t.id}">${done ? 'Hacer otro intento' : 'Empezar test'}</button>`;
-  } else if(done && (closed || !closes)){
-    action = `<button class="btn btn-secondary" data-action="committee-review" data-tid="${t.id}">Ver respuestas</button>`;
-  } else if(cutOff && !notOpen){
-    action = `<div class="cm-cutmsg">${cmIc('flag')}<span>Empezaste este test y no llegaste a enviarlo, así que el intento se ha gastado. Habla con tu responsable del comité para que te dé otro intento.</span></div>`;
-  }
-  const result = done
-    ? `<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-         ${accuracyBadge(Math.round(t.best_score / t.best_total * 100))}
-         <span style="font-size:13.5px;"><strong>Tu mejor resultado:</strong> ${t.best_score} / ${t.best_total}</span>
-       </div>`
-    : '';
-  return `<div class="cm-test ${cls}">
-    <div class="cm-test-head"><div class="cm-test-title">${esc(t.title)}</div>${chip}</div>
-    <div class="cm-meta">
-      <span>${cmIc('book')} ${t.total_questions} preguntas</span>
-      <span>${cmIc('repeat')} Intentos: ${t.attempts_used}/${t.max_attempts}</span>
-      ${t.closes_at ? `<span>${cmIc('clock')} Cierra el ${cmFmtDate(t.closes_at)}</span>` : ''}
-      ${t.timer_mode && t.timer_mode !== 'none' ? `<span>${cmIc('timer')} ${cmTimerText(t)}</span>` : ''}
-    </div>
-    ${result}
-    ${action ? `<div class="cm-actions">${action}</div>` : ''}
-  </div>`;
-}
 
 /* ---------- miembro: hacer el test ---------- */
 /* ---------- administrador: panel ---------- */
@@ -2018,6 +2063,7 @@ async function committeeOnAction(action, el){
     else { COMMITTEE.memberSortKey = k; COMMITTEE.memberSortDir = (k === 'done' || k === 'acc' || k === 'added' || k === 'last') ? 'desc' : 'asc'; }
     render();
   }
+  else if(action === 'committee-feed-toggle'){ COMMITTEE.feedAll = !COMMITTEE.feedAll; render(); }
   else if(action === 'committee-member-tab'){ COMMITTEE.memberTab = el.dataset.tab === 'perf' ? 'perf' : 'tests'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-member-add-toggle'){
     COMMITTEE.memberAddOpen = !COMMITTEE.memberAddOpen;
