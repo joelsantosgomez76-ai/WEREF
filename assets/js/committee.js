@@ -1019,8 +1019,7 @@ function cmTrainingView(){
   const s = cmAdminStats();
   const hero = cmHero('Administración · CTA BAGES', 'Panel de Formación',
     'Prepara aquí los tests y los árbitros, en privado. Cuando esté listo, publícalo y aparecerá en CTA BAGES.',
-    `<button class="btn btn-yellow" data-action="committee-new">${ic('plus')} Nuevo test</button>
-     <button class="btn btn-glass" data-action="committee-open">${ic('eye')} Ver CTA BAGES</button>`,
+    `<button class="btn btn-yellow" data-action="committee-new">${ic('plus')} Nuevo test</button>`,
     `<div class="lg-hero-stats cm-hero-stats">
       <div class="lg-stat"><b>${s.members}</b><span>Miembros</span></div>
       <div class="lg-stat"><b>${s.published}</b><span>Publicados</span></div>
