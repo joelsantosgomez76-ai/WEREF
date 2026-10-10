@@ -16,6 +16,12 @@ async function doRegister(email, password, metadata, captchaToken){
 }
 
 async function isUsernameTaken(username){
+  // Preferido: función del servidor que solo devuelve sí/no (no expone la lista de usuarios).
+  try{
+    const { data, error } = await supabaseClient.rpc('username_available', { p_username: username });
+    if(!error && typeof data === 'boolean') return !data;
+  }catch(e){}
+  // Respaldo (si aún no se ha instalado supabase/security-hardening.sql).
   const escaped = username.replace(/[%_\\]/g, '\\$&');
   const { data } = await supabaseClient.from('usernames').select('username').ilike('username', escaped).maybeSingle();
   return !!data;

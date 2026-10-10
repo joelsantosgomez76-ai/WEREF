@@ -4920,3 +4920,24 @@ document.addEventListener('visibilitychange', async () => {
 document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape' && STATE.confirmQuit){ STATE.confirmQuit = null; render(); }
 });
+
+/* ---------------- Seguridad: cierre de sesión por inactividad (solo maestro y desarrolladores) ----------------
+   Las cuentas de administración tienen muchos permisos; si se queda el navegador abierto y nadie lo usa,
+   la sesión se cierra sola tras 60 minutos sin actividad. */
+const ADMIN_IDLE_MS = 60 * 60 * 1000;
+let __lastActivity = Date.now();
+let __idleLoggingOut = false;
+['click', 'keydown', 'touchstart', 'mousemove', 'scroll'].forEach(ev => {
+  document.addEventListener(ev, () => { __lastActivity = Date.now(); }, { passive: true });
+});
+function adminIdleCheck(){
+  if(__idleLoggingOut) return;
+  if(typeof isDevUser !== 'function' || !isDevUser()) return;
+  if(Date.now() - __lastActivity < ADMIN_IDLE_MS) return;
+  __idleLoggingOut = true;
+  STATE.toast = 'Sesión cerrada por inactividad.';
+  try{ render(); }catch(e){}
+  setTimeout(() => { if(typeof handleLogout === 'function') handleLogout(); else window.location.href = 'index.html'; }, 1200);
+}
+setInterval(adminIdleCheck, 60 * 1000);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') adminIdleCheck(); });
