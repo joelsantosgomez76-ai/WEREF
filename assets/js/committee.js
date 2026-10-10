@@ -7,6 +7,9 @@
 const COMMITTEE = {
   status: null,       // null = sin cargar · {is_admin, is_member, setupMissing?}
   myTests: null,
+  myAttempts: [],
+  memberTab: 'tests',
+  memberSeason: null,
   tests: null,        // admin: tabla committee_tests (con nº de preguntas)
   members: null,
   attempts: null,
@@ -164,9 +167,13 @@ async function loadCommitteeStatus(){
 async function cmLoadMyTests(){
   COMMITTEE.error = null;
   await cmLoadMyMessages();
-  const { data, error } = await supabaseClient.rpc('committee_my_tests');
-  if(error){ COMMITTEE.error = cmErrText(error); COMMITTEE.myTests = []; }
-  else { COMMITTEE.myTests = data || []; }
+  const [tests, att] = await Promise.all([
+    supabaseClient.rpc('committee_my_tests'),
+    supabaseClient.from('committee_attempts').select('test_id,attempt_no,score,total,duration_sec,finished_at')
+  ]);
+  if(tests.error){ COMMITTEE.error = cmErrText(tests.error); COMMITTEE.myTests = []; }
+  else { COMMITTEE.myTests = tests.data || []; }
+  COMMITTEE.myAttempts = att.error ? [] : (att.data || []);   // la política solo deja ver los propios
   cmRefresh();
 }
 
@@ -249,6 +256,71 @@ function cmRingBlock(pct, label, sub){
     <div><b>${esc(label)}</b><span>${esc(sub)}</span></div>
   </div>`;
 }
+/* ---------- miembro: mi rendimiento durante la temporada ---------- */
+function cmMemberPerformance(){
+  const ic = (n) => shellIcon(n);
+  if(COMMITTEE.myTests === null) return `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
+  const now = Date.now();
+  const tests = (COMMITTEE.myTests || []).filter(t => Date.parse(t.opens_at) <= now);   // solo los que ya han abierto
+  const seasons = Array.from(new Set(tests.map(cmSeasonOfTest).concat([cmCurrentSeason()]))).sort().reverse();
+  const season = seasons.includes(COMMITTEE.memberSeason) ? COMMITTEE.memberSeason : cmCurrentSeason();
+  const inSeason = tests.filter(t => cmSeasonOfTest(t) === season)
+    .sort((a, b) => String(a.month || '').localeCompare(String(b.month || '')) || Date.parse(a.opens_at) - Date.parse(b.opens_at));
+  // Mejor intento de cada test: más puntos y, a igualdad, menos tiempo (igual que en la clasificación).
+  const best = {};
+  (COMMITTEE.myAttempts || []).forEach(a => {
+    const c = best[a.test_id];
+    if(!c || a.score > c.score || (a.score === c.score && (a.duration_sec || 0) < (c.duration_sec || 0))) best[a.test_id] = a;
+  });
+  const rows = inSeason.map(t => ({ t, a: best[t.id] || null }));
+  const done = rows.filter(r => r.a);
+  const score = done.reduce((s, r) => s + r.a.score, 0);
+  const total = done.reduce((s, r) => s + r.a.total, 0);
+  const pct = total ? Math.round(score / total * 100) : null;
+  const avgDur = done.length ? Math.round(done.reduce((s, r) => s + (r.a.duration_sec || 0), 0) / done.length) : null;
+  const tone = (p) => p >= 80 ? 'good' : p >= 60 ? 'mid' : 'bad';
+  const bars = rows.map(r => {
+    const p = r.a ? Math.round(r.a.score / r.a.total * 100) : null;
+    return `<div class="mp-bar" title="${esc(r.t.title)}${p !== null ? ' · ' + p + '%' : ' · pendiente'}">
+        <span class="mp-bar-val">${p !== null ? p : '—'}</span>
+        <div class="mp-bar-col">${p !== null ? `<i class="${tone(p)}" style="height:${Math.max(6, p)}%"></i>` : '<i class="none" style="height:6%"></i>'}</div>
+        <span class="mp-bar-lab">${esc(cmMonthNameCap(r.t.month).slice(0, 3) || '·')}</span>
+      </div>`;
+  }).join('');
+  const list = rows.map(r => {
+    const closed = r.t.closes_at && now >= Date.parse(r.t.closes_at);
+    const p = r.a ? Math.round(r.a.score / r.a.total * 100) : null;
+    return `<div class="mp-row ${r.a ? '' : 'none'}">
+      <div class="mp-row-main"><strong>${esc(r.t.title)}</strong><small>${r.t.month ? esc(cmMonthNameCap(r.t.month)) + ' ' + esc(r.t.month.slice(0, 4)) : '—'}${r.a ? ' · ' + cmFmtDate(r.a.finished_at) : ''}</small></div>
+      <span class="mp-cell"><b>${r.a ? r.a.score + '/' + r.a.total : '—'}</b><small>Puntos</small></span>
+      <span class="mp-cell">${r.a ? accuracyBadge(p) : `<span class="cm-chip ${closed ? 'closed' : 'sched'}">${closed ? 'No hecho' : 'Pendiente'}</span>`}<small>Acierto</small></span>
+      <span class="mp-cell"><b>${r.a ? cmFmtDur(r.a.duration_sec) : '—'}</b><small>Tiempo</small></span>
+    </div>`;
+  }).join('');
+  const seasonSel = seasons.length > 1 ? `<div class="rk-period"><label for="cm-mp-season">Temporada</label>
+      <select id="cm-mp-season" data-cm-field="memberSeason" data-cm-rerender>${seasons.map(s => `<option value="${esc(s)}" ${s === season ? 'selected' : ''}>${cmSeasonLabel(s)}</option>`).join('')}</select></div>` : '';
+  return `
+  <div class="tx-toolbar">
+    <div><div class="lg-section-head" style="margin:0;"><h2>Mi rendimiento</h2><span>Temporada ${cmSeasonLabel(season)}</span></div></div>
+    ${seasonSel}
+  </div>
+  <div class="home-kpis" style="margin-bottom:16px;">
+    <div class="kpi"><div class="kpi-top">${ic('trophy')} Puntos</div><div class="kpi-val">${score}<small> / ${total}</small></div><div class="kpi-sub">suma de tu mejor intento en cada test</div></div>
+    <div class="kpi"><div class="kpi-top">${ic('target')} Acierto</div><div class="kpi-val" ${pct !== null ? `style="color:${scoreColor(pct)};"` : ''}>${pct !== null ? pct + '<small>%</small>' : '—'}</div><div class="kpi-sub">sobre las preguntas respondidas</div></div>
+    <div class="kpi"><div class="kpi-top">${ic('check')} Tests hechos</div><div class="kpi-val">${done.length}<small> / ${rows.length}</small></div><div class="kpi-sub">${rows.length - done.length ? (rows.length - done.length) + ' por hacer' : 'al día'}</div></div>
+    <div class="kpi"><div class="kpi-top">${ic('clock')} Tiempo medio</div><div class="kpi-val">${cmFmtDur(avgDur)}</div><div class="kpi-sub">por test</div></div>
+  </div>
+  ${rows.length ? `
+  <div class="tc-card" style="margin-bottom:16px;">
+    <div class="tc-card-head"><span class="tc-step">${ic('chart')}</span><div><h3>Tu evolución</h3><small>% de acierto en cada test de la temporada</small></div></div>
+    <div class="mp-bars">${bars}</div>
+  </div>
+  <div class="tc-card">
+    <div class="tc-card-head"><span class="tc-step">${ic('list')}</span><div><h3>Tus resultados</h3><small>Se cuenta el mejor intento de cada test</small></div></div>
+    <div class="mp-list">${list}</div>
+  </div>` : `<div class="ac-empty">${ic('chart')}<strong>Todavía no hay tests en esta temporada</strong><span>Cuando haya tests publicados verás aquí tus puntos y tu evolución.</span></div>`}`;
+}
+
 /* ---------- miembro: lista de tests ---------- */
 /* ---------- CTA BAGES: lo que ven los árbitros (el administrador lo ve como vista previa) ---------- */
 function cmFmtMsgDate(iso){
@@ -312,13 +384,18 @@ function cmMemberView(){
   const total = list ? list.length : 0;
   const done = list ? list.filter(t => t.attempts_used > 0).length : 0;
   const pct = total ? Math.round(done / total * 100) : 0;
+  const memberTab = (!preview && COMMITTEE.memberTab === 'perf') ? 'perf' : 'tests';
+  const tabsBar = preview ? '' : `<div class="tx-filters mp-tabs">
+      <button class="tx-filter ${memberTab === 'tests' ? 'active' : ''}" data-action="committee-member-tab" data-tab="tests">${ic('book')} Tests</button>
+      <button class="tx-filter ${memberTab === 'perf' ? 'active' : ''}" data-action="committee-member-tab" data-tab="perf">${ic('chart')} Mi rendimiento</button>
+    </div>`;
   return `
   ${cmHero('Comité de árbitros · Bages', 'CTA BAGES',
       '',
       '', preview ? '' : cmRingBlock(pct, 'Tests hechos', done + ' de ' + total))}
   ${previewBar}
-  ${cmMessagesFeed()}
-  ${body}`;
+  ${tabsBar}
+  ${memberTab === 'perf' ? cmMemberPerformance() : cmMessagesFeed() + body}`;
 }
 
 /* ---------- Panel de Formación · Mensajes: se preparan y se publican en CTA BAGES ---------- */
@@ -1922,6 +1999,7 @@ async function committeeOnAction(action, el){
     else { COMMITTEE.memberSortKey = k; COMMITTEE.memberSortDir = (k === 'done' || k === 'acc' || k === 'added' || k === 'last') ? 'desc' : 'asc'; }
     render();
   }
+  else if(action === 'committee-member-tab'){ COMMITTEE.memberTab = el.dataset.tab === 'perf' ? 'perf' : 'tests'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-member-add-toggle'){
     COMMITTEE.memberAddOpen = !COMMITTEE.memberAddOpen;
     if(!COMMITTEE.memberAddOpen) COMMITTEE.memberReport = null;
