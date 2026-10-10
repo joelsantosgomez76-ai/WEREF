@@ -2080,3 +2080,8 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 .rk-period{flex-wrap:wrap;}
 .rk-period select{min-width:150px;}
 .rk-period label + select + label{margin-left:6px;}
+.cm-timer-field{margin-top:14px; max-width:320px;}
+.cm-timer-field small{display:block; margin-top:6px; color:var(--muted); font-size:12.5px;}
+#cm-timer.time-low{color:var(--red) !important;}
+.qz-chip #cm-timer{color:inherit;}
+.cm-dot[aria-label]:not(button){cursor:default;}
