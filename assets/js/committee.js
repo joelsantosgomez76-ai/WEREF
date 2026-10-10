@@ -80,9 +80,10 @@ function cmInCommittee(){ return typeof STATE.view === 'string' && STATE.view.st
 function cmRefresh(){ if(cmInCommittee()) render(); }
 function cmRuleLabel(q){
   if(q.domain === 'glossary') return 'Glosario';
+  if(q.domain === 'fcf') return 'Reglament General FCF';
   return q.rule ? 'Regla ' + q.rule : 'Sin regla';
 }
-function cmRuleShort(q){ return q.domain === 'glossary' ? 'G' : (q.rule ? 'R' + q.rule : '—'); }
+function cmRuleShort(q){ return q.domain === 'glossary' ? 'G' : q.domain === 'fcf' ? 'FCF' : (q.rule ? 'R' + q.rule : '—'); }
 function cmShuffle(arr){
   for(let i = arr.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
   return arr;
@@ -1088,14 +1089,14 @@ function cmQuestionDetail(q){
 
 function cmComposition(selected){
   const by = {};
-  selected.forEach(q => { const k = q.domain === 'glossary' ? 'G' : (q.rule ? 'R' + q.rule : '—'); by[k] = (by[k] || 0) + 1; });
+  selected.forEach(q => { const k = q.domain === 'glossary' ? 'G' : q.domain === 'fcf' ? 'FCF' : (q.rule ? 'R' + q.rule : '—'); by[k] = (by[k] || 0) + 1; });
   const keys = Object.keys(by).sort((a, b) => (parseInt(a.slice(1), 10) || 99) - (parseInt(b.slice(1), 10) || 99));
   return keys.map(k => `<span class="cm-chip soft">${k} × ${by[k]}</span>`).join('');
 }
 
 /* ---------- números de pregunta (los mismos que se ven en Base de datos con #) ---------- */
 function cmQuestionNumbers(){
-  const list = allQuestions();
+  const list = allQuestionsAdmin();
   const numOf = {};
   list.forEach((q, i) => { const n = questionNumber(q, i + 1); if(n) numOf[q.id] = n; });
   return { list, numOf };
@@ -1369,7 +1370,7 @@ function cmPreviewView(){
     </header>
     <div class="qz-progress"><i style="width:${Math.round(answered / qs.length * 100)}%"></i></div>
     <article class="qz-card">
-      <div class="qz-tag">${q.domain === 'glossary' ? 'Glosario' : (q.rule ? 'Regla ' + q.rule + ' · ' + esc(LAW_NAMES[q.rule] || '') : 'CTA BAGES')}${numOf[q.id] ? ` · <span class="cm-pv-adminnum">#${numOf[q.id]} (solo lo ves tú)</span>` : ''}</div>
+      <div class="qz-tag">${q.domain === 'glossary' ? 'Glosario' : q.domain === 'fcf' ? 'Reglament General FCF' : (q.rule ? 'Regla ' + q.rule + ' · ' + esc(LAW_NAMES[q.rule] || '') : 'CTA BAGES')}${numOf[q.id] ? ` · <span class="cm-pv-adminnum">#${numOf[q.id]} (solo lo ves tú)</span>` : ''}</div>
       <h2 class="qz-text">${esc(q.question)}</h2>
       <div class="qz-options">
         ${q.options.map((o, i) => `<button class="${optCls(letters[i])}" data-action="committee-pv-answer" data-letter="${letters[i]}"><span class="letter">${letters[i].toUpperCase()}</span><span class="opt-text">${esc(o)}</span></button>`).join('')}
@@ -1656,7 +1657,7 @@ async function committeeOnAction(action, el){
     // Si la pregunta sigue en el banco se usa la del banco (para que los filtros la marquen como elegida);
     // el contenido que manda es el guardado en el test.
     const bank = {};
-    allQuestions().forEach(q => { bank[questionDedupeKey(q)] = q; });
+    allQuestionsAdmin().forEach(q => { bank[questionDedupeKey(q)] = q; });
     const nb = cmNewBuilder();
     nb.editId = t.id;
     nb.title = t.title;
@@ -1720,7 +1721,7 @@ async function committeeOnAction(action, el){
     const qid = el.dataset.qid;
     const idx = b.selected.findIndex(q => q.id === qid);
     if(idx >= 0) b.selected.splice(idx, 1);
-    else { const q = allQuestions().find(x => x.id === qid); if(q) b.selected.push(q); }
+    else { const q = allQuestionsAdmin().find(x => x.id === qid); if(q) b.selected.push(q); }
     render();
   }
   else if(action === 'committee-b-expand'){
