@@ -14,6 +14,7 @@ const COMMITTEE = {
   qStats: null,
   detailQuestions: null,
   grants: {},
+  interrupted: {},
   grantsMissing: false,
   usedMap: null,      // texto normalizado de pregunta -> títulos de los tests donde ya salió
   tab: 'tests',
@@ -496,7 +497,8 @@ function cmMemberTestCard(t, now){
   const notOpen = now < opens;
   const closed = closes !== null && now >= closes;
   const left = t.max_attempts - t.attempts_used;
-  const done = t.attempts_used > 0;
+  const done = t.best_total !== null && t.best_total !== undefined;   // tiene algún resultado enviado
+  const cutOff = !done && t.attempts_used > 0 && left <= 0;      // empezó, no envió y ya no le quedan intentos
   let cls, chip, action = '';
   if(notOpen){ cls = 'sched'; chip = `<span class="cm-chip sched">Abre el ${cmFmtDate(t.opens_at)}</span>`; }
   else if(closed){ cls = 'closed'; chip = '<span class="cm-chip closed">Cerrado</span>'; }
@@ -507,6 +509,8 @@ function cmMemberTestCard(t, now){
     action = `<button class="btn btn-primary" data-action="committee-start" data-tid="${t.id}">${done ? 'Hacer otro intento' : 'Empezar test'}</button>`;
   } else if(done && (closed || !closes)){
     action = `<button class="btn btn-secondary" data-action="committee-review" data-tid="${t.id}">Ver respuestas</button>`;
+  } else if(cutOff && !notOpen){
+    action = `<div class="cm-cutmsg">${cmIc('flag')}<span>Empezaste este test y no llegaste a enviarlo, así que el intento se ha gastado. Habla con tu responsable del comité para que te dé otro intento.</span></div>`;
   }
   const result = done
     ? `<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
@@ -1191,16 +1195,19 @@ async function cmOpenDetail(tid){
   const t = (COMMITTEE.tests || []).find(x => x.id === tid);
   STATE.view = 'committeeTestDetail';
   render();
-  const [st, qs, gr] = await Promise.all([
+  const [st, qs, gr, it] = await Promise.all([
     supabaseClient.rpc('committee_admin_question_stats', { p_test_id: tid }),
     supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos'),
-    supabaseClient.from('committee_attempt_grants').select('*').eq('test_id', tid)
+    supabaseClient.from('committee_attempt_grants').select('*').eq('test_id', tid),
+    supabaseClient.rpc('committee_admin_interrupted', { p_test_id: tid })
   ]);
   COMMITTEE.qStats = st.error ? [] : (st.data || []);
   COMMITTEE.detailQuestions = qs.error ? [] : (qs.data || []);
   COMMITTEE.grants = {};
   COMMITTEE.grantsMissing = !!gr.error;
   (gr.error ? [] : (gr.data || [])).forEach(g => { COMMITTEE.grants[g.user_id] = g.extra; });
+  COMMITTEE.interrupted = {};
+  (it.error ? [] : (it.data || [])).forEach(r => { COMMITTEE.interrupted[r.out_user] = { cut: r.out_cut, since: r.out_since }; });
   if(st.error) STATE.toast = cmErrText(st.error);
   cmRefresh();
 }
@@ -1219,10 +1226,11 @@ function cmTestDetailView(){
   const memberOf = (uid) => (COMMITTEE.members || []).find(m => m.user_id === uid);
   const labelOf = (a) => { const m = memberOf(a.user_id); return m ? cmSurnameName(m) : cmWho(a); };
   const grantBtn = (uid, label) => `<button class="btn btn-ghost cm-grant" data-action="committee-grant-attempt" data-tid="${t.id}" data-uid="${uid}" ${COMMITTEE.grantsMissing ? 'disabled' : ''}>${cmIc('repeat')} ${label}</button>`;
+  const cutChip = (uid) => { const x = COMMITTEE.interrupted[uid]; if(!x) return ''; const n = x.cut + (x.since ? 1 : 0); return `<span class="cm-chip bad cm-cutchip" title="Empezó el test y no lo envió">${n > 1 ? n + ' intentos cortados' : 'Intento cortado'}${x.since ? ' · ' + cmFmtDate(x.since) : ''}</span>`; };
   const extraChip = (uid) => COMMITTEE.grants[uid]
     ? `<span class="cm-chip open cm-extra">+${COMMITTEE.grants[uid]} ${COMMITTEE.grants[uid] === 1 ? 'intento extra' : 'intentos extra'}<button class="cm-extra-x" data-action="committee-revoke-attempt" data-tid="${t.id}" data-uid="${uid}" title="Quitar el intento extra" aria-label="Quitar el intento extra">×</button></span>` : '';
   const rows = attempts.map(a => `<tr>
-    <td><strong>${esc(labelOf(a))}</strong> ${a.attempt_no === lastNo[a.user_id] ? extraChip(a.user_id) : ''}</td>
+    <td><strong>${esc(labelOf(a))}</strong> ${a.attempt_no === lastNo[a.user_id] ? cutChip(a.user_id) + extraChip(a.user_id) : ''}</td>
     <td class="mono">${a.attempt_no}</td>
     <td class="mono">${a.score}/${a.total}</td>
     <td>${accuracyBadge(Math.round(a.score / a.total * 100))}</td>
@@ -1263,7 +1271,7 @@ function cmTestDetailView(){
   ${pending.length ? `<div class="cm-card"><div class="cm-sec-title">Pendientes de hacerlo (${pending.length})</div>
     ${COMMITTEE.grantsMissing ? `<div class="st-note" style="margin-bottom:10px;">Para dar otro intento falta ejecutar el SQL <b>committee-extra-attempt.sql</b> en Supabase.</div>` : ''}
     <div class="cm-pend">${pending.slice().sort((a, b) => cmCollate(cmSurnameName(a), cmSurnameName(b))).map(m => `<div class="cm-pend-row">
-      <span class="cm-pend-name">${esc(cmSurnameName(m))}</span>${extraChip(m.user_id)}
+      <span class="cm-pend-name">${esc(cmSurnameName(m))}</span>${cutChip(m.user_id)}${extraChip(m.user_id)}
       ${grantBtn(m.user_id, 'Dar un intento')}
     </div>`).join('')}</div></div>` : ''}
   <div class="cm-card">
@@ -1746,6 +1754,18 @@ async function cmAddCategory(){
   STATE.toast = 'Categoría creada.'; render();
 }
 
+function cmBeginRun(data){
+  if(data && data.shuffle_mode === 'shuffled' && Array.isArray(data.questions)){
+    // Orden propio de este árbitro (fijo para este intento).
+    const uid = (typeof CURRENT_USER_ID !== 'undefined' && CURRENT_USER_ID) ? CURRENT_USER_ID : 'u';
+    data.questions = cmShuffleQuestions(data.questions, uid + '|' + data.id + '|' + (data.attempts_used || 0));
+  }
+  const now0 = Date.now();
+  COMMITTEE.run = { test: data, answers: {}, idx: 0, startedAt: now0, qStartedAt: now0, submitting: false };
+  STATE.view = 'committeeRun'; render(); window.scrollTo(0, 0);
+  cmStartRunTimer();
+}
+
 /* ---------- acciones ---------- */
 async function committeeOnAction(action, el){
   const tid = el.dataset.tid;
@@ -1816,22 +1836,24 @@ async function committeeOnAction(action, el){
 
   /* miembro */
   else if(action === 'committee-start'){
+    if(COMMITTEE.starting) return;           // evita el doble clic: cada vez que se abre el test gasta un intento
     const card = (COMMITTEE.myTests || []).find(x => x.id === tid);
-    if(card && card.timer_mode && card.timer_mode !== 'none'){
-      const extra = card.timer_mode === 'perQuestion' ? ' Cada pregunta se pasa sola al acabarse su tiempo y no se puede volver atrás.' : ' Al llegar a cero se envía solo.';
-      if(!(await appConfirm({ title: 'Test con tiempo limitado', message: cmTimerText(card) + '.' + extra + ' El reloj empieza al aceptar.', confirmText: 'Empezar ahora', cancelText: 'Todavía no', icon: 'timer' }))) return;
-    }
-    const { data, error } = await supabaseClient.rpc('committee_get_test', { p_test_id: tid });
-    if(error){ cmToast(cmErrText(error)); cmLoadMyTests(); return; }
-    if(data && data.shuffle_mode === 'shuffled' && Array.isArray(data.questions)){
-      // Orden propio de este árbitro (fijo para este intento: si reabre el test ve el mismo).
-      const uid = (typeof CURRENT_USER_ID !== 'undefined' && CURRENT_USER_ID) ? CURRENT_USER_ID : 'u';
-      data.questions = cmShuffleQuestions(data.questions, uid + '|' + data.id + '|' + (data.attempts_used || 0));
-    }
-    const now0 = Date.now();
-    COMMITTEE.run = { test: data, answers: {}, idx: 0, startedAt: now0, qStartedAt: now0, submitting: false };
-    STATE.view = 'committeeRun'; render(); window.scrollTo(0, 0);
-    cmStartRunTimer();
+    const timed = card && card.timer_mode && card.timer_mode !== 'none';
+    const extra = !timed ? '' : (card.timer_mode === 'perQuestion'
+      ? cmTimerText(card) + '. Cada pregunta se pasa sola al acabarse su tiempo y no se puede volver atrás. '
+      : cmTimerText(card) + '. Al llegar a cero se envía solo. ');
+    COMMITTEE.starting = true;
+    try{
+      const ok = await appConfirm({
+        title: timed ? 'Test con tiempo limitado' : 'Empezar el test',
+        message: extra + 'Al empezar se gasta un intento: si sales del test o se corta la conexión antes de enviarlo, no podrás volver a entrar hasta que tu responsable te dé otro intento.',
+        confirmText: 'Empezar ahora', cancelText: 'Todavía no', icon: timed ? 'timer' : 'play'
+      });
+      if(!ok) return;
+      const { data, error } = await supabaseClient.rpc('committee_get_test', { p_test_id: tid });
+      if(error){ cmToast(cmErrText(error)); cmLoadMyTests(); return; }
+      cmBeginRun(data);
+    } finally { COMMITTEE.starting = false; }
   }
   else if(action === 'committee-answer'){
     const r = COMMITTEE.run; if(!r) return;
@@ -1850,7 +1872,7 @@ async function committeeOnAction(action, el){
     if(r && r.idx < r.test.questions.length - 1){ r.idx++; r.qStartedAt = Date.now(); render(); }
   }
   else if(action === 'committee-exit-run'){
-    if(!(await appConfirm({ title: '¿Salir del test?', message: 'No se guardará ninguna respuesta y no se gastará el intento.', confirmText: 'Sí, salir', cancelText: 'Seguir con el test', danger: true, icon: 'flag' }))) return;
+    if(!(await appConfirm({ title: '¿Salir del test?', message: 'Si sales ahora no se guardará ninguna respuesta y el intento se dará por gastado: no podrás volver a entrar hasta que tu responsable te dé otro.', confirmText: 'Sí, salir', cancelText: 'Seguir con el test', danger: true, icon: 'flag' }))) return;
     cmStopRunTimer();
     COMMITTEE.run = null;
     STATE.view = 'committee';
