@@ -929,7 +929,7 @@ function cmNewBuilder(){
     timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
     selected: [], expanded: {},
     filterRule: 'all', filterDiff: 'all', filterText: '', hideUsed: false, page: 1,
-    genCount: 10, genRules: [],
+    numsText: '', numsReport: null,
     showCustom: false, custom: { q: '', a: '', b: '', c: '', d: '', correct: 'a', rule: '', expl: '' },
     saving: false
   };
@@ -966,9 +966,57 @@ function cmComposition(selected){
   return keys.map(k => `<span class="cm-chip soft">${k} × ${by[k]}</span>`).join('');
 }
 
+/* ---------- números de pregunta (los mismos que se ven en Base de datos con #) ---------- */
+function cmQuestionNumbers(){
+  const list = allQuestions();
+  const numOf = {};
+  list.forEach((q, i) => { numOf[q.id] = i + 1; });
+  return { list, numOf };
+}
+/* "12, 15-18  40 41" -> [12, 15, 16, 17, 18, 40, 41] (en el orden escrito, sin repetir) */
+function cmParseNumbers(text){
+  const out = [], seen = new Set();
+  const push = (n) => { if(n > 0 && !seen.has(n)){ seen.add(n); out.push(n); } };
+  const re = /(\d+)\s*(?:[-–—]|\.\.)\s*(\d+)|(\d+)/g;
+  let m;
+  while((m = re.exec(String(text || ''))) !== null){
+    if(m[3] !== undefined){ push(parseInt(m[3], 10)); continue; }
+    let a = parseInt(m[1], 10), z = parseInt(m[2], 10);
+    if(a > z){ const t = a; a = z; z = t; }
+    for(let n = a; n <= z && n - a < 300; n++) push(n);
+  }
+  return out;
+}
+function cmAddByNumbers(b){
+  const { list } = cmQuestionNumbers();
+  const nums = cmParseNumbers(b.numsText);
+  const inTest = new Set(b.selected.map(q => q.id));
+  const rep = { added: 0, already: [], missing: [] };
+  nums.forEach(n => {
+    const q = list[n - 1];
+    if(!q){ rep.missing.push(n); return; }
+    if(inTest.has(q.id)){ rep.already.push(n); return; }
+    b.selected.push(q); inTest.add(q.id); rep.added++;
+  });
+  rep.total = nums.length;
+  b.numsReport = rep;
+  return rep;
+}
+function cmNumsReportHtml(rep){
+  if(!rep) return '';
+  if(!rep.total) return `<div class="cm-nums-rep warn">${cmIc('flag')}<span>No he encontrado ningún número. Escríbelos separados por comas, espacios o saltos de línea.</span></div>`;
+  const rows = [];
+  if(rep.added) rows.push(`<div class="cm-nums-rep ok">${cmIc('check')}<span>Añadidas <b>${rep.added}</b> ${rep.added === 1 ? 'pregunta' : 'preguntas'} al test.</span></div>`);
+  if(rep.already.length) rows.push(`<div class="cm-nums-rep warn">${cmIc('flag')}<span>Ya estaban en el test: <b>${rep.already.join(', ')}</b>.</span></div>`);
+  if(rep.missing.length) rows.push(`<div class="cm-nums-rep bad">${cmIc('flag')}<span>No existen en la base de datos: <b>${rep.missing.join(', ')}</b>.</span></div>`);
+  return rows.join('');
+}
+
 function cmBuilderView(){
   const b = COMMITTEE.builder;
   if(!b) return cmAdminView();
+  const numOf = cmQuestionNumbers().numOf;
+  const numTag = (q) => numOf[q.id] ? `<span class="cm-qnum" title="Número en la base de datos">#${numOf[q.id]}</span>` : '';
   const curSeason = parseInt(cmCurrentSeason(), 10);
   const seasonSet = new Set([-1, 0, 1, 2].map(d => String(curSeason + d)));
   if(b.season) seasonSet.add(String(b.season));
@@ -981,13 +1029,12 @@ function cmBuilderView(){
   const ruleOpts = `<option value="all">Todas las reglas</option>` +
     Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<option value="${i}" ${String(b.filterRule) === String(i) ? 'selected' : ''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
     `<option value="glossary" ${b.filterRule === 'glossary' ? 'selected' : ''}>Glosario</option>`;
-  const genChips = Array.from({ length: 17 }, (_, i) => i + 1).map(i => `<button class="cm-pick ${b.genRules.includes(i) ? 'on' : ''}" data-action="committee-b-gen-rule" data-rule="${i}">R${i}</button>`).join('');
 
   const candHtml = pageItems.map(q => {
     const open = !!b.expanded[q.id];
     const used = cmUsedIn(q);
     return `<div class="cm-bank-q">
-      <div class="qtag" style="margin-bottom:4px;">${cmRuleLabel(q)}${q.difficulty === 'hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}${q.source === 'user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Del comité</span>' : ''}</div>
+      <div class="qtag" style="margin-bottom:4px;">${numTag(q)} ${cmRuleLabel(q)}${q.difficulty === 'hard' ? ' <span class="badge" style="background:var(--red); color:#fff;">Difícil</span>' : ''}${q.source === 'user' ? ' <span class="badge" style="background:var(--pitch); color:#fff;">Del comité</span>' : ''}</div>
       <div style="font-size:13.5px; margin-bottom:6px;">${esc(q.question)}</div>
       ${used.length ? `<div class="cm-used">Ya usada en: ${used.map(esc).join(', ')}</div>` : ''}
       ${open ? cmQuestionDetail(q) : ''}
@@ -1003,7 +1050,7 @@ function cmBuilderView(){
     return `<div class="cm-sel-item">
       <div class="cm-sel-row">
         <span class="cm-sel-num">${i + 1}.</span>
-        <span style="flex:1;">${esc(q.question)}<div style="margin-top:3px;"><span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${cmRuleShort(q)}</span></div></span>
+        <span style="flex:1;">${esc(q.question)}<div style="margin-top:3px;">${numTag(q)} <span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${cmRuleShort(q)}</span></div></span>
         <span class="cm-sel-tools">
           <button class="icon-btn" title="Subir" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>${shellIcon('up')}</button>
           <button class="icon-btn" title="Bajar" data-action="committee-b-move" data-qid="${esc(q.id)}" data-dir="1" ${i === b.selected.length - 1 ? 'disabled' : ''}>${shellIcon('down')}</button>
@@ -1076,13 +1123,14 @@ function cmBuilderView(){
   <div class="cm-builder">
     <div class="cm-b-main">
       <div class="cm-card">
-        <div class="cm-sec-title">${cmIc('wand')} Generar un test equilibrado</div>
-        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Reparte las preguntas a partes iguales entre las reglas que elijas (si no eliges ninguna, entre las 17). Respeta los filtros de dificultad y de preguntas ya usadas.</div>
-        <div class="cm-chips" style="margin-bottom:12px;">${genChips}</div>
-        <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-          <div style="width:120px;"><label for="cm-b-gen" style="margin-top:0;">Nº de preguntas</label><input type="number" id="cm-b-gen" min="1" max="100" data-cm-field="builder.genCount" value="${esc(String(b.genCount))}"></div>
-          <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-generate">${cmIc('wand')} Generar y añadir</button>
+        <div class="cm-sec-title">${cmIc('list')} Montar el test con números de pregunta</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Escribe los números que ves con <b>#</b> en la Base de datos. Sepáralos con comas, espacios o saltos de línea; también vale un rango (por ejemplo <b>120-125</b>). Se añaden en el orden que los escribas.</div>
+        <textarea id="cm-b-nums" data-cm-field="builder.numsText" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" style="margin:0;">${esc(b.numsText)}</textarea>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px;">
+          <button class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-b-add-numbers">${cmIc('plus')} Añadir al test</button>
+          <span style="font-size:12.5px; color:var(--muted);">El número es la posición en la Base de datos: si se borran o añaden preguntas, puede cambiar.</span>
         </div>
+        ${cmNumsReportHtml(b.numsReport)}
       </div>
 
       <div class="cm-card">
@@ -1100,7 +1148,6 @@ function cmBuilderView(){
           <input type="checkbox" id="cm-b-hideused" style="width:auto;" data-cm-field="builder.hideUsed" data-cm-rerender ${b.hideUsed ? 'checked' : ''}> Ocultar las preguntas que ya salieron en otros tests
         </label>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-          <button class="btn btn-secondary" data-action="committee-b-random">${cmIc('shuffle')} Añadir 10 aleatorias de esta búsqueda</button>
           <button class="btn btn-ghost" data-action="committee-b-toggle-custom">${cmIc('pencil')} ${b.showCustom ? 'Cerrar pregunta propia' : 'Escribir una pregunta propia'}</button>
         </div>
       </div>
@@ -1124,7 +1171,7 @@ function cmBuilderView(){
           </div>
         </div>
         ${b.selected.length ? `<div class="cm-chips" style="margin-bottom:8px;">${cmComposition(b.selected)}</div>` : ''}
-        ${selHtml || '<div style="font-size:13px; color:var(--muted); padding:8px 0;">Todavía no has elegido ninguna pregunta. Genera un test equilibrado o añade desde el banco.</div>'}
+        ${selHtml || '<div style="font-size:13px; color:var(--muted); padding:8px 0;">Todavía no has elegido ninguna pregunta. Escribe los números de las preguntas arriba o búscalas en el banco.</div>'}
         <button class="btn btn-primary" style="width:100%; margin-top:14px;" data-action="committee-b-save" ${b.saving ? 'disabled' : ''}>${b.saving ? 'Guardando...' : (b.editId ? 'Guardar cambios' : 'Guardar como borrador')}</button>
         <div style="font-size:12px; color:var(--muted); margin-top:8px; text-align:center;">${b.editId ? 'Sigue en borrador: los árbitros no lo ven hasta que lo publiques.' : 'Después podrás revisarlo y publicarlo.'}</div>
       </div>
@@ -1191,24 +1238,6 @@ async function cmSaveBuilder(){
     : (wasEdit ? 'Cambios guardados. El test sigue en borrador.' : 'Test guardado como borrador. Publícalo cuando esté listo.');
   render();
   cmLoadAdminData();
-}
-
-function cmGenerate(){
-  const b = COMMITTEE.builder;
-  const n = Math.max(1, Math.min(100, parseInt(b.genCount, 10) || 10));
-  const taken = new Set(b.selected.map(q => q.id));
-  const base = cmBankPool(b).filter(q => q.domain === 'law' && q.rule && !taken.has(q.id));
-  const rules = b.genRules.length ? b.genRules : Array.from({ length: 17 }, (_, i) => i + 1);
-  const buckets = rules.map(r => cmShuffle(base.filter(q => q.rule === r))).filter(a => a.length);
-  const picked = [];
-  let i = 0;
-  while(picked.length < n && buckets.some(x => x.length)){
-    const bk = buckets[i % buckets.length];
-    if(bk.length) picked.push(bk.pop());
-    i++;
-  }
-  picked.forEach(q => b.selected.push(q));
-  return picked.length;
 }
 
 /* ---------- acciones ---------- */
@@ -1481,26 +1510,13 @@ async function committeeOnAction(action, el){
     if(!confirm('¿Quitar todas las preguntas seleccionadas?')) return;
     b.selected = []; render();
   }
-  else if(action === 'committee-b-gen-rule'){
+  else if(action === 'committee-b-add-numbers'){
     if(!b) return;
-    const r = parseInt(el.dataset.rule, 10);
-    const i = b.genRules.indexOf(r);
-    if(i >= 0) b.genRules.splice(i, 1); else b.genRules.push(r);
-    render();
-  }
-  else if(action === 'committee-b-generate'){
-    if(!b) return;
-    const n = cmGenerate();
-    STATE.toast = n ? 'Añadidas ' + n + ' preguntas.' : 'No quedan preguntas con esos filtros.';
-    render();
-  }
-  else if(action === 'committee-b-random'){
-    if(!b) return;
-    const taken = new Set(b.selected.map(q => q.id));
-    const pool = cmShuffle(cmBankCandidates().filter(q => !taken.has(q.id)));
-    const picked = pool.slice(0, 10);
-    picked.forEach(q => b.selected.push(q));
-    STATE.toast = picked.length ? 'Añadidas ' + picked.length + ' preguntas.' : 'No quedan preguntas con ese filtro.';
+    const ta = document.getElementById('cm-b-nums');
+    if(ta) b.numsText = ta.value;
+    const rep = cmAddByNumbers(b);
+    // Se quedan en la caja solo los números que no se han podido añadir.
+    b.numsText = rep.missing.join(', ');
     render();
   }
   else if(action === 'committee-b-toggle-custom'){ if(b){ b.showCustom = !b.showCustom; render(); } }

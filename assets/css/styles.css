@@ -2085,3 +2085,9 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 #cm-timer.time-low{color:var(--red) !important;}
 .qz-chip #cm-timer{color:inherit;}
 .cm-dot[aria-label]:not(button){cursor:default;}
+.cm-qnum{display:inline-block; font:700 11px 'JetBrains Mono'; background:var(--pitch); color:#fff; border-radius:6px; padding:2px 7px; margin-right:4px; letter-spacing:0.02em;}
+.cm-nums-rep{display:flex; align-items:flex-start; gap:8px; margin-top:10px; padding:10px 12px; border-radius:10px; font-size:13.5px;}
+.cm-nums-rep svg{width:16px; height:16px; flex-shrink:0; margin-top:2px;}
+.cm-nums-rep.ok{background:#E9F7EE; color:#17603A;}
+.cm-nums-rep.warn{background:#FFF6E0; color:#7A5600;}
+.cm-nums-rep.bad{background:#FDECEC; color:#9B1C1C;}
