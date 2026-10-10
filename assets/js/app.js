@@ -275,7 +275,7 @@ let STATE = {
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
-  dbFilter: { search: '', law: 'all', difficulty: 'all', flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', page: 1 },
+  dbFilter: { search: '', law: 'all', difficulty: 'all', status: 'all', pageSize: 25, flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', page: 1 },
   reportedIds: {},
   reports: {},
   reportsLoaded: false,
@@ -3874,6 +3874,9 @@ function filteredDbList(){
   else if(f.difficulty === 'normal') list = list.filter(q => q.difficulty !== 'hard');
   if(f.flaggedOnly) list = list.filter(q => !!STATE.storage.flags[q.id]);
   if(f.myOnly) list = list.filter(q => q.source === 'user');
+  if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => !!STATE.storage.flags[q.id] || (STATE.reports[q.id]||0) > 0 || dups.has(q.id)); }
+  else if(f.status === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
+  else if(f.status === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
   if(f.reviewStatus === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
   else if(f.reviewStatus === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
   if(f.search && f.search.trim()){
@@ -3900,7 +3903,7 @@ function filteredDbList(){
 function databaseView(){
   const ic = (n) => shellIcon(n);
   const f = STATE.dbFilter;
-  const pageSize = 15;
+  const pageSize = [25, 50, 100].includes(f.pageSize) ? f.pageSize : 25;
   const list = filteredDbList();
   const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
   if(f.page > totalPages) f.page = totalPages;
@@ -3958,7 +3961,9 @@ function databaseView(){
 
   const reviewedCount = all.filter(q => STATE.storage.reviewed[q.id]).length;
   const reportedCount = Object.keys(STATE.reports).length;
-  const dupTotal = dupIds.size;
+  const attentionCount = all.filter(q => STATE.storage.flags[q.id] || (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
+  const pendingCount = all.length - reviewedCount;
+  const statusNow = f.status || 'all';
 
   const LOW_COUNT_THRESHOLD = 30;
   const { counts: lawCounts, glossary: glossaryCount } = questionCountsByLaw();
@@ -3967,11 +3972,15 @@ function databaseView(){
     const low = n < LOW_COUNT_THRESHOLD && !extra;
     return `<button class="db-lawchip ${String(f.law)===String(law) ? 'active' : ''} ${low ? 'low' : ''}" data-action="db-view-law-questions" data-law="${law}"><b>${label}</b><span>${n}</span></button>`;
   };
-  const lawCountChipsHtml = Array.from({length:17},(_,i)=>i+1).map(i => lawChip(i, 'R' + i, lawCounts[i] || 0)).join('')
+  const lawCountChipsHtml = `<button class="db-lawchip all ${String(f.law)==='all' ? 'active' : ''}" data-action="db-view-law-questions" data-law="all"><b>Todas</b><span>${all.length}</span></button>`
+    + Array.from({length:17},(_,i)=>i+1).map(i => lawChip(i, 'R' + i, lawCounts[i] || 0)).join('')
     + lawChip('glossary', 'Glosario', glossaryCount)
     + lawChip('assistants', 'Asistentes', assistantsCount, true);
 
-  const check = (id, checked, label) => `<label class="db-check ${checked ? 'on' : ''}"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span>${label}</span></label>`;
+  const statusChip = (key, label, n) => `<button class="db-status ${key} ${statusNow === key ? 'active' : ''}" data-action="db-set-status" data-status="${key}">${label}<em>${n}</em></button>`;
+  const advOpen = !!(f.dateFrom || f.dateTo || (f.dateField && f.dateField !== 'created'));
+  const from = list.length ? startIdx + 1 : 0;
+  const to = Math.min(startIdx + pageSize, list.length);
 
   return `
   <button class="backbtn" data-action="home">&larr; Inicio</button>
@@ -3982,22 +3991,26 @@ function databaseView(){
       <p>Revisa, edita y añade las preguntas de toda la plataforma. Los cambios que hagas los ven todos los usuarios.</p>
       <div class="ac-hero-actions">
         <button class="btn btn-yellow" data-action="add-from-db">${ic('plus')} Añadir pregunta</button>
-        <button class="btn btn-glass" data-action="export-excel">${ic('download')} Exportar Excel</button>
-        <label class="btn btn-glass" style="cursor:pointer; margin:0;">
-          ${ic('fileplus')} Importar Excel
-          <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none;">
-        </label>
+        <details class="db-more">
+          <summary class="btn btn-glass">${ic('more')} Más</summary>
+          <div class="db-more-menu">
+            <button class="db-more-item" data-action="export-excel">${ic('download')} Exportar a Excel</button>
+            <label class="db-more-item">${ic('fileplus')} Importar desde Excel
+              <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none;">
+            </label>
+          </div>
+        </details>
       </div>
     </div>
     <div class="lg-hero-stats">
       <div class="lg-stat"><b>${all.length}</b><span>Preguntas</span></div>
       <div class="lg-stat"><b>${reviewedCount}</b><span>Revisadas</span></div>
-      <div class="lg-stat"><b>${reportedCount}</b><span>Con reportes</span></div>
+      <div class="lg-stat"><b>${attentionCount}</b><span>Necesitan atención</span></div>
     </div>
   </section>
 
   <div class="tc-card" style="margin-bottom:16px;">
-    <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Preguntas por regla</h3><small>Pulsa una para filtrar · en rojo, las que tienen menos de ${LOW_COUNT_THRESHOLD}</small></div></div>
+    <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Preguntas por regla</h3><small>Pulsa una para filtrar, y otra vez para quitar el filtro · en rojo, menos de ${LOW_COUNT_THRESHOLD}</small></div></div>
     <div class="db-lawchips">${lawCountChipsHtml}</div>
   </div>
 
@@ -4007,34 +4020,44 @@ function databaseView(){
       ${ic('search')}
       <input type="text" id="db-search" placeholder="Busca por palabra en la pregunta o en las respuestas..." value="${esc(f.search)}" maxlength="100" aria-label="Buscar texto">
     </div>
-    <div class="db-filters">
-      <div><label for="db-law">Regla</label><select id="db-law">${lawOptions}</select></div>
-      <div><label for="db-difficulty">Dificultad</label>
+    <div class="db-filter-row">
+      <div class="db-status-group" role="group" aria-label="Estado">
+        ${statusChip('all', 'Todas', all.length)}
+        ${statusChip('attention', 'Necesitan atención', attentionCount)}
+        ${statusChip('pending', 'Sin revisar', pendingCount)}
+        ${statusChip('reviewed', 'Revisadas', reviewedCount)}
+      </div>
+      <div class="db-diff">
+        <label for="db-difficulty">Dificultad</label>
         <select id="db-difficulty">
           <option value="all" ${f.difficulty==='all'?'selected':''}>Todas</option>
           <option value="normal" ${f.difficulty==='normal'?'selected':''}>Normal</option>
           <option value="hard" ${f.difficulty==='hard'?'selected':''}>Difícil</option>
-        </select></div>
-      <div><label for="db-review-status">Revisión</label>
-        <select id="db-review-status">
-          <option value="all" ${f.reviewStatus==='all'?'selected':''}>Todas</option>
-          <option value="pending" ${f.reviewStatus==='pending'?'selected':''}>Pendientes</option>
-          <option value="reviewed" ${f.reviewStatus==='reviewed'?'selected':''}>Revisadas</option>
-        </select></div>
-      <div><label for="db-date-field">Filtrar por fecha de</label>
-        <select id="db-date-field">
-          <option value="created" ${f.dateField==='created'?'selected':''}>Creación</option>
-          <option value="updated" ${f.dateField==='updated'?'selected':''}>Última modificación</option>
-        </select></div>
-      <div><label for="db-date-from">Desde</label><input type="date" id="db-date-from" value="${esc(f.dateFrom)}"></div>
-      <div><label for="db-date-to">Hasta</label><input type="date" id="db-date-to" value="${esc(f.dateTo)}"></div>
+        </select>
+      </div>
     </div>
-    ${(f.dateFrom || f.dateTo) ? `<div class="st-note" style="margin-top:12px;">La fecha solo se registra desde esta actualización: las preguntas que ya existían antes y nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>` : ''}
-    <div class="db-checks">
-      ${check('db-flagged-only', f.flaggedOnly, 'Solo marcadas para revisar')}
-      ${check('db-reported-only', f.reportedOnly, `Solo reportadas por usuarios (${reportedCount})`)}
-      ${check('db-duplicates-only', f.duplicatesOnly, `Solo duplicadas (${dupTotal})`)}
-    </div>
+    <details class="db-adv" ${advOpen ? 'open' : ''}>
+      <summary>Filtros avanzados · fechas</summary>
+      <div class="db-filters">
+        <div><label for="db-date-field">Filtrar por fecha de</label>
+          <select id="db-date-field">
+            <option value="created" ${f.dateField==='created'?'selected':''}>Creación</option>
+            <option value="updated" ${f.dateField==='updated'?'selected':''}>Última modificación</option>
+          </select></div>
+        <div><label for="db-date-from">Desde</label><input type="date" id="db-date-from" value="${esc(f.dateFrom)}"></div>
+        <div><label for="db-date-to">Hasta</label><input type="date" id="db-date-to" value="${esc(f.dateTo)}"></div>
+      </div>
+      ${(f.dateFrom || f.dateTo) ? `<div class="st-note" style="margin-top:4px;">La fecha solo se registra desde que se añadió esta función: las preguntas antiguas que nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>` : ''}
+    </details>
+  </div>
+
+  <div class="db-results-head">
+    <span>${list.length ? `Mostrando <b>${from}–${to}</b> de <b>${list.length}</b>` : 'Sin resultados'}</span>
+    <label class="db-pagesize">Por página
+      <select id="db-page-size">
+        ${[25, 50, 100].map(n => `<option value="${n}" ${pageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
+      </select>
+    </label>
   </div>
 
   ${rows ? `<div class="ac-qlist">${rows}</div>` : `<div class="ac-empty">${ic('search')}<strong>Ninguna pregunta coincide con este filtro</strong><span>Prueba a quitar algún filtro.</span></div>`}
@@ -4591,6 +4614,8 @@ function bindEvents(){
   if(dbDuplicatesOnly){ dbDuplicatesOnly.addEventListener('change', (e)=>{ STATE.dbFilter.duplicatesOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
   const dbReviewStatus = document.getElementById('db-review-status');
   if(dbReviewStatus){ dbReviewStatus.addEventListener('change', (e)=>{ STATE.dbFilter.reviewStatus = e.target.value; STATE.dbFilter.page = 1; render(); }); }
+  const dbPageSize = document.getElementById('db-page-size');
+  if(dbPageSize){ dbPageSize.addEventListener('change', (e)=>{ STATE.dbFilter.pageSize = parseInt(e.target.value, 10) || 25; STATE.dbFilter.page = 1; render(); }); }
   const dbDateField = document.getElementById('db-date-field');
   if(dbDateField){ dbDateField.addEventListener('change', (e)=>{ STATE.dbFilter.dateField = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dbDateFrom = document.getElementById('db-date-from');
@@ -4699,7 +4724,7 @@ function onAction(e){
   else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.view='database'; loadQuestionReports(); render(); }
   else if(action==='db-view-law-questions'){
     if(!isDevUser()) return;
-    STATE.dbFilter.law = String(law);
+    { const rawL = el.dataset.law; STATE.dbFilter.law = (rawL === 'all' || String(STATE.dbFilter.law) === rawL) ? 'all' : String(rawL); }
     STATE.dbFilter.page = 1;
     STATE.editingId = null;
     STATE.view = 'database';
@@ -4831,6 +4856,7 @@ function onAction(e){
   else if(action==='start-hearts'){ startHeartsMode(); }
   else if(action==='start-suddendeath'){ startSuddenDeathMode(); }
   else if(action==='start-timeattack'){ startTimeAttackMode(); }
+  else if(action==='db-set-status'){ STATE.dbFilter.status = el.dataset.status; STATE.dbFilter.page = 1; STATE.editingId = null; render(); }
   else if(action==='db-prev-page'){ STATE.dbFilter.page = Math.max(1, STATE.dbFilter.page-1); render(); }
   else if(action==='db-next-page'){ STATE.dbFilter.page = STATE.dbFilter.page+1; render(); }
   else if(action==='toggle-reviewed'){
