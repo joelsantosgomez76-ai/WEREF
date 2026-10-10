@@ -23,7 +23,6 @@ const COMMITTEE = {
   memberReport: null,
   newMemberEmail: '',
   detailTestId: null,
-  settings: null,     // ajustes de UN test (detalle)
   messages: null,     // admin: mensajes del comité (borradores y publicados)
   myMessages: null,   // miembro: mensajes publicados
   msgDraft: { id: null, title: '', body: '' },
@@ -754,7 +753,6 @@ function cmTestsTab(){
         <button class="btn ${t.published ? 'btn-ghost' : 'btn-primary'} tx-main" data-action="committee-toggle-pub" data-tid="${t.id}">${ic(t.published ? 'lock' : 'play')} ${t.published ? 'Quitar de CTA BAGES' : 'Publicar en CTA BAGES'}</button>
         <button class="tx-icon" data-action="committee-edit-test" data-tid="${t.id}" title="Editar test" aria-label="Editar test">${ic('pencil')}</button>
         <button class="tx-icon" data-action="committee-detail" data-tid="${t.id}" title="Resultados y ajustes" aria-label="Resultados y ajustes">${ic('chart')}</button>
-        <button class="tx-icon" data-action="committee-duplicate" data-tid="${t.id}" title="Duplicar" aria-label="Duplicar">${ic('copy')}</button>
         <button class="tx-icon danger" data-action="committee-delete-test" data-tid="${t.id}" title="Eliminar" aria-label="Eliminar">${ic('trash')}</button>
       </div>
     </article>`;
@@ -1043,7 +1041,6 @@ async function cmOpenDetail(tid){
   COMMITTEE.qStats = null;
   COMMITTEE.detailQuestions = null;
   const t = (COMMITTEE.tests || []).find(x => x.id === tid);
-  COMMITTEE.settings = t ? { opens: cmToLocalInput(t.opens_at), closes: cmToLocalInput(t.closes_at), max: String(t.max_attempts) } : null;
   STATE.view = 'committeeTestDetail';
   render();
   const [st, qs] = await Promise.all([
@@ -1059,7 +1056,6 @@ async function cmOpenDetail(tid){
 function cmTestDetailView(){
   const t = (COMMITTEE.tests || []).find(x => x.id === COMMITTEE.detailTestId);
   if(!t) return '<button class="backbtn" data-action="committee-training">&larr; Volver</button><div class="empty-state">Test no encontrado.</div>';
-  const set = COMMITTEE.settings || { opens: '', closes: '', max: '1' };
   const attempts = (COMMITTEE.attempts || []).filter(a => a.test_id === t.id)
     .sort((a, b) => b.score - a.score || (a.duration_sec || 0) - (b.duration_sec || 0));
   const doneIds = new Set(attempts.map(a => a.user_id));
@@ -1098,16 +1094,6 @@ function cmTestDetailView(){
     <div class="kpi"><div class="kpi-top">${cmIc('target')} Acierto medio</div><div class="kpi-val" ${avgPct !== null ? `style="color:${scoreColor(avgPct)};"` : ''}>${avgPct !== null ? avgPct + '<small>%</small>' : '—'}</div><div class="kpi-sub">de todos los intentos</div></div>
     <div class="kpi"><div class="kpi-top">${cmIc('clock')} Tiempo medio</div><div class="kpi-val">${cmFmtDur(avgDur)}</div><div class="kpi-sub">por intento</div></div>
     <div class="kpi"><div class="kpi-top">${cmIc('repeat')} Pendientes</div><div class="kpi-val">${pending.length}</div><div class="kpi-sub">aún sin hacerlo</div></div>
-  </div>
-
-  <div class="cm-card">
-    <div class="cm-sec-title">Ajustes del test</div>
-    <div class="cm-fields">
-      <div><label for="cm-s-opens">Abre</label><input type="datetime-local" id="cm-s-opens" data-cm-field="settings.opens" value="${esc(set.opens)}"></div>
-      <div><label for="cm-s-closes">Cierra (vacío = sin cierre)</label><input type="datetime-local" id="cm-s-closes" data-cm-field="settings.closes" value="${esc(set.closes)}"></div>
-      <div><label for="cm-s-max">Intentos permitidos</label><input type="number" id="cm-s-max" min="1" max="20" data-cm-field="settings.max" value="${esc(String(set.max))}"></div>
-    </div>
-    <div style="margin-top:14px;"><button class="btn btn-primary" data-action="committee-save-settings" data-tid="${t.id}">Guardar ajustes</button></div>
   </div>
 
   <div class="cm-card" style="overflow-x:auto;">
@@ -1767,23 +1753,6 @@ async function committeeOnAction(action, el){
     STATE.toast = 'Test eliminado.'; render();
     cmLoadAdminData();
   }
-  else if(action === 'committee-duplicate'){
-    const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
-    const { data, error } = await supabaseClient.from('committee_test_questions').select('*').eq('test_id', tid).order('pos');
-    if(error){ cmToast(cmErrText(error)); return; }
-    const nb = cmNewBuilder();
-    nb.title = 'Copia de ' + t.title;
-    nb.maxAttempts = t.max_attempts;
-    nb.timerMode = t.timer_mode || 'none'; nb.minutes = t.time_minutes || nb.minutes; nb.secPerQ = t.seconds_per_question || nb.secPerQ;
-    nb.shuffleMode = t.shuffle_mode || 'fixed';
-    nb.selected = (data || []).map((q, i) => ({
-      id: 'dup-' + Date.now() + '-' + i, question: q.question, options: q.options, correct: q.correct,
-      rule: q.rule, explanation: q.explanation || '', domain: q.rule ? 'law' : 'glossary', difficulty: 'normal', source: 'user'
-    }));
-    COMMITTEE.builder = nb;
-    STATE.view = 'committeeBuilder'; render(); window.scrollTo(0, 0);
-    STATE.toast = 'Test duplicado: cambia lo que quieras y guárdalo.'; render();
-  }
   else if(action === 'committee-edit-test'){
     if(!isDevUser()) return;
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
@@ -1821,21 +1790,6 @@ async function committeeOnAction(action, el){
     const lb = document.getElementById('cm-dq-all-label'); if(lb) lb.textContent = open ? 'Ocultar todas' : 'Ver todas';
   }
   else if(action === 'committee-detail'){ cmOpenDetail(tid); window.scrollTo(0, 0); }
-  else if(action === 'committee-save-settings'){
-    const s = COMMITTEE.settings; if(!s) return;
-    const opens = s.opens ? new Date(s.opens) : null;
-    const closes = s.closes ? new Date(s.closes) : null;
-    if(!opens){ cmToast('Indica la fecha de apertura.'); return; }
-    if(closes && closes <= opens){ cmToast('La fecha de cierre tiene que ser posterior a la de apertura.'); return; }
-    const max = Math.max(1, parseInt(s.max, 10) || 1);
-    const { error } = await supabaseClient.from('committee_tests').update({ opens_at: opens.toISOString(), closes_at: closes ? closes.toISOString() : null, max_attempts: max }).eq('id', tid);
-    if(error){ cmToast(cmErrText(error)); return; }
-    STATE.toast = 'Ajustes guardados.'; render();
-    await cmLoadAdminData();
-    const t = (COMMITTEE.tests || []).find(x => x.id === tid);
-    if(t) COMMITTEE.settings = { opens: cmToLocalInput(t.opens_at), closes: cmToLocalInput(t.closes_at), max: String(t.max_attempts) };
-    cmRefresh();
-  }
   else if(action === 'committee-export-test'){
     const t = (COMMITTEE.tests || []).find(x => x.id === tid); if(!t) return;
     const rows = (COMMITTEE.attempts || []).filter(a => a.test_id === tid).map(a => ({
