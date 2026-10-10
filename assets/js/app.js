@@ -395,6 +395,56 @@ function startTimer(){
 /* ---------------- BANCO COMPARTIDO (tabla shared_questions) ----------------
    Preguntas añadidas por el administrador + sus cambios sobre las preguntas base
    (editar / eliminar). Lo leen todos los usuarios; solo el administrador escribe. */
+
+/* Cuadro de confirmación propio de la app (sustituye a los avisos del navegador).
+   Devuelve una promesa: true = confirmar, false = cancelar. Uso: if(!(await appConfirm({...}))) return; */
+let APP_DIALOG_CLOSE = null;
+function appDialogClose(){ if(APP_DIALOG_CLOSE) APP_DIALOG_CLOSE(false); }
+function appConfirm(o){
+  o = o || {};
+  return new Promise(resolve => {
+    appDialogClose();
+    const prev = document.getElementById('app-dialog');
+    if(prev) prev.remove();
+    const lastFocus = document.activeElement;
+    const modal = document.createElement('div');
+    modal.id = 'app-dialog';
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<div class="modal-card qz-confirm" role="alertdialog" aria-modal="true" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-msg">
+      <span class="qz-confirm-ic ${o.danger ? 'danger' : ''}">${shellIcon(o.icon || (o.danger ? 'trash' : 'flag'))}</span>
+      <h3 id="app-dialog-title">${esc(o.title || '¿Estás seguro?')}</h3>
+      <p id="app-dialog-msg">${esc(o.message || '')}</p>
+      <div class="qz-confirm-actions">
+        <button type="button" class="btn ${o.danger ? 'btn-danger-solid' : 'btn-primary'}" data-dlg="ok">${esc(o.confirmText || 'Aceptar')}</button>
+        <button type="button" class="btn btn-ghost" data-dlg="cancel">${esc(o.cancelText || 'Cancelar')}</button>
+      </div>
+    </div>`;
+    let done = false;
+    const finish = (val) => {
+      if(done) return; done = true;
+      document.removeEventListener('keydown', onKey, true);
+      if(APP_DIALOG_CLOSE === finish) APP_DIALOG_CLOSE = null;
+      modal.remove();
+      try{ if(lastFocus && lastFocus.focus) lastFocus.focus(); }catch(e){}
+      resolve(val);
+    };
+    const onKey = (e) => {
+      if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); finish(false); }
+    };
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal) return finish(false);
+      const t = e.target.closest('[data-dlg]');
+      if(t) finish(t.dataset.dlg === 'ok');
+    });
+    APP_DIALOG_CLOSE = finish;
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(modal);
+    const okBtn = modal.querySelector('[data-dlg="ok"]');
+    const cancelBtn = modal.querySelector('[data-dlg="cancel"]');
+    // En acciones destructivas el foco empieza en "Cancelar" para evitar un Enter accidental.
+    (o.danger ? cancelBtn : okBtn).focus();
+  });
+}
 const SHARED = { ready:false, rows:{}, added:[], over:{} };
 
 /* Número único y permanente de cada pregunta (tabla question_numbers; solo lo ven los administradores).
