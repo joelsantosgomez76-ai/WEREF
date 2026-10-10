@@ -2233,3 +2233,25 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 @media (max-width:980px){
   .mb-layout, .cs-layout{grid-template-columns:1fr;}
 }
+
+/* ---------- Miembros: acabado (sigue la línea de la app) ---------- */
+.mb-table{min-width:760px;}
+.mb-tablewrap{border-radius:14px; box-shadow:var(--shadow);}
+.mb-table .mb-th th{padding-top:11px; padding-bottom:11px;}
+.mb-person{display:inline-flex; align-items:center; gap:10px;}
+.mb-av{width:32px; height:32px; font-size:12px; letter-spacing:0.02em;}
+.mb-table td{padding-top:9px; padding-bottom:9px;}
+.mb-c-date{display:table-cell;}
+.mb-c-date svg{width:13px; height:13px; color:var(--accent); vertical-align:-2px; margin-right:4px;}
+.mb-cat{border:1.5px solid var(--line) !important; border-left-width:5px !important; border-left-color:var(--c) !important; background:#fff;}
+.mb-cat.has{background:color-mix(in srgb, var(--c) 12%, #fff); border-color:color-mix(in srgb, var(--c) 45%, #fff) !important; border-left-color:var(--c) !important; color:var(--ink);}
+.mb-chipsrow{margin-bottom:14px;}
+.mb-chips{gap:8px;}
+.mb-dot{width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:-2px;}
+.mb-listcard .tc-card-head{flex-wrap:wrap;}
+.mb-listcard .tc-card-head .cm-actions{display:flex; gap:8px; flex-wrap:wrap;}
+.mb-table tbody td.mb-c-email{max-width:260px;}
+@media (max-width:640px){
+  .mb-table{min-width:680px;}
+  .mb-listcard .tc-card-head .cm-actions{width:100%;}
+}

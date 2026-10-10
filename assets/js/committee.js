@@ -20,7 +20,7 @@ const COMMITTEE = {
   memberReport: null,
   memberSortKey: 'surname',
   memberSortDir: 'asc',
-  memberFilters: { last: '', first: '', user: '', email: '', cat: 'all', res: 'all' },
+  memberFilters: { last: '', first: '', email: '', cat: 'all' },
   memberSel: {},
   categories: null,
   catsMissing: false,
@@ -831,12 +831,96 @@ function cmMembersData(){
   const f = COMMITTEE.memberFilters;
   const all = (COMMITTEE.members || []).map(m => ({ m, s: cmMemberStats(m.user_id), p: cmNameParts(m) }));
   const has = (v, q) => { const t = cmPlain(q).trim(); return !t || cmPlain(v).includes(t); };
-  const list = all.filter(e => has(e.p.last, f.last) && has(e.p.first, f.first) && has(e.m.username, f.user) && has(e.m.email, f.email)
-    && (f.cat === 'all' || (f.cat === 'none' ? !e.m.category_id : e.m.category_id === f.cat))
-    && (f.res === 'all' || (f.res === 'with' ? e.s.pct !== null : e.s.pct === null)));
+  const list = all.filter(e => has(e.p.last, f.last) && has(e.p.first, f.first) && has(e.m.email, f.email)
+    && (f.cat === 'all' || (f.cat === 'none' ? !e.m.category_id : e.m.category_id === f.cat)));
   list.sort((a, b) => cmCompareMembers(a, b, COMMITTEE.memberSortKey, COMMITTEE.memberSortDir));
-  const filtered = !!(f.last || f.first || f.user || f.email || f.cat !== 'all' || f.res !== 'all');
+  const filtered = !!(f.last || f.first || f.email || f.cat !== 'all');
   return { all, list, filtered };
+}
+function cmMemberRowHtml(e){
+  const ic = (n) => shellIcon(n);
+  const m = e.m, p = e.p;
+  const cat = cmCatById(m.category_id);
+  let h = 0; const seed = cmSurnameName(m); for(let k = 0; k < seed.length; k++) h = (h * 31 + seed.charCodeAt(k)) % 360;
+  return `<tr class="${COMMITTEE.memberSel[m.user_id] ? 'sel' : ''}">
+      <td class="mb-c-chk"><input type="checkbox" class="mb-chk" data-uid="${m.user_id}" ${COMMITTEE.memberSel[m.user_id] ? 'checked' : ''} aria-label="Seleccionar"></td>
+      <td class="mb-c-last"><span class="mb-person"><span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span><strong>${esc(p.last || '—')}</strong></span></td>
+      <td class="mb-c-first">${esc(p.first || '—')}</td>
+      <td class="mb-c-email" title="${esc(m.email || '')}">${esc(m.email || '—')}</td>
+      <td class="mb-c-cat">
+        <select class="mb-cat ${cat ? 'has' : ''}" data-uid="${m.user_id}" style="${cat ? '--c:' + esc(cat.color) : ''}" ${COMMITTEE.catsMissing ? 'disabled' : ''} aria-label="Categoría">${cmCatOptions(m.category_id, 'Sin categoría')}</select>
+      </td>
+      <td class="mb-c-date">${m.last_sign_in_at ? ic('clock') + ' ' + cmFmtDay(m.last_sign_in_at) : '<span class="mb-none">—</span>'}</td>
+      <td class="mb-c-del"><button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button></td>
+    </tr>`;
+}
+function cmMembersBodyHtml(){
+  const { all, list } = cmMembersData();
+  if(!all.length) return `<tr><td colspan="7" class="mb-empty">Todavía no hay ningún miembro. Añade el primero con su correo.</td></tr>`;
+  if(!list.length) return `<tr><td colspan="7" class="mb-empty">Nadie coincide con esos filtros.</td></tr>`;
+  return list.map(cmMemberRowHtml).join('');
+}
+function cmMembersTab(){
+  const ic = (n) => shellIcon(n);
+  const f = COMMITTEE.memberFilters;
+  const key = COMMITTEE.memberSortKey, dir = COMMITTEE.memberSortDir;
+  const th = (k, label) => `<th><button class="mb-sortbtn ${key === k ? 'on' : ''}" data-action="committee-member-sort" data-key="${k}">${label}<span class="mb-arrow">${key === k ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></th>`;
+  const members = COMMITTEE.members || [];
+  const cats = COMMITTEE.categories || [];
+  const nCat = (id) => members.filter(m => (id === 'none' ? !m.category_id : m.category_id === id)).length;
+  const chip = (id, label, n, color) => `<button class="tx-filter ${f.cat === id ? 'active' : ''}" data-action="committee-member-cat-filter" data-cat="${esc(id)}">${color ? `<i class="mb-dot" style="background:${esc(color)}"></i>` : ''}${esc(label)}<em>${n}</em></button>`;
+  const chips = `<div class="tx-filters mb-chips">${chip('all', 'Todos', members.length)}${cats.map(c => chip(c.id, c.name, nCat(c.id), c.color)).join('')}${cats.length ? chip('none', 'Sin categoría', nCat('none')) : ''}</div>`;
+  const rep = COMMITTEE.memberReport;
+  const repHtml = rep ? `
+      ${rep.added ? `<div class="cm-nums-rep ok">${ic('check')}<span>Añadidos <b>${rep.added}</b> ${rep.added === 1 ? 'árbitro' : 'árbitros'}.</span></div>` : ''}
+      ${rep.already ? `<div class="cm-nums-rep warn">${ic('flag')}<span><b>${rep.already}</b> ya tenían acceso.</span></div>` : ''}
+      ${rep.notFound.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No están registrados en we-ref.com: <b>${rep.notFound.map(esc).join(', ')}</b>. Pídeles que se creen una cuenta.</span></div>` : ''}
+      ${rep.invalid.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No parecen correos válidos: <b>${rep.invalid.map(esc).join(', ')}</b>.</span></div>` : ''}` : '';
+  const catFilterOpts = `<option value="all" ${f.cat === 'all' ? 'selected' : ''}>Todas</option><option value="none" ${f.cat === 'none' ? 'selected' : ''}>Sin categoría</option>` +
+    cats.map(c => `<option value="${esc(c.id)}" ${f.cat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  return `
+  <div class="tp-layout mb-layout">
+    <div class="mb-main">
+      <div class="tc-card mb-listcard" id="cm-members-table">
+        <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small id="cm-members-count">${cmMembersCountText()}</small></div>
+          <div class="cm-actions">
+            <button class="btn btn-ghost" data-action="committee-member-clear-filters">${ic('repeat')} Limpiar filtros</button>
+            <button class="btn btn-ghost" data-action="committee-export-members">${ic('download')} Exportar</button>
+          </div>
+        </div>
+        ${COMMITTEE.catsMissing ? `<div class="st-note" style="margin-bottom:12px;">Para usar categorías falta ejecutar el SQL <b>committee-categories.sql</b> en Supabase.</div>` : ''}
+        ${members.length && cats.length ? `<div class="mb-chipsrow" id="cm-members-chips">${chips}</div>` : ''}
+        <div id="cm-members-bulk">${cmMembersBulkHtml()}</div>
+        <div class="mb-tablewrap">
+          <table class="mb-table">
+            <thead>
+              <tr class="mb-th">
+                <th class="mb-c-chk"><input type="checkbox" id="mb-all" aria-label="Seleccionar todos"></th>
+                ${th('surname', 'Apellidos')}${th('name', 'Nombre')}${th('email', 'Correo')}${th('cat', 'Categoría')}${th('last', 'Último acceso')}
+                <th class="mb-c-del"></th>
+              </tr>
+              <tr class="mb-filters">
+                <th></th>
+                <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="email" type="text" value="${esc(f.email)}" placeholder="Filtrar" aria-label="Filtrar por correo" autocomplete="off"></th>
+                <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catFilterOpts}</select></th>
+                <th></th><th></th>
+              </tr>
+            </thead>
+            <tbody id="cm-members-body">${cmMembersBodyHtml()}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <aside class="tc-card mb-add">
+      <div class="tc-card-head"><span class="tc-step">${ic('userplus')}</span><div><h3>Añadir árbitros</h3><small>Uno o varios correos</small></div></div>
+      <textarea id="cm-new-member" data-cm-field="newMemberEmail" rows="4" placeholder="correo@ejemplo.com&#10;otro@ejemplo.com" style="margin:0;">${esc(COMMITTEE.newMemberEmail)}</textarea>
+      <button class="btn btn-primary" style="width:100%; margin-top:12px; display:inline-flex; align-items:center; justify-content:center; gap:8px;" data-action="committee-add-member">${ic('userplus')} Añadir</button>
+      ${repHtml}
+      <div class="st-note" style="margin-top:12px;">Puedes pegar varios correos separados por comas, espacios o saltos de línea. Cada persona tiene que haberse registrado antes en we-ref.com con ese mismo correo.</div>
+    </aside>
+  </div>`;
 }
 
 function cmCatOptions(selectedId, noneLabel){
@@ -844,34 +928,7 @@ function cmCatOptions(selectedId, noneLabel){
     (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${selectedId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 }
 
-function cmMemberRowHtml(e){
-  const ic = (n) => shellIcon(n);
-  const m = e.m, s = e.s, p = e.p;
-  const cat = cmCatById(m.category_id);
-  const pct = s.published ? Math.round(s.done / s.published * 100) : 0;
-  return `<tr class="${COMMITTEE.memberSel[m.user_id] ? 'sel' : ''}">
-      <td class="mb-c-chk"><input type="checkbox" class="mb-chk" data-uid="${m.user_id}" ${COMMITTEE.memberSel[m.user_id] ? 'checked' : ''} aria-label="Seleccionar"></td>
-      <td class="mb-c-last"><strong>${esc(p.last || '—')}</strong></td>
-      <td class="mb-c-first">${esc(p.first || '—')}</td>
-      <td class="mb-c-user">${m.username ? '@' + esc(m.username) : '<span class="mb-none">—</span>'}</td>
-      <td class="mb-c-email" title="${esc(m.email || '')}">${esc(m.email || '—')}</td>
-      <td class="mb-c-cat">
-        <select class="mb-cat" data-uid="${m.user_id}" style="${cat ? '--c:' + esc(cat.color) : ''}" ${COMMITTEE.catsMissing ? 'disabled' : ''} aria-label="Categoría">${cmCatOptions(m.category_id, 'Sin categoría')}</select>
-      </td>
-      <td class="mb-c-tests"><div class="mb-prog-top">${s.done}/${s.published}</div><div class="mb-prog-bar"><i style="width:${pct}%"></i></div></td>
-      <td class="mb-c-acc">${s.pct !== null ? accuracyBadge(s.pct) : '<span class="mb-none">—</span>'}</td>
-      <td class="mb-c-date">${cmFmtDay(m.added_at)}</td>
-      <td class="mb-c-date">${m.last_sign_in_at ? cmFmtDay(m.last_sign_in_at) : '<span class="mb-none">—</span>'}</td>
-      <td class="mb-c-del"><button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button></td>
-    </tr>`;
-}
 
-function cmMembersBodyHtml(){
-  const { all, list } = cmMembersData();
-  if(!all.length) return `<tr><td colspan="11" class="mb-empty">Todavía no hay ningún miembro. Añade el primero con su correo.</td></tr>`;
-  if(!list.length) return `<tr><td colspan="11" class="mb-empty">Nadie coincide con esos filtros.</td></tr>`;
-  return list.map(cmMemberRowHtml).join('');
-}
 function cmMembersCountText(){
   const { all, list } = cmMembersData();
   return list.length === all.length
@@ -934,10 +991,10 @@ function cmBindMembersTable(){
     if(!t.classList) return;
     if(t.classList.contains('mb-f') && t.tagName === 'SELECT'){
       COMMITTEE.memberFilters[t.dataset.col] = t.value;
-      cmMembersRefreshParts();
+      render();   // repinta también los chips de categoría
     } else if(t.classList.contains('mb-cat')){
-      const ok = await cmSetMembersCategory([t.dataset.uid], t.value || null);
-      if(!ok) render(); else cmMembersRefreshParts();
+      await cmSetMembersCategory([t.dataset.uid], t.value || null);
+      render();   // actualiza los contadores de los chips
     } else if(t.classList.contains('mb-chk')){
       if(t.checked) COMMITTEE.memberSel[t.dataset.uid] = true; else delete COMMITTEE.memberSel[t.dataset.uid];
       cmMembersRefreshParts();
@@ -949,68 +1006,6 @@ function cmBindMembersTable(){
   });
 }
 
-function cmMembersTab(){
-  const ic = (n) => shellIcon(n);
-  const f = COMMITTEE.memberFilters;
-  const key = COMMITTEE.memberSortKey, dir = COMMITTEE.memberSortDir;
-  const th = (k, label, cls) => `<th class="${cls || ''}"><button class="mb-sortbtn ${key === k ? 'on' : ''}" data-action="committee-member-sort" data-key="${k}">${label}<span class="mb-arrow">${key === k ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></th>`;
-  const rep = COMMITTEE.memberReport;
-  const repHtml = rep ? `
-      ${rep.added ? `<div class="cm-nums-rep ok">${ic('check')}<span>Añadidos <b>${rep.added}</b> ${rep.added === 1 ? 'árbitro' : 'árbitros'}.</span></div>` : ''}
-      ${rep.already ? `<div class="cm-nums-rep warn">${ic('flag')}<span><b>${rep.already}</b> ya tenían acceso.</span></div>` : ''}
-      ${rep.notFound.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No están registrados en we-ref.com: <b>${rep.notFound.map(esc).join(', ')}</b>. Pídeles que se creen una cuenta.</span></div>` : ''}
-      ${rep.invalid.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No parecen correos válidos: <b>${rep.invalid.map(esc).join(', ')}</b>.</span></div>` : ''}` : '';
-  const catFilterOpts = `<option value="all" ${f.cat === 'all' ? 'selected' : ''}>Todas</option><option value="none" ${f.cat === 'none' ? 'selected' : ''}>Sin categoría</option>` +
-    (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${f.cat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
-  return `
-  <div class="tp-layout mb-layout">
-    <div class="mb-main">
-      <div class="tc-card mb-listcard" id="cm-members-table">
-        <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small id="cm-members-count">${cmMembersCountText()}</small></div>
-          <div class="cm-actions">
-            <button class="btn btn-ghost" data-action="committee-member-clear-filters">${ic('repeat')} Limpiar filtros</button>
-            <button class="btn btn-ghost" data-action="committee-export-members">${ic('download')} Exportar</button>
-          </div>
-        </div>
-        ${COMMITTEE.catsMissing ? `<div class="st-note" style="margin-bottom:12px;">Para usar categorías falta ejecutar el SQL <b>committee-categories.sql</b> en Supabase.</div>` : ''}
-        <div id="cm-members-bulk">${cmMembersBulkHtml()}</div>
-        <div class="mb-tablewrap">
-          <table class="mb-table">
-            <thead>
-              <tr class="mb-th">
-                <th class="mb-c-chk"><input type="checkbox" id="mb-all" aria-label="Seleccionar todos"></th>
-                ${th('surname', 'Apellidos')}${th('name', 'Nombre')}${th('user', 'Usuario')}${th('email', 'Correo')}${th('cat', 'Categoría')}${th('done', 'Tests')}${th('acc', 'Acierto')}${th('added', 'Alta')}${th('last', 'Último acceso')}
-                <th class="mb-c-del"></th>
-              </tr>
-              <tr class="mb-filters">
-                <th></th>
-                <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
-                <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
-                <th><input class="mb-f" data-col="user" type="text" value="${esc(f.user)}" placeholder="Filtrar" aria-label="Filtrar por usuario" autocomplete="off"></th>
-                <th><input class="mb-f" data-col="email" type="text" value="${esc(f.email)}" placeholder="Filtrar" aria-label="Filtrar por correo" autocomplete="off"></th>
-                <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catFilterOpts}</select></th>
-                <th colspan="2"><select class="mb-f" data-col="res" aria-label="Filtrar por resultados">
-                  <option value="all" ${f.res === 'all' ? 'selected' : ''}>Todos</option>
-                  <option value="with" ${f.res === 'with' ? 'selected' : ''}>Con resultados</option>
-                  <option value="none" ${f.res === 'none' ? 'selected' : ''}>Sin resultados</option>
-                </select></th>
-                <th></th><th></th><th></th>
-              </tr>
-            </thead>
-            <tbody id="cm-members-body">${cmMembersBodyHtml()}</tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <aside class="tc-card mb-add">
-      <div class="tc-card-head"><span class="tc-step">${ic('userplus')}</span><div><h3>Añadir árbitros</h3><small>Uno o varios correos</small></div></div>
-      <textarea id="cm-new-member" data-cm-field="newMemberEmail" rows="4" placeholder="correo@ejemplo.com&#10;otro@ejemplo.com" style="margin:0;">${esc(COMMITTEE.newMemberEmail)}</textarea>
-      <button class="btn btn-primary" style="width:100%; margin-top:12px; display:inline-flex; align-items:center; justify-content:center; gap:8px;" data-action="committee-add-member">${ic('userplus')} Añadir</button>
-      ${repHtml}
-      <div class="st-note" style="margin-top:12px;">Puedes pegar varios correos separados por comas, espacios o saltos de línea. Cada persona tiene que haberse registrado antes en we-ref.com con ese mismo correo.</div>
-    </aside>
-  </div>`;
-}
 
 /* ----- Configuración del módulo ----- */
 const CM_CAT_COLORS = ['#FF6A2B', '#2A6FDB', '#1F9D55', '#8E44AD', '#E0A100', '#D64545', '#0E9AA7', '#6B7280'];
@@ -1920,8 +1915,9 @@ async function committeeOnAction(action, el){
     else { COMMITTEE.memberSortKey = k; COMMITTEE.memberSortDir = (k === 'done' || k === 'acc' || k === 'added' || k === 'last') ? 'desc' : 'asc'; }
     render();
   }
+  else if(action === 'committee-member-cat-filter'){ COMMITTEE.memberFilters.cat = el.dataset.cat; render(); }
   else if(action === 'committee-member-clear-filters'){
-    COMMITTEE.memberFilters = { last: '', first: '', user: '', email: '', cat: 'all', res: 'all' };
+    COMMITTEE.memberFilters = { last: '', first: '', email: '', cat: 'all' };
     render();
   }
   else if(action === 'committee-members-sel-clear'){ COMMITTEE.memberSel = {}; cmMembersRefreshParts(); }
@@ -1972,9 +1968,8 @@ async function committeeOnAction(action, el){
     const rows = list.map(e => {
       const p = cmNameParts(e.m);
       return {
-        'Apellidos': p.last, 'Nombre': p.first, 'Usuario': e.m.username || '', 'Email': e.m.email || '', 'Categoría': (cmCatById(e.m.category_id) || {}).name || '',
-        'Tests hechos': e.s.done, 'Tests publicados': e.s.published, '% acierto': e.s.pct === null ? '' : e.s.pct,
-        'Alta en CTA BAGES': cmFmtDay(e.m.added_at), 'Último acceso': e.m.last_sign_in_at ? cmFmtDay(e.m.last_sign_in_at) : ''
+        'Apellidos': p.last, 'Nombre': p.first, 'Correo': e.m.email || '', 'Categoría': (cmCatById(e.m.category_id) || {}).name || '',
+        'Último acceso': e.m.last_sign_in_at ? cmFmtDay(e.m.last_sign_in_at) : ''
       };
     });
     cmExport(rows, 'Miembros', 'comite_miembros.xlsx');
