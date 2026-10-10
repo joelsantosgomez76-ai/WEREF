@@ -2,7 +2,7 @@
    Envuelve cada pantalla con la navegación. Depende de app.js (STATE, isDevUser, computePoints, currentRank,
    LOGO_MARK, esc) y, si existe, de committee.js (COMMITTEE). */
 
-const SHELL_FOCUS_VIEWS = ['quiz', 'myBankQuiz', 'committeeRun'];
+const SHELL_FOCUS_VIEWS = ['quiz', 'myBankQuiz', 'committeeRun', 'committeePreview'];
 
 const SHELL_ICONS = {
   grid: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
@@ -67,7 +67,7 @@ function shellSection(view){
   if(v === 'academia' || v === 'savedBrowse' || v.startsWith('myBank') || v.startsWith('myDocs')) return 'academia';
   if(['stats', 'recentPerformance', 'streakCalendar'].includes(v)) return 'stats';
   if(v === 'achievements') return 'logros';
-  if(['committeeTraining', 'committeeAdmin', 'committeeBuilder', 'committeeTestDetail'].includes(v)) return 'formacion';
+  if(['committeeTraining', 'committeeAdmin', 'committeeBuilder', 'committeePreview', 'committeeTestDetail'].includes(v)) return 'formacion';
   if(v.startsWith('committee')) return 'comite';
   if(v === 'database') return 'db';
   if(v === 'suggestionsAdmin') return 'sug';
