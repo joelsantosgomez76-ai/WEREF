@@ -3832,36 +3832,6 @@ function flaggedView(){
   `;
 }
 
-function editFormHtml(q){
-  const letters=['a','b','c','d'];
-  const isGlossaryQ = q.domain === 'glossary' || q.domain === 'assistants';
-  const lawOpts = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${q.rule===i?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('');
-  const tagLabel = q.domain === 'assistants' ? 'Editando · Árbitros Asistentes' : isGlossaryQ ? 'Editando · Glosario IFAB' : 'Editando · Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
-  return `<div class="qcard" style="margin-bottom:10px;">
-    <div class="qtag">${tagLabel}</div>
-    <input type="hidden" id="e-domain" value="${q.domain}">
-    ${isGlossaryQ ? '' : `
-    <label>Regla</label>
-    <select id="e-rule">${lawOpts}</select>
-    `}
-    <label>Pregunta</label>
-    <textarea id="e-question" maxlength="1000">${esc(q.question)}</textarea>
-    ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="e-${l}" value="${esc(q.options[i])}" maxlength="300">`).join('')}
-    <label>Respuesta correcta</label>
-    <select id="e-correct">${letters.map(l=>`<option value="${l}" ${l===q.correct?'selected':''}>${l})</option>`).join('')}</select>
-    <label>Explicación para quien estudia (opcional)</label>
-    <textarea id="e-explanation" placeholder="Por qué es correcta, artículo del reglamento, matices..." maxlength="2000">${esc(q.explanation||'')}</textarea>
-    <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px;">
-      <input type="checkbox" id="e-hard" style="width:auto;" ${q.difficulty==='hard'?'checked':''}> Es una pregunta difícil (aparecerá también en "Sala VAR")
-    </label>
-    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
-      <button class="btn btn-primary" data-action="save-edit" data-qid="${q.id}">Guardar cambios</button>
-      <button class="btn btn-secondary" data-action="save-edit-unflag" data-qid="${q.id}">Guardar y quitar marca</button>
-      <button class="btn btn-ghost" data-action="cancel-edit">Cancelar</button>
-    </div>
-  </div>`;
-}
-
 function saveQuestionEdit(qid, alsoUnflag){
   const domain = document.getElementById('e-domain').value;
   const ruleSelEl = document.getElementById('e-rule');
@@ -3871,7 +3841,7 @@ function saveQuestionEdit(qid, alsoUnflag){
   const b = document.getElementById('e-b').value.trim();
   const c = document.getElementById('e-c').value.trim();
   const d = document.getElementById('e-d').value.trim();
-  const correct = document.getElementById('e-correct').value;
+  const correct = (document.querySelector('input[name="e-correct"]:checked') || {}).value || 'a';
   const explanation = document.getElementById('e-explanation').value.trim();
   const difficulty = document.getElementById('e-hard').checked ? 'hard' : 'normal';
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
@@ -4211,6 +4181,36 @@ function adminDashboardView(){
   `;
 }
 
+/* Formulario de pregunta (alta y edición): mismas piezas, distinto prefijo de ids (f- / e-) */
+function questionFormSections(p, v){
+  const ic = (n) => shellIcon(n);
+  const letters = ['a','b','c','d'];
+  const answers = letters.map((l, i) => `
+    <label class="fq-ans">
+      <input type="radio" name="${p}-correct" value="${l}" ${v.correct === l ? 'checked' : ''}>
+      <span class="fq-letter">${l.toUpperCase()}</span>
+      <input type="text" id="${p}-${l}" maxlength="300" value="${esc(v.options[i] || '')}" placeholder="${l === 'd' ? 'p. ej. Ninguna respuesta es correcta.' : 'Respuesta ' + l.toUpperCase()}" aria-label="Respuesta ${l.toUpperCase()}">
+      <span class="fq-ok">${ic('check')} Correcta</span>
+    </label>`).join('');
+  return `
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Enunciado</h3><small>${v.scopeHint}</small></div></div>
+      ${v.scopeHtml}
+      <label for="${p}-question">Pregunta</label>
+      <textarea id="${p}-question" placeholder="Escribe el enunciado..." maxlength="1000">${esc(v.question || '')}</textarea>
+    </div>
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Respuestas</h3><small>Marca con el círculo cuál es la correcta</small></div></div>
+      <div class="fq-answers">${answers}</div>
+    </div>
+    <div class="tc-card">
+      <div class="tc-card-head"><span class="tc-step">3</span><div><h3>Explicación y dificultad</h3><small>Opcional · ayuda a quien estudia</small></div></div>
+      <label for="${p}-explanation">Explicación</label>
+      <textarea id="${p}-explanation" placeholder="Por qué es correcta, artículo del reglamento, matices..." maxlength="2000">${esc(v.explanation || '')}</textarea>
+      <label class="fq-hard"><input type="checkbox" id="${p}-hard" ${v.hard ? 'checked' : ''}><span><strong>Es una pregunta difícil</strong><small>Aparecerá también en la Sala VAR</small></span></label>
+    </div>`;
+}
+
 function addQuestionView(){
   const isGlossaryContext = STATE.lawId === 'glossary';
   const currentLawNum = typeof STATE.lawId === 'number' ? STATE.lawId : null;
@@ -4218,30 +4218,44 @@ function addQuestionView(){
     + `<option value="glossary" ${isGlossaryContext?'selected':''}>Glosario IFAB</option>`
     + (sharedActive() ? `<option value="assistants" ${STATE.lawId==='assistants'?'selected':''}>Árbitros Asistentes</option>` : '');
   const backAction = STATE.cameFromDb ? 'database' : (STATE.lawId!=null ? 'open-law' : 'home');
+  const sections = questionFormSections('f', {
+    options: ['', '', '', ''], correct: 'a', question: '', explanation: '', hard: false,
+    scopeHint: 'Dónde va y qué se pregunta',
+    scopeHtml: `<label for="f-law">Ámbito</label><select id="f-law">${lawSel}</select>`
+  });
   return `
   <button class="backbtn" data-action="${backAction}" data-law="${STATE.lawId!=null?STATE.lawId:''}">&larr; Volver</button>
-  <h2>Añadir pregunta</h2>
-  <div class="qcard">
-    <label>Ámbito</label>
-    <select id="f-law">${lawSel}</select>
-    <label>Pregunta</label>
-    <textarea id="f-question" placeholder="Escribe el enunciado..." maxlength="1000"></textarea>
-    <label>Respuesta a)</label><input type="text" id="f-a" maxlength="300">
-    <label>Respuesta b)</label><input type="text" id="f-b" maxlength="300">
-    <label>Respuesta c)</label><input type="text" id="f-c" maxlength="300">
-    <label>Respuesta d)</label><input type="text" id="f-d" placeholder="p.ej. Ninguna respuesta es correcta." maxlength="300">
-    <label>Respuesta correcta</label>
-    <select id="f-correct"><option value="a">a)</option><option value="b">b)</option><option value="c">c)</option><option value="d">d)</option></select>
-    <label>Explicación para quien estudia (opcional)</label>
-    <textarea id="f-explanation" placeholder="Por qué es correcta, artículo del reglamento, matices..." maxlength="2000"></textarea>
-    <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13.5px;">
-      <input type="checkbox" id="f-hard" style="width:auto;"> Es una pregunta difícil (aparecerá también en "Sala VAR")
-    </label>
-    <div style="margin-top:18px; display:flex; gap:10px;">
-      <button class="btn btn-primary" data-action="save-question">Guardar pregunta</button>
+  ${acHero('Base de datos', 'Añadir pregunta', 'Se publica para todos los usuarios en cuanto la guardes.', [], '', true)}
+  <div class="ac-form fq-form">
+    ${sections}
+    <div class="fq-actions">
+      <button class="btn btn-primary" data-action="save-question">${shellIcon('check')} Guardar pregunta</button>
+      <button class="btn btn-ghost" data-action="${backAction}" data-law="${STATE.lawId!=null?STATE.lawId:''}">Cancelar</button>
     </div>
   </div>
   `;
+}
+
+function editFormHtml(q){
+  const isGlossaryQ = q.domain === 'glossary' || q.domain === 'assistants';
+  const lawOpts = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${q.rule===i?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('');
+  const tagLabel = q.domain === 'assistants' ? 'Árbitros Asistentes' : isGlossaryQ ? 'Glosario IFAB' : 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
+  const sections = questionFormSections('e', {
+    options: q.options || ['', '', '', ''], correct: q.correct, question: q.question, explanation: q.explanation || '', hard: q.difficulty === 'hard',
+    scopeHint: tagLabel,
+    scopeHtml: `<input type="hidden" id="e-domain" value="${q.domain}">${isGlossaryQ ? '' : `<label for="e-rule">Regla</label><select id="e-rule">${lawOpts}</select>`}`
+  });
+  return `<article class="fq-edit">
+    <div class="fq-edit-head"><span class="cm-chip open">Editando</span><strong>${tagLabel}</strong></div>
+    <div class="fq-form">
+      ${sections}
+      <div class="fq-actions">
+        <button class="btn btn-primary" data-action="save-edit" data-qid="${q.id}">${shellIcon('check')} Guardar cambios</button>
+        <button class="btn btn-secondary" data-action="save-edit-unflag" data-qid="${q.id}">Guardar y quitar marca</button>
+        <button class="btn btn-ghost" data-action="cancel-edit">Cancelar</button>
+      </div>
+    </div>
+  </article>`;
 }
 
 function saveNewQuestion(){
@@ -4254,7 +4268,7 @@ function saveNewQuestion(){
   const b = document.getElementById('f-b').value.trim();
   const c = document.getElementById('f-c').value.trim();
   const d = document.getElementById('f-d').value.trim() || 'Ninguna respuesta es correcta.';
-  const correct = document.getElementById('f-correct').value;
+  const correct = (document.querySelector('input[name="f-correct"]:checked') || {}).value || 'a';
   const explanation = document.getElementById('f-explanation').value.trim();
   const difficulty = document.getElementById('f-hard').checked ? 'hard' : 'normal';
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }

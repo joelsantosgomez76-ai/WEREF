@@ -2005,3 +2005,30 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 /* Mantener la sesión iniciada */
 .auth-remember{display:flex; align-items:center; gap:9px; margin:14px 0 0; font-size:13px; font-weight:500; color:var(--ink); text-transform:none; letter-spacing:0; cursor:pointer;}
 .auth-remember input{width:auto; margin:0; accent-color:var(--accent);}
+
+/* ---------- Formulario de pregunta (añadir / editar) ---------- */
+.fq-form{display:flex; flex-direction:column; gap:14px;}
+.fq-form .tc-card label:first-of-type{margin-top:0;}
+.fq-answers{display:flex; flex-direction:column; gap:10px;}
+.fq-ans{position:relative; display:flex; align-items:center; gap:12px; margin:0; padding:8px 12px 8px 8px; border:1.5px solid var(--line); border-radius:14px; background:#fff; cursor:pointer; text-transform:none; letter-spacing:0; transition:border-color .12s ease, background .12s ease;}
+.fq-ans input[type=radio]{position:absolute; opacity:0; pointer-events:none; width:0; height:0;}
+.fq-ans input[type=text]{flex:1; min-width:0; margin:0; border:none; background:transparent; box-shadow:none; padding:10px 6px; font-size:15px;}
+.fq-ans input[type=text]:focus{outline:none; box-shadow:none;}
+.fq-letter{width:36px; height:36px; flex-shrink:0; border-radius:50%; background:var(--chalk); border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font:700 15px 'Oswald'; color:var(--pitch); transition:background .12s ease, color .12s ease, border-color .12s ease;}
+.fq-ok{display:none; align-items:center; gap:5px; font:700 11.5px 'Work Sans'; color:var(--green-ok); background:#EAF7EF; border-radius:20px; padding:4px 10px; white-space:nowrap;}
+.fq-ok svg{width:13px; height:13px; stroke-width:3;}
+.fq-ans input[type=radio]:checked ~ .fq-letter{background:var(--green-ok); border-color:var(--green-ok); color:#fff;}
+.fq-ans input[type=radio]:checked ~ .fq-ok{display:inline-flex;}
+.fq-ans:hover{border-color:var(--accent);}
+.fq-ans:focus-within{border-color:var(--accent); box-shadow:0 0 0 4px rgba(255,106,43,0.12);}
+.fq-hard{display:flex; align-items:center; gap:12px; margin:14px 0 0; padding:12px 14px; border:1.5px solid var(--line); border-radius:14px; cursor:pointer; text-transform:none; letter-spacing:0;}
+.fq-hard input{width:auto; margin:0; accent-color:var(--red);}
+.fq-hard strong{display:block; font-size:14px; color:var(--ink);}
+.fq-hard small{display:block; font-size:12.5px; color:var(--muted); font-weight:400;}
+.fq-actions{display:flex; gap:10px; flex-wrap:wrap;}
+.fq-actions .btn{display:inline-flex; align-items:center; gap:8px; padding:13px 22px;}
+.fq-actions .btn svg{width:16px; height:16px;}
+.fq-edit{background:var(--chalk); border:1.5px solid var(--accent); border-radius:20px; padding:16px; box-shadow:0 8px 24px rgba(255,106,43,0.14);}
+.fq-edit-head{display:flex; align-items:center; gap:10px; margin:0 4px 12px;}
+.fq-edit-head strong{font-size:14px; color:var(--pitch);}
+@media (max-width:560px){ .fq-ok{display:none !important;} .fq-actions .btn{flex:1 1 100%; justify-content:center;} }
