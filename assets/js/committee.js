@@ -25,7 +25,6 @@ const COMMITTEE = {
   categories: null,
   catsMissing: false,
   catDraft: { name: '', color: '#FF6A2B' },
-  defaults: { maxAttempts: 1, timerMode: 'none', minutes: 20, secPerQ: 45, shuffleMode: 'fixed' },
   newMemberEmail: '',
   detailTestId: null,
   messages: null,     // admin: mensajes del comité (borradores y publicados)
@@ -1017,10 +1016,6 @@ async function cmLoadCategories(){
     if(r.error){ COMMITTEE.categories = []; COMMITTEE.catsMissing = true; }
     else { COMMITTEE.categories = r.data || []; COMMITTEE.catsMissing = false; }
   }catch(e){ COMMITTEE.categories = []; COMMITTEE.catsMissing = true; }
-  try{
-    const d = await supabaseClient.from('committee_settings').select('defaults').eq('id', 1).maybeSingle();
-    if(!d.error && d.data && d.data.defaults && typeof d.data.defaults === 'object') Object.assign(COMMITTEE.defaults, d.data.defaults);
-  }catch(e){}
 }
 
 function cmSettingsTab(){
@@ -1029,7 +1024,6 @@ function cmSettingsTab(){
   const counts = {};
   (COMMITTEE.members || []).forEach(m => { if(m.category_id) counts[m.category_id] = (counts[m.category_id] || 0) + 1; });
   const dr = COMMITTEE.catDraft;
-  const d = COMMITTEE.defaults;
   const rows = cats.map(c => `<div class="cs-cat">
       <input type="color" class="cs-color" data-cid="${esc(c.id)}" value="${esc(c.color)}" aria-label="Color">
       <input type="text" class="cs-name" data-cid="${esc(c.id)}" value="${esc(c.name)}" maxlength="60" aria-label="Nombre de la categoría">
@@ -1038,10 +1032,6 @@ function cmSettingsTab(){
     </div>`).join('');
   const palette = CM_CAT_COLORS.map(col => `<button type="button" class="cs-sw ${dr.color === col ? 'on' : ''}" style="--c:${col}" data-action="committee-cat-color" data-color="${col}" aria-label="Color ${col}"></button>`).join('');
   const sugg = !cats.length ? `<div class="cs-sugg"><span>Sugerencias:</span>${CM_CAT_SUGGESTIONS.map(s => `<button type="button" class="tx-filter" data-action="committee-cat-suggest" data-name="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : '';
-  const timerFields = d.timerMode === 'total'
-    ? `<div><label for="cm-d-min">Minutos</label><input type="number" id="cm-d-min" min="1" max="600" data-cm-field="defaults.minutes" value="${esc(String(d.minutes))}"></div>`
-    : (d.timerMode === 'perQuestion'
-      ? `<div><label for="cm-d-sec">Segundos por pregunta</label><input type="number" id="cm-d-sec" min="5" max="3600" data-cm-field="defaults.secPerQ" value="${esc(String(d.secPerQ))}"></div>` : '');
   return `
   <div class="tp-layout cs-layout" id="cm-settings">
     <div class="tc-card">
@@ -1059,25 +1049,6 @@ function cmSettingsTab(){
       </div>
     </div>
 
-    <aside class="tc-card">
-      <div class="tc-card-head"><span class="tc-step">${ic('settings')}</span><div><h3>Nuevos tests</h3><small>Valores por defecto al crear un test</small></div></div>
-      <label for="cm-d-att" style="margin-top:0;">Intentos permitidos</label>
-      <input type="number" id="cm-d-att" min="1" max="20" data-cm-field="defaults.maxAttempts" value="${esc(String(d.maxAttempts))}">
-      <label for="cm-d-timer">Temporización</label>
-      <select id="cm-d-timer" data-cm-field="defaults.timerMode" data-cm-rerender>
-        <option value="none" ${d.timerMode === 'none' ? 'selected' : ''}>Sin límite</option>
-        <option value="total" ${d.timerMode === 'total' ? 'selected' : ''}>Tiempo total</option>
-        <option value="perQuestion" ${d.timerMode === 'perQuestion' ? 'selected' : ''}>Por pregunta</option>
-      </select>
-      ${timerFields}
-      <label for="cm-d-order">Orden de preguntas y respuestas</label>
-      <select id="cm-d-order" data-cm-field="defaults.shuffleMode">
-        <option value="fixed" ${d.shuffleMode !== 'shuffled' ? 'selected' : ''}>Igual para todos</option>
-        <option value="shuffled" ${d.shuffleMode === 'shuffled' ? 'selected' : ''}>Mezclado para cada árbitro</option>
-      </select>
-      <button class="btn btn-primary" style="width:100%; margin-top:16px; display:inline-flex; align-items:center; justify-content:center; gap:8px;" data-action="committee-defaults-save">${ic('check')} Guardar valores</button>
-      <div class="st-note" style="margin-top:12px;">Se aplican cuando pulsas "Nuevo test". Siempre los puedes cambiar dentro de cada test.</div>
-    </aside>
   </div>`;
 }
 
@@ -1309,9 +1280,9 @@ function cmNewBuilder(){
   const season = String(cmSeasonStartOf(now.getFullYear(), now.getMonth() + 1));
   const mon = String(now.getMonth() + 1);
   return {
-    editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: Math.max(1, parseInt(COMMITTEE.defaults.maxAttempts, 10) || 1),
-    timerMode: COMMITTEE.defaults.timerMode || 'none', minutes: COMMITTEE.defaults.minutes || 20, secPerQ: COMMITTEE.defaults.secPerQ || 45, hadTimerCols: false,
-    shuffleMode: COMMITTEE.defaults.shuffleMode === 'shuffled' ? 'shuffled' : 'fixed', hadShuffleCol: false,
+    editId: null, title: '', season, mon, opens: '', closes: '', maxAttempts: 1,
+    timerMode: 'none', minutes: 20, secPerQ: 45, hadTimerCols: false,
+    shuffleMode: 'fixed', hadShuffleCol: false,
     published: false, attemptCount: 0, orig: null, replacingId: null,
     selected: [], expanded: {},
     numsText: '', numsReport: null,
@@ -1951,17 +1922,6 @@ async function committeeOnAction(action, el){
     COMMITTEE.categories = (COMMITTEE.categories || []).filter(x => x.id !== c.id);
     if(COMMITTEE.memberFilters.cat === c.id) COMMITTEE.memberFilters.cat = 'all';
     STATE.toast = 'Categoría eliminada.'; render();
-  }
-  else if(action === 'committee-defaults-save'){
-    const d = COMMITTEE.defaults;
-    const att = Math.max(1, Math.min(20, parseInt(d.maxAttempts, 10) || 1));
-    const min = Math.max(1, Math.min(600, parseInt(d.minutes, 10) || 20));
-    const sec = Math.max(5, Math.min(3600, parseInt(d.secPerQ, 10) || 45));
-    const clean = { maxAttempts: att, timerMode: ['none', 'total', 'perQuestion'].includes(d.timerMode) ? d.timerMode : 'none', minutes: min, secPerQ: sec, shuffleMode: d.shuffleMode === 'shuffled' ? 'shuffled' : 'fixed' };
-    const { error } = await supabaseClient.from('committee_settings').update({ defaults: clean }).eq('id', 1);
-    if(error){ cmToast(/defaults/.test(error.message || '') ? 'Falta ejecutar el SQL committee-categories.sql en Supabase.' : cmErrText(error)); return; }
-    Object.assign(COMMITTEE.defaults, clean);
-    STATE.toast = 'Valores guardados. Se usarán en los nuevos tests.'; render();
   }
   else if(action === 'committee-export-members'){
     const { list } = cmMembersData();
