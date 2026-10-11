@@ -4025,9 +4025,14 @@ function filteredDbList(){
   }
   if(f.dateFrom || f.dateTo){
     const field = f.dateField === 'updated' ? 'updatedAt' : 'createdAt';
+    const isRev = f.dateField === 'reviewed';
     const fromTs = f.dateFrom ? new Date(f.dateFrom+'T00:00:00').getTime() : -Infinity;
     const toTs = f.dateTo ? new Date(f.dateTo+'T23:59:59.999').getTime() : Infinity;
-    list = list.filter(q => { const ts = Number(q[field]); return ts && ts >= fromTs && ts <= toTs; });
+    list = list.filter(q => {
+      let ts = isRev ? Number(STATE.storage.reviewed[q.id]) : Number(q[field]);
+      if(isRev && !(ts > 1e11)) ts = 0;       // revisadas antes de que se guardara la fecha: sin fecha
+      return ts && ts >= fromTs && ts <= toTs;
+    });
   }
   return list;
 }
@@ -4074,6 +4079,7 @@ function databaseView(){
     const dates = [];
     if(q.createdAt) dates.push(`Creada ${new Date(q.createdAt).toLocaleDateString('es-ES')}`);
     if(q.updatedAt) dates.push(`Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}`);
+    { const rv = STATE.storage.reviewed[q.id]; if(typeof rv === 'number' && rv > 1e11) dates.push(`Revisada ${new Date(rv).toLocaleDateString('es-ES')}`); }
     return `<article class="ac-q db-q ${q.draft ? 'is-draft' : (reportCount>0 ? 'reported' : (isReviewed ? 'reviewed' : ''))}">
       <div class="db-q-head">
         <span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || "…"}</span>
@@ -4183,11 +4189,14 @@ function databaseView(){
           <select id="db-date-field">
             <option value="created" ${f.dateField==='created'?'selected':''}>Creación</option>
             <option value="updated" ${f.dateField==='updated'?'selected':''}>Última modificación</option>
+            <option value="reviewed" ${f.dateField==='reviewed'?'selected':''}>Revisión</option>
           </select></div>
         <div><label for="db-date-from">Desde</label><input type="date" id="db-date-from" value="${esc(f.dateFrom)}"></div>
         <div><label for="db-date-to">Hasta</label><input type="date" id="db-date-to" value="${esc(f.dateTo)}"></div>
       </div>
-      ${(f.dateFrom || f.dateTo) ? `<div class="st-note" style="margin-top:4px;">La fecha solo se registra desde que se añadió esta función: las preguntas antiguas que nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>` : ''}
+      ${(f.dateFrom || f.dateTo) ? (f.dateField === 'reviewed'
+        ? `<div class="st-note" style="margin-top:4px;">La fecha de revisión se guarda desde que se añadió esta función: las preguntas que ya estaban marcadas como revisadas antes no tienen fecha y no aparecerán en este filtro. Si quieres que tengan fecha, desmárcalas y vuelve a marcarlas.</div>`
+        : `<div class="st-note" style="margin-top:4px;">La fecha solo se registra desde que se añadió esta función: las preguntas antiguas que nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>`) : ''}
     </details>
   </div>
 
@@ -5008,7 +5017,7 @@ function onAction(e){
   else if(action==='toggle-reviewed'){
     const qid = el.dataset.qid;
     if(STATE.storage.reviewed[qid]) delete STATE.storage.reviewed[qid];
-    else STATE.storage.reviewed[qid] = true;
+    else STATE.storage.reviewed[qid] = Date.now();   // se guarda la fecha para poder filtrar por revisión
     saveReviewed();
     render();
   }
