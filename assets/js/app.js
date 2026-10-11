@@ -3987,10 +3987,12 @@ function saveQuestionEdit(qid, alsoUnflag){
   render();
 }
 
-function filteredDbList(){
+function filteredDbList(opts){
+  opts = opts || {};
   const f = STATE.dbFilter;
   let list = allQuestionsAdmin();
-  if(f.law === 'hard') list = list.filter(q => q.difficulty === 'hard');
+  if(opts.skipLaw){ /* sin filtrar por regla (para los contadores) */ }
+  else if(f.law === 'hard') list = list.filter(q => q.difficulty === 'hard');
   else if(f.law === 'glossary') list = list.filter(q => q.domain === 'glossary');
   else if(f.law === 'assistants') list = list.filter(q => q.domain === 'assistants');
   else if(f.law === 'fcf') list = list.filter(q => q.domain === 'fcf');
@@ -3999,11 +4001,13 @@ function filteredDbList(){
   else if(f.difficulty === 'normal') list = list.filter(q => q.difficulty !== 'hard');
   if(f.flaggedOnly) list = list.filter(q => !!STATE.storage.flags[q.id]);
   if(f.myOnly) list = list.filter(q => q.source === 'user');
-  if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => !!STATE.storage.flags[q.id] || (STATE.reports[q.id]||0) > 0 || dups.has(q.id)); }
+  if(opts.skipStatus){ /* sin filtrar por estado (para los contadores) */ }
+  else if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => !!STATE.storage.flags[q.id] || (STATE.reports[q.id]||0) > 0 || dups.has(q.id)); }
   else if(f.status === 'draft') list = list.filter(q => !!q.draft);
   else if(f.status === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
   else if(f.status === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
-  if(f.reviewStatus === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
+  if(opts.skipStatus){ }
+  else if(f.reviewStatus === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
   else if(f.reviewStatus === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
   if(f.search && f.search.trim()){
     const s = f.search.trim().toLowerCase();
@@ -4105,17 +4109,34 @@ function databaseView(){
   const attentionCount = all.filter(q => STATE.storage.flags[q.id] || (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
   const pendingCount = all.length - reviewedCount;
   const draftCount = all.filter(q => q.draft).length;
+  // Contadores cruzados: los de estado respetan la regla elegida y los de regla respetan el estado elegido,
+  // así "sin revisar" + R5 enseña de un vistazo cuántas pendientes hay en cada regla.
+  const noStatus = filteredDbList({ skipStatus: true });
+  const noLaw = filteredDbList({ skipLaw: true });
+  const sAll = noStatus.length;
+  const sReviewed = noStatus.filter(q => STATE.storage.reviewed[q.id]).length;
+  const sPending = sAll - sReviewed;
+  const sAttention = noStatus.filter(q => STATE.storage.flags[q.id] || (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
+  const sDraft = noStatus.filter(q => q.draft).length;
+  const lawsCount = {};
+  for(let i = 1; i <= 17; i++) lawsCount[i] = 0;
+  let glossaryCnt = 0, assistantsCnt = 0, fcfCnt = 0;
+  noLaw.forEach(q => {
+    if(q.domain === 'glossary') glossaryCnt++;
+    else if(q.domain === 'assistants') assistantsCnt++;
+    else if(q.domain === 'fcf') fcfCnt++;
+    else if(q.rule) lawsCount[q.rule] = (lawsCount[q.rule] || 0) + 1;
+  });
+  const countsFiltered = f.status !== 'all' || f.difficulty !== 'all' || f.flaggedOnly || f.myOnly || f.reportedOnly || f.duplicatesOnly || (f.search && f.search.trim()) || f.dateFrom || f.dateTo;
   const statusNow = f.status || 'all';
 
   const LOW_COUNT_THRESHOLD = 30;
-  const { counts: lawCounts, glossary: glossaryCount } = questionCountsByLaw();
-  const assistantsCount = all.filter(q => q.domain === 'assistants').length;
-  const fcfCount = all.filter(q => q.domain === 'fcf').length;
+  const lawCounts = lawsCount, glossaryCount = glossaryCnt, assistantsCount = assistantsCnt, fcfCount = fcfCnt;
   const lawChip = (law, label, n, extra) => {
-    const low = n < LOW_COUNT_THRESHOLD && !extra;
+    const low = !countsFiltered && n < LOW_COUNT_THRESHOLD && !extra;
     return `<button class="db-lawchip ${String(f.law)===String(law) ? 'active' : ''} ${low ? 'low' : ''}" data-action="db-view-law-questions" data-law="${law}"><b>${label}</b><span>${n}</span></button>`;
   };
-  const lawCountChipsHtml = `<button class="db-lawchip all ${String(f.law)==='all' ? 'active' : ''}" data-action="db-view-law-questions" data-law="all"><b>Todas</b><span>${all.length}</span></button>`
+  const lawCountChipsHtml = `<button class="db-lawchip all ${String(f.law)==='all' ? 'active' : ''}" data-action="db-view-law-questions" data-law="all"><b>Todas</b><span>${noLaw.length}</span></button>`
     + Array.from({length:17},(_,i)=>i+1).map(i => lawChip(i, 'R' + i, lawCounts[i] || 0)).join('')
     + lawChip('glossary', 'Glosario', glossaryCount)
     + lawChip('assistants', 'Asistentes', assistantsCount, true)
@@ -4155,7 +4176,7 @@ function databaseView(){
   </section>
 
   <div class="tc-card" style="margin-bottom:16px;">
-    <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Preguntas por regla</h3><small>Pulsa una para filtrar, y otra vez para quitar el filtro · en rojo, menos de ${LOW_COUNT_THRESHOLD}</small></div></div>
+    <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Preguntas por regla</h3><small>${countsFiltered ? 'Las cantidades siguen los filtros activos (estado, dificultad…). Pulsa una regla para verla; otra vez para quitar el filtro' : 'Pulsa una para filtrar, y otra vez para quitar el filtro · en rojo, menos de ' + LOW_COUNT_THRESHOLD}</small></div></div>
     <div class="db-lawchips">${lawCountChipsHtml}</div>
   </div>
 
@@ -4167,11 +4188,11 @@ function databaseView(){
     </div>
     <div class="db-filter-row">
       <div class="db-status-group" role="group" aria-label="Estado">
-        ${statusChip('all', 'Todas', all.length)}
-        ${statusChip('attention', 'Necesitan atención', attentionCount)}
-        ${statusChip('pending', 'Sin revisar', pendingCount)}
-        ${statusChip('reviewed', 'Revisadas', reviewedCount)}
-        ${sharedActive() || draftCount ? statusChip('draft', 'En borrador', draftCount) : ''}
+        ${statusChip('all', 'Todas', sAll)}
+        ${statusChip('attention', 'Necesitan atención', sAttention)}
+        ${statusChip('pending', 'Sin revisar', sPending)}
+        ${statusChip('reviewed', 'Revisadas', sReviewed)}
+        ${sharedActive() || draftCount ? statusChip('draft', 'En borrador', sDraft) : ''}
       </div>
       <div class="db-diff">
         <label for="db-difficulty">Dificultad</label>
