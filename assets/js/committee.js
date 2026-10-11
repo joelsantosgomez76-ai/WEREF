@@ -25,6 +25,9 @@ const COMMITTEE = {
   tab: 'tests',
   rankMonth: 'all',
   rankSeason: null,
+  rankSortKey: 'rank',
+  rankSortDir: 'asc',
+  rankFilters: { last: '', first: '', cat: 'all' },
   memberReport: null,
   memberAddOpen: false,
   memberSortKey: 'surname',
@@ -849,9 +852,12 @@ function cmComputeRanking(season, month){
   const tests = (COMMITTEE.tests || []).filter(t => t.published && cmSeasonOfTest(t) === season && (month === 'all' || t.month === month));
   const ids = new Set(tests.map(t => t.id));
   const people = {};
-  (COMMITTEE.members || []).forEach(m => { people[m.user_id] = { id: m.user_id, who: cmWho(m), full_name: m.full_name, email: m.email, best: {} }; });
+  (COMMITTEE.members || []).forEach(m => { people[m.user_id] = { id: m.user_id, m, best: {} }; });
   (COMMITTEE.attempts || []).filter(a => ids.has(a.test_id)).forEach(a => {
-    const p = people[a.user_id] || (people[a.user_id] = { id: a.user_id, who: cmWho(a), full_name: a.full_name, email: a.email, best: {} });
+    // Quien ya no es miembro pero tiene intentos: se muestra con los datos que trae el intento.
+    const p = people[a.user_id] || (people[a.user_id] = { id: a.user_id, best: {}, m: {
+      user_id: a.user_id, username: a.username, email: a.email, full_name: a.full_name, first_name: a.full_name || '', last_name: '', category_id: null
+    } });
     const cur = p.best[a.test_id];
     if(!cur || a.score > cur.score || (a.score === cur.score && (a.duration_sec || 0) < (cur.duration_sec || 0))) p.best[a.test_id] = a;
   });
@@ -860,11 +866,17 @@ function cmComputeRanking(season, month){
     const score = done.reduce((s, a) => s + a.score, 0);
     const total = done.reduce((s, a) => s + a.total, 0);
     const dur = done.reduce((s, a) => s + (a.duration_sec || 0), 0);
-    return { who: p.who, full_name: p.full_name, email: p.email, done: done.length, score, total, pct: total ? score / total * 100 : 0, avgDur: done.length ? Math.round(dur / done.length) : null };
+    return {
+      m: p.m, uid: p.id, who: cmWho(p.m), full_name: p.m.full_name, email: p.m.email,
+      done: done.length, score, total, pct: total ? score / total * 100 : 0, avgDur: done.length ? Math.round(dur / done.length) : null
+    };
   });
   rows.sort((a, b) => (b.done > 0) - (a.done > 0) || b.pct - a.pct || b.score - a.score || (a.avgDur === null ? 1e9 : a.avgDur) - (b.avgDur === null ? 1e9 : b.avgDur));
+  let rank = 0;
+  rows.forEach(r => { r.rank = r.done ? ++rank : null; });
   return { rows, testCount: tests.length };
 }
+
 
 /* ================== Panel de Formación: pestañas ================== */
 function cmAvatar(name, cls){
@@ -1043,6 +1055,7 @@ function cmMembersTab(){
         <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Árbitros con acceso</h3><small id="cm-members-count">${cmMembersCountText()}</small></div>
           <div class="cm-actions">
             <button class="btn btn-primary" data-action="committee-member-add-toggle">${ic('userplus')} Añadir árbitros</button>
+            <button class="btn btn-ghost" data-action="committee-refresh">${ic('repeat')} Actualizar</button>
             <button class="btn btn-ghost" data-action="committee-member-clear-filters">${ic('repeat')} Limpiar filtros</button>
             <button class="btn btn-ghost" data-action="committee-export-members">${ic('download')} Exportar</button>
           </div>
@@ -1234,20 +1247,88 @@ function cmBindSettings(){
   });
 }
 
-/* ----- Clasificación ----- */
+/* ----- Clasificación (tabla, como Miembros) ----- */
+function cmRankSortVal(r, key){
+  const p = cmNameParts(r.m);
+  if(key === 'rank') return r.rank;
+  if(key === 'surname') return (p.last || p.first) ? cmPlain(p.last || p.first) : null;
+  if(key === 'name') return (p.first || p.last) ? cmPlain(p.first || p.last) : null;
+  if(key === 'cat'){ const c = cmCatById(r.m.category_id); return c ? cmPlain(c.name) : null; }
+  if(key === 'done') return r.done;
+  if(key === 'score') return r.done ? r.score : null;
+  if(key === 'pct') return r.done ? r.pct : null;
+  if(key === 'dur') return r.avgDur;
+  return null;
+}
+function cmRankRows(){
+  const scope = cmRankScope();
+  const { rows, testCount } = cmComputeRanking(scope.season, scope.month);
+  const f = COMMITTEE.rankFilters;
+  const has = (v, q) => { const t = cmPlain(q).trim(); return !t || cmPlain(v).includes(t); };
+  const list = rows.filter(r => {
+    const p = cmNameParts(r.m);
+    return has(p.last, f.last) && has(p.first, f.first) && (f.cat === 'all' || (f.cat === 'none' ? !r.m.category_id : r.m.category_id === f.cat));
+  });
+  const key = COMMITTEE.rankSortKey, dir = COMMITTEE.rankSortDir;
+  list.sort((a, b) => {
+    const va = cmRankSortVal(a, key), vb = cmRankSortVal(b, key);
+    const na = va === null || va === undefined || va === '', nb = vb === null || vb === undefined || vb === '';
+    if(na !== nb) return na ? 1 : -1;          // vacíos siempre al final
+    let r = 0;
+    if(!na) r = (typeof va === 'number' && typeof vb === 'number') ? va - vb : cmCollate(va, vb);
+    if(r !== 0) return dir === 'desc' ? -r : r;
+    return (a.rank === null ? 1e9 : a.rank) - (b.rank === null ? 1e9 : b.rank);
+  });
+  return { list, all: rows, testCount, scope };
+}
+function cmRankBodyHtml(){
+  const { list, all, testCount } = cmRankRows();
+  if(!all.length) return `<tr><td colspan="8" class="mb-empty">Todavía no hay árbitros ni resultados.</td></tr>`;
+  if(!list.length) return `<tr><td colspan="8" class="mb-empty">Nadie coincide con esos filtros.</td></tr>`;
+  return list.map(r => {
+    const p = cmNameParts(r.m);
+    const cat = cmCatById(r.m.category_id);
+    const top = r.rank && r.rank <= 3 ? ' top' + r.rank : '';
+    return `<tr class="${r.done ? '' : 'none'}">
+      <td class="rkt-c-pos">${r.rank ? `<span class="rkt-pos${top}">${r.rank}</span>` : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-last"><strong>${esc(p.last || p.first || r.m.username || r.m.email || '—')}</strong></td>
+      <td class="rkt-c-first">${p.last ? esc(p.first || '—') : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-cat">${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-num">${r.done}/${testCount}</td>
+      <td class="rkt-c-num">${r.done ? r.score + '/' + r.total : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-acc">${r.done ? accuracyBadge(Math.round(r.pct)) : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-num">${r.done ? cmFmtDur(r.avgDur) : '<span class="mb-none">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+function cmRankCountText(){
+  const { list, all } = cmRankRows();
+  return list.length === all.length ? `${all.length} ${all.length === 1 ? 'árbitro' : 'árbitros'}` : `${list.length} de ${all.length} árbitros`;
+}
+function cmBindRankTable(){
+  const root = document.getElementById('cm-rank-table');
+  if(!root) return;
+  const refresh = () => {
+    const body = document.getElementById('cm-rank-body'); if(body) body.innerHTML = cmRankBodyHtml();
+    const cnt = document.getElementById('cm-rank-count'); if(cnt) cnt.textContent = cmRankCountText();
+  };
+  root.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if(t.classList && t.classList.contains('mb-f') && t.tagName === 'INPUT'){ COMMITTEE.rankFilters[t.dataset.col] = t.value; refresh(); }
+  });
+  root.addEventListener('change', (ev) => {
+    const t = ev.target;
+    if(t.classList && t.classList.contains('mb-f') && t.tagName === 'SELECT'){ COMMITTEE.rankFilters[t.dataset.col] = t.value; refresh(); }
+  });
+}
 function cmRankingTab(){
   const ic = (n) => shellIcon(n);
   const scope = cmRankScope();
-  const { rows, testCount } = cmComputeRanking(scope.season, scope.month);
-  const list = rows.map((r, i) => `<div class="rk-line ${r.done ? '' : 'none'}">
-      <span class="rk-pos">${r.done ? i + 1 : '—'}</span>
-      ${cmAvatar(r.who)}
-      <div class="rk-who"><strong>${esc(r.who)}</strong>${r.full_name && r.full_name !== r.who ? `<small>${esc(r.full_name)}</small>` : ''}</div>
-      <span class="rk-cell"><b>${r.done}/${testCount}</b><small>Tests</small></span>
-      <span class="rk-cell"><b>${r.score}/${r.total}</b><small>Puntos</small></span>
-      <span class="rk-cell">${r.done ? accuracyBadge(Math.round(r.pct)) : '<span class="law-sub-muted">—</span>'}<small>Acierto</small></span>
-      <span class="rk-cell"><b>${cmFmtDur(r.avgDur)}</b><small>Tiempo medio</small></span>
-    </div>`).join('');
+  const f = COMMITTEE.rankFilters;
+  const key = COMMITTEE.rankSortKey, dir = COMMITTEE.rankSortDir;
+  const th = (k, label) => `<th><button class="mb-sortbtn ${key === k ? 'on' : ''}" data-action="committee-rank-sort" data-key="${k}">${label}<span class="mb-arrow">${key === k ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></th>`;
+  const catOpts = `<option value="all" ${f.cat === 'all' ? 'selected' : ''}>Todas</option><option value="none" ${f.cat === 'none' ? 'selected' : ''}>Sin categoría</option>` +
+    (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${f.cat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   return `
   <div class="tx-toolbar">
     <div class="rk-period">
@@ -1261,11 +1342,36 @@ function cmRankingTab(){
         ${scope.months.map(m => `<option value="${esc(m)}" ${scope.month === m ? 'selected' : ''}>${esc(cmMonthNameCap(m))} ${esc(m.slice(0, 4))}</option>`).join('')}
       </select>
     </div>
-    <button class="btn btn-ghost" style="display:inline-flex; align-items:center; gap:8px;" data-action="committee-export-ranking">${ic('download')} Exportar a Excel</button>
   </div>
-  <div class="st-note" style="margin-bottom:14px;">Se cuenta el mejor intento de cada test publicado. Orden: % de acierto, puntos y tiempo medio. Esta clasificación solo la ven los administradores.</div>
-  ${rows.length ? `<div class="rk-list">${list}</div>` : `<div class="ac-empty">${ic('trophy')}<strong>Todavía no hay resultados</strong><span>Cuando los árbitros hagan los tests publicados aparecerán aquí.</span></div>`}`;
+  <div class="tc-card mb-listcard" id="cm-rank-table">
+    <div class="tc-card-head"><span class="tc-step">${ic('trophy')}</span><div><h3>Clasificación</h3><small id="cm-rank-count">${cmRankCountText()}</small></div>
+      <div class="cm-actions">
+        <button class="btn btn-ghost" data-action="committee-refresh">${ic('repeat')} Actualizar</button>
+        <button class="btn btn-ghost" data-action="committee-rank-clear-filters">${ic('trash')} Limpiar filtros</button>
+        <button class="btn btn-ghost" data-action="committee-export-ranking">${ic('download')} Exportar</button>
+      </div>
+    </div>
+    <div class="st-note" style="margin-bottom:12px;">Se cuenta el mejor intento de cada test publicado. Posición: % de acierto, luego puntos y luego tiempo medio. Solo la ven los administradores.</div>
+    <div class="mb-tablewrap">
+      <table class="rk-table">
+        <thead>
+          <tr class="rkt-th">
+            ${th('rank', '#')}${th('surname', 'Apellidos')}${th('name', 'Nombre')}${th('cat', 'Categoría')}${th('done', 'Tests')}${th('score', 'Puntos')}${th('pct', 'Acierto')}${th('dur', 'Tiempo')}
+          </tr>
+          <tr class="rkt-filters">
+            <th></th>
+            <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
+            <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
+            <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catOpts}</select></th>
+            <th></th><th></th><th></th><th></th>
+          </tr>
+        </thead>
+        <tbody id="cm-rank-body">${cmRankBodyHtml()}</tbody>
+      </table>
+    </div>
+  </div>`;
 }
+
 
 /* ----- Puntos débiles ----- */
 function cmStatsTab(){
@@ -1920,7 +2026,7 @@ async function committeeOnAction(action, el){
     if(st.is_admin) cmLoadAdminData();
     if(st.is_member || !st.is_admin) cmLoadMyTests();
   }
-  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeTraining'; render(); }
+  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeTraining'; render(); cmLoadAdminData(); }
   else if(action === 'committee-test-filter'){ COMMITTEE.testFilter = el.dataset.filter; render(); }
   else if(action === 'committee-training'){
     if(!isDevUser()) return;
@@ -2215,14 +2321,28 @@ async function committeeOnAction(action, el){
     }));
     cmExport(rows, 'Resultados', 'comite_' + t.title.replace(/[^\w]+/g, '_') + '.xlsx');
   }
+  else if(action === 'committee-rank-sort'){
+    const k = el.dataset.key;
+    if(COMMITTEE.rankSortKey === k) COMMITTEE.rankSortDir = COMMITTEE.rankSortDir === 'asc' ? 'desc' : 'asc';
+    else { COMMITTEE.rankSortKey = k; COMMITTEE.rankSortDir = (k === 'done' || k === 'score' || k === 'pct') ? 'desc' : 'asc'; }
+    render();
+  }
+  else if(action === 'committee-rank-clear-filters'){ COMMITTEE.rankFilters = { last: '', first: '', cat: 'all' }; render(); }
+  else if(action === 'committee-refresh'){
+    await cmLoadAdminData();
+    STATE.toast = 'Datos actualizados.'; render();
+  }
   else if(action === 'committee-export-ranking'){
     const scope = cmRankScope();
     const { rows, testCount } = cmComputeRanking(scope.season, scope.month);
-    const out = rows.map((r, i) => ({
-      'Posición': r.done ? i + 1 : '', 'Usuario': r.who, 'Nombre': r.full_name || '', 'Email': r.email || '',
-      'Tests hechos': r.done, 'Tests del periodo': testCount, 'Aciertos': r.score, 'Preguntas': r.total,
-      '% acierto': Math.round(r.pct), 'Tiempo medio (s)': r.avgDur
-    }));
+    const out = rows.map(r => {
+      const p = cmNameParts(r.m);
+      return {
+        'Posición': r.rank || '', 'Apellidos': p.last, 'Nombre': p.first, 'Categoría': (cmCatById(r.m.category_id) || {}).name || '', 'Correo': r.email || '',
+        'Tests hechos': r.done, 'Tests del periodo': testCount, 'Puntos': r.score, 'Preguntas': r.total,
+        '% acierto': r.done ? Math.round(r.pct) : '', 'Tiempo medio (s)': r.avgDur
+      };
+    });
     cmExport(out, 'Clasificación', 'comite_clasificacion_' + cmSeasonLabel(scope.season).replace('/', '-') + (scope.month === 'all' ? '' : '_' + scope.month) + '.xlsx');
   }
 
@@ -2333,6 +2453,7 @@ function committeeAfterRender(){
     });
   });
   cmBindMembersTable();
+  cmBindRankTable();
   cmBindSettings();
   const nta = document.getElementById('cm-b-nums');
   if(nta) nta.addEventListener('input', () => {
