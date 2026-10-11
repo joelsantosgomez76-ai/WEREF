@@ -445,7 +445,7 @@ function appConfirm(o){
     (o.danger ? cancelBtn : okBtn).focus();
   });
 }
-const SHARED = { ready:false, rows:{}, added:[], over:{} };
+const SHARED = { ready:false, rows:{}, added:[], over:{}, hasDraftCol:false };
 
 /* Número único y permanente de cada pregunta (tabla question_numbers; solo lo ven los administradores).
    Si la tabla aún no está instalada se usa la posición en el banco, como antes. */
@@ -507,6 +507,7 @@ function sharedNormRow(r){
     explanation: r.explanation == null ? null : r.explanation,
     difficulty: r.difficulty || 'normal',
     deleted: !!r.deleted,
+    draft: !!r.draft,
     created_at: r.created_at || null,
     updated_at: r.updated_at || null
   };
@@ -514,7 +515,7 @@ function sharedNormRow(r){
 function sharedRowToQuestion(r){
   return { id:r.id, domain:r.domain, rule: r.rule == null ? null : r.rule, num:r.id, question:r.question || '',
     options: r.options || ['','','',''], correct: r.correct || 'a', explanation: r.explanation || '',
-    difficulty: r.difficulty || 'normal', source:'user', shared:true, createdAt: r.created_at || null, updatedAt: r.updated_at || null };
+    difficulty: r.difficulty || 'normal', source:'user', shared:true, draft: !!r.draft, createdAt: r.created_at || null, updatedAt: r.updated_at || null };
 }
 function sharedRebuild(){
   const ids = baseIdSet();
@@ -536,6 +537,7 @@ async function loadSharedQuestions(){
     }
     SHARED.rows = {};
     all.forEach(r => { SHARED.rows[r.id] = r; });
+    SHARED.hasDraftCol = all.some(r => Object.prototype.hasOwnProperty.call(r, 'draft'));
     SHARED.ready = true;
   }catch(e){
     // Tabla aún sin instalar o sin conexión: la app sigue con el banco base.
@@ -548,9 +550,17 @@ async function sharedSave(rows){
   rows.forEach(r => { SHARED.rows[r.id] = r; });
   sharedRebuild();
   for(let i = 0; i < rows.length; i += 200){
-    const { error } = await supabaseClient.from('shared_questions').upsert(rows.slice(i, i + 200), { onConflict: 'id' });
+    // Sin el SQL de borradores la columna no existe: solo se envía "draft" cuando se usa de verdad.
+    const payload = rows.slice(i, i + 200).map(r => {
+      const o = Object.assign({}, r);
+      if(!SHARED.hasDraftCol && !o.draft) delete o.draft;
+      return o;
+    });
+    const { error } = await supabaseClient.from('shared_questions').upsert(payload, { onConflict: 'id' });
     if(error){
-      STATE.toast = 'No se pudo guardar en el banco compartido. Inténtalo de nuevo.';
+      STATE.toast = /draft/.test(error.message || '')
+        ? 'Falta ejecutar el SQL question-draft.sql en Supabase para poder retirar preguntas del juego.'
+        : 'No se pudo guardar en el banco compartido. Inténtalo de nuevo.';
       await loadSharedQuestions(); render();
       return false;
     }
@@ -575,6 +585,7 @@ function sharedRowFor(qid, domain, f, createdAt){
     id: qid, domain, rule: domain === 'law' ? f.rule : null,
     question: f.question, options: f.options, correct: f.correct,
     explanation: f.explanation || '', difficulty: f.difficulty || 'normal', deleted: false,
+    draft: !!(ex && ex.draft),
     created_at: (ex && ex.created_at) || createdAt || Date.now(), updated_at: Date.now()
   });
 }
@@ -635,14 +646,15 @@ function allQuestionsAdmin(){
         if(o.difficulty) f.difficulty = o.difficulty;
         if(o.domain === 'law' && o.rule != null) f.rule = o.rule;
         if(o.updated_at) f.updatedAt = o.updated_at;
+        if(o.draft) f.draft = true;
         r = Object.assign({}, q, f);
       }
       const e = STATE.storage.edits && STATE.storage.edits[q.id];
       return e ? Object.assign({}, r, e) : r;
     });
 }
-/* Lo que ve la web: sin las preguntas del Reglament General FCF. */
-function allQuestions(){ return allQuestionsAdmin().filter(q => q.domain !== 'fcf'); }
+/* Lo que ve la web: sin las preguntas del Reglament General FCF ni las retiradas del juego (borrador). */
+function allQuestions(){ return allQuestionsAdmin().filter(q => q.domain !== 'fcf' && !q.draft); }
 function questionsForLaw(law){
   if(law === 'hard') return allQuestions().filter(q => q.difficulty === 'hard');
   if(law === 'failed') return allQuestions().filter(q => isFailedQuestion(q));
@@ -3951,6 +3963,19 @@ function saveQuestionEdit(qid, alsoUnflag){
     // Banco compartido: el cambio lo ven todos los usuarios.
     const cur = allQuestionsAdmin().find(x => x.id === qid) || {};
     sharedSave([sharedRowFor(qid, domain, edit, cur.createdAt)]);
+    if(cur.draft){
+      // La pregunta estaba retirada del juego: se ofrece volver a publicarla ya corregida.
+      setTimeout(async () => {
+        const ok = await appConfirm({
+          title: '¿Volver a publicar la pregunta?',
+          message: 'Estaba quitada del juego. Si ya está corregida, vuelve a estar disponible para todos los usuarios.',
+          confirmText: 'Publicar de nuevo', cancelText: 'Dejarla en borrador', icon: 'play'
+        });
+        if(!ok) return;
+        const ex = SHARED.rows[qid];
+        if(ex){ sharedSave([Object.assign({}, ex, { draft: false })]); STATE.toast = 'Pregunta publicada de nuevo.'; render(); }
+      }, 60);
+    }
     if(STATE.storage.edits[qid]){ delete STATE.storage.edits[qid]; saveEdits(); }
   } else {
     STATE.storage.edits[qid] = edit;
@@ -3975,6 +4000,7 @@ function filteredDbList(){
   if(f.flaggedOnly) list = list.filter(q => !!STATE.storage.flags[q.id]);
   if(f.myOnly) list = list.filter(q => q.source === 'user');
   if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => !!STATE.storage.flags[q.id] || (STATE.reports[q.id]||0) > 0 || dups.has(q.id)); }
+  else if(f.status === 'draft') list = list.filter(q => !!q.draft);
   else if(f.status === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
   else if(f.status === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
   if(f.reviewStatus === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
@@ -4037,6 +4063,7 @@ function databaseView(){
     const isReviewed = !!STATE.storage.reviewed[q.id];
     const reportCount = STATE.reports[q.id] || 0;
     const tags = [
+      q.draft ? chip('draft', 'Borrador · fuera del juego') : '',
       q.difficulty==='hard' ? chip('hard', 'Difícil') : '',
       STATE.storage.flags[q.id] ? chip('flag', 'Marcada') : '',
       q.source==='user' ? chip('mine', 'Añadida') : '',
@@ -4047,7 +4074,7 @@ function databaseView(){
     const dates = [];
     if(q.createdAt) dates.push(`Creada ${new Date(q.createdAt).toLocaleDateString('es-ES')}`);
     if(q.updatedAt) dates.push(`Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}`);
-    return `<article class="ac-q db-q ${reportCount>0 ? 'reported' : (isReviewed ? 'reviewed' : '')}">
+    return `<article class="ac-q db-q ${q.draft ? 'is-draft' : (reportCount>0 ? 'reported' : (isReviewed ? 'reviewed' : ''))}">
       <div class="db-q-head">
         <span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || "…"}</span>
         <span class="db-q-scope">${scopeLabel(q)}</span>
@@ -4060,6 +4087,7 @@ function databaseView(){
       <div class="ac-q-actions">
         <button class="btn ${isReviewed?'btn-secondary':'btn-primary'}" data-action="toggle-reviewed" data-qid="${q.id}">${ic('check')} ${isReviewed ? 'Revisada' : 'Marcar como revisada'}</button>
         <button class="btn btn-ghost" data-action="edit-question" data-qid="${q.id}">${ic('pencil')} Editar</button>
+        ${sharedActive() ? `<button class="btn ${q.draft ? 'btn-primary' : 'btn-ghost'}" data-action="toggle-draft" data-qid="${q.id}" title="${q.draft ? 'Vuelve a estar disponible para todos' : 'Se quita del juego hasta que la corrijas'}">${ic(q.draft ? 'play' : 'lock')} ${q.draft ? 'Volver a publicar' : 'Quitar del juego'}</button>` : ''}
         <button class="btn btn-ghost btn-danger-soft" data-action="delete-question" data-qid="${q.id}">${ic('trash')} Eliminar</button>
         ${reportCount>0 ? `<button class="btn btn-ghost" data-action="dismiss-reports" data-qid="${q.id}">${ic('flag')} Descartar reportes</button>` : ''}
       </div>
@@ -4070,6 +4098,7 @@ function databaseView(){
   const reportedCount = Object.keys(STATE.reports).length;
   const attentionCount = all.filter(q => STATE.storage.flags[q.id] || (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
   const pendingCount = all.length - reviewedCount;
+  const draftCount = all.filter(q => q.draft).length;
   const statusNow = f.status || 'all';
 
   const LOW_COUNT_THRESHOLD = 30;
@@ -4136,6 +4165,7 @@ function databaseView(){
         ${statusChip('attention', 'Necesitan atención', attentionCount)}
         ${statusChip('pending', 'Sin revisar', pendingCount)}
         ${statusChip('reviewed', 'Revisadas', reviewedCount)}
+        ${sharedActive() || draftCount ? statusChip('draft', 'En borrador', draftCount) : ''}
       </div>
       <div class="db-diff">
         <label for="db-difficulty">Dificultad</label>
@@ -4568,7 +4598,8 @@ function exportExcel(){
     'Opción D': q.options[3]||'',
     'Correcta (a/b/c/d)': q.correct,
     'Explicación': q.explanation||'',
-    'Difícil (SI/NO)': q.difficulty==='hard' ? 'SI' : 'NO'
+    'Difícil (SI/NO)': q.difficulty==='hard' ? 'SI' : 'NO',
+    'En borrador (SI/NO)': q.draft ? 'SI' : 'NO'
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{wch:8},{wch:10},{wch:10},{wch:50},{wch:28},{wch:28},{wch:28},{wch:28},{wch:10},{wch:40},{wch:10}];
@@ -5006,6 +5037,23 @@ function onAction(e){
       STATE.toast = 'Pregunta eliminada.';
     }
     STATE.confirmDeleteId = null;
+    render();
+  }
+  else if(action==='toggle-draft'){
+    if(!isDevUser() || !sharedActive()) return;
+    const qid = el.dataset.qid;
+    const cur = allQuestionsAdmin().find(x => x.id === qid); if(!cur) return;
+    const makeDraft = !cur.draft;
+    const ex = SHARED.rows[qid];
+    // Para una pregunta base sin cambios previos se guarda solo la marca (el resto queda como está).
+    const row = ex
+      ? Object.assign({}, ex, { draft: makeDraft })
+      : { id: qid, domain: cur.domain, rule: null, question: null, options: null, correct: null, explanation: null,
+          difficulty: cur.difficulty || 'normal', deleted: false, draft: makeDraft, created_at: null, updated_at: null };
+    sharedSave([row]);
+    STATE.toast = makeDraft
+      ? 'Pregunta quitada del juego. Sigue en la base de datos como borrador hasta que la vuelvas a publicar.'
+      : 'Pregunta publicada de nuevo.';
     render();
   }
   else if(action==='cancel-delete'){

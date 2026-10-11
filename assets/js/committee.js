@@ -1598,10 +1598,11 @@ function cmAddByNumbers(b){
   const byNum = questionsByNumber();
   const nums = cmParseNumbers(b.numsText);
   const inTest = new Set(b.selected.map(q => q.id));
-  const rep = { added: 0, already: [], missing: [] };
+  const rep = { added: 0, already: [], missing: [], draft: [] };
   nums.forEach(n => {
     const q = byNum[n];
     if(!q){ rep.missing.push(n); return; }
+    if(q.draft){ rep.draft.push(n); return; }
     if(inTest.has(q.id)){ rep.already.push(n); return; }
     b.selected.push(q); inTest.add(q.id); rep.added++;
   });
@@ -1616,7 +1617,7 @@ function cmNumsStatus(b){
   const inTest = new Set(b.selected.map(q => q.id));
   const items = nums.map(n => {
     const q = byNum[n];
-    return { n, q, state: !q ? 'missing' : (inTest.has(q.id) ? 'already' : 'new') };
+    return { n, q, state: !q ? 'missing' : (q.draft ? 'draft' : (inTest.has(q.id) ? 'already' : 'new')) };
   });
   return { items, ok: items.filter(i => i.state === 'new').length };
 }
@@ -1635,12 +1636,13 @@ function cmNumsPreviewHtml(b){
       return `<div class="cm-pv missing"><div class="cm-pv-head"><span class="cm-qnum">#${it.n}</span><span class="cm-pv-state bad">No existe o se eliminó</span></div></div>`;
     }
     const q = it.q;
-    return `<div class="cm-pv ${it.state}">
+    return `<div class="cm-pv ${it.state === 'draft' ? 'missing' : it.state}">
       <div class="cm-pv-head">
         <span class="cm-pv-pos">${idx + 1}</span><span class="cm-qnum">#${it.n}</span>
         <span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${esc(cmRuleLabel(q))}</span>
         ${q.difficulty === 'hard' ? '<span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">Difícil</span>' : ''}
         ${it.state === 'already' ? '<span class="cm-pv-state warn">Ya está en el test</span>' : ''}
+        ${it.state === 'draft' ? '<span class="cm-pv-state bad">En borrador: no se añadirá</span>' : ''}
       </div>
       <div class="cm-pv-q">${esc(q.question)}</div>
       ${cmQuestionDetail(q)}
@@ -1658,6 +1660,7 @@ function cmNumsReportHtml(rep){
   const rows = [];
   if(rep.added) rows.push(`<div class="cm-nums-rep ok">${cmIc('check')}<span>Añadidas <b>${rep.added}</b> ${rep.added === 1 ? 'pregunta' : 'preguntas'} al test.</span></div>`);
   if(rep.already.length) rows.push(`<div class="cm-nums-rep warn">${cmIc('flag')}<span>Ya estaban en el test: <b>${rep.already.join(', ')}</b>.</span></div>`);
+  if(rep.draft && rep.draft.length) rows.push(`<div class="cm-nums-rep warn">${cmIc('flag')}<span>En borrador (fuera del juego), no se añaden: <b>${rep.draft.join(', ')}</b>.</span></div>`);
   if(rep.missing.length) rows.push(`<div class="cm-nums-rep bad">${cmIc('flag')}<span>No existen (o se eliminaron): <b>${rep.missing.join(', ')}</b>.</span></div>`);
   return rows.join('');
 }
