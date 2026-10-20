@@ -699,6 +699,7 @@ els.form.addEventListener('submit', async (e)=>{
         return;
       }
       const metadata = {
+        first_name: els.name.value.trim(),
         full_name: els.name.value.trim(),
         last_name: els.lastname.value.trim(),
         country: els.country.value,
