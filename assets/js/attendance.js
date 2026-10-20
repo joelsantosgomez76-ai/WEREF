@@ -13,6 +13,11 @@ COMMITTEE.att = {
   season: null,
   open: null,            // id de la clase abierta para pasar lista
   rollQ: '',
+  rollSortKey: 'surname',
+  rollSortDir: 'asc',
+  rollFilter: 'all',     // all / here / absent
+  rollCat: 'all',
+  info: new Map(),       // 'sessionId|userId' -> {method, at}
   newDate: '',
   sortKey: 'surname',
   sortDir: 'asc',
@@ -69,13 +74,14 @@ async function cmLoadAttendance(){
   try{
     const [s, r, cfg] = await Promise.all([
       supabaseClient.from('committee_sessions').select('*').order('class_date', { ascending: false }),
-      attFetchAll('committee_attendance', 'session_id,user_id'),
+      attFetchAll('committee_attendance', 'session_id,user_id,method,marked_at'),
       supabaseClient.from('committee_settings').select('attendance_threshold').eq('id', 1).maybeSingle()
     ]);
     if(s.error || r.error){ A.sessions = []; A.set = new Set(); A.missing = true; return; }
     A.missing = false;
     A.sessions = s.data || [];
     A.set = new Set((r.data || []).map(x => x.session_id + '|' + x.user_id));
+    A.info = new Map((r.data || []).map(x => [x.session_id + '|' + x.user_id, { method: x.method, at: x.marked_at }]));
     if(cfg && !cfg.error && cfg.data && Number.isFinite(cfg.data.attendance_threshold)) A.threshold = cfg.data.attendance_threshold;
   }catch(e){ A.sessions = []; A.set = new Set(); A.missing = true; }
 }
@@ -259,29 +265,56 @@ function attTab(){
 }
 
 /* ---------- pasar lista ---------- */
-function attRollList(){
-  const A = att();
+function attRollMembers(){
+  const A = att(), sid = A.open;
+  const all = (COMMITTEE.members || []).map(m => {
+    const key = sid + '|' + m.user_id;
+    return { m, on: A.set.has(key), info: A.info.get(key) || null, cat: cmCatById(m.category_id), p: cmNameParts(m) };
+  });
   const q = cmPlain(A.rollQ).trim();
-  const members = (COMMITTEE.members || []).slice().sort((a, b) => cmCollate(cmSurnameName(a), cmSurnameName(b)))
-    .filter(m => !q || cmPlain(cmSurnameName(m) + ' ' + (m.email || '')).includes(q));
-  if(!members.length) return `<div class="mb-empty" style="padding:18px;">Nadie coincide con la búsqueda.</div>`;
-  const head = `<div class="at-rl-head"><span>#</span><span>Árbitro</span><span class="at-c-cat">Categoría</span><span class="at-c-st">Asistencia</span></div>`;
-  return head + members.map((m, i) => {
-    const on = A.set.has(A.open + '|' + m.user_id);
-    const cat = cmCatById(m.category_id);
+  const list = all.filter(e => (!q || cmPlain(cmSurnameName(e.m) + ' ' + (e.m.email || '')).includes(q))
+    && (A.rollFilter === 'all' || (A.rollFilter === 'here' ? e.on : !e.on))
+    && (A.rollCat === 'all' || (A.rollCat === 'none' ? !e.m.category_id : e.m.category_id === A.rollCat)));
+  const key = A.rollSortKey, dir = A.rollSortDir;
+  const val = (e) => {
+    if(key === 'cat') return e.cat ? cmPlain(e.cat.name) : null;
+    if(key === 'reg') return e.on && e.info && e.info.at ? Date.parse(e.info.at) : null;
+    if(key === 'state') return e.on ? 1 : 0;
+    return (e.p.last || e.p.first) ? cmPlain(e.p.last || e.p.first) : null;
+  };
+  list.sort((a, b) => {
+    const va = val(a), vb = val(b);
+    const na = va === null, nb = vb === null;
+    if(na !== nb) return na ? 1 : -1;
+    let r = 0;
+    if(!na) r = (typeof va === 'number' && typeof vb === 'number') ? va - vb : cmCollate(va, vb);
+    if(r !== 0) return dir === 'desc' ? -r : r;
+    return cmCollate(cmSurnameName(a.m), cmSurnameName(b.m));
+  });
+  const here = all.filter(e => e.on).length;
+  return { all, list, here, absent: all.length - here };
+}
+function attFmtTime(iso){
+  try{ return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }catch(e){ return ''; }
+}
+function attRollList(){
+  const { list, all } = attRollMembers();
+  if(!all.length) return `<div class="mb-empty" style="padding:22px;">Todavía no hay árbitros en Miembros.</div>`;
+  if(!list.length) return `<div class="mb-empty" style="padding:22px;">Nadie coincide con esos filtros.</div>`;
+  return list.map((e, i) => {
+    const m = e.m;
     let h = 0; const seed = cmSurnameName(m); for(let k = 0; k < seed.length; k++) h = (h * 31 + seed.charCodeAt(k)) % 360;
-    return `<button type="button" class="at-row ${on ? 'on' : ''}" data-uid="${m.user_id}" aria-pressed="${on}">
+    const reg = e.on && e.info && e.info.at
+      ? `<span class="at-reg" title="${esc(cmFmtDate(e.info.at))}"><b>${esc(attFmtTime(e.info.at))}</b><i class="${e.info.method === 'qr' ? 'qr' : ''}">${e.info.method === 'qr' ? 'QR' : 'Manual'}</i></span>`
+      : '<span class="mb-none">—</span>';
+    return `<button type="button" class="at-row ${e.on ? 'on' : ''}" data-uid="${m.user_id}" aria-pressed="${e.on}">
       <span class="at-num">${i + 1}</span>
       <span class="at-person"><span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span><strong>${esc(cmSurnameName(m))}</strong></span>
-      <span class="at-c-cat">${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : '<span class="mb-none">—</span>'}</span>
-      <span class="at-c-st"><span class="at-state ${on ? 'on' : ''}">${on ? shellIcon('check') + 'Presente' : 'No ha venido'}</span></span>
+      <span class="at-c-cat">${e.cat ? `<span class="rkt-cat" style="--c:${esc(e.cat.color)}">${esc(e.cat.name)}</span>` : '<span class="mb-none">—</span>'}</span>
+      <span class="at-c-reg">${reg}</span>
+      <span class="at-c-st"><span class="at-state ${e.on ? 'on' : ''}">${e.on ? shellIcon('check') + 'Ha venido' : 'No ha venido'}</span></span>
     </button>`;
   }).join('');
-}
-function attRollCountText(){
-  const s = (att().sessions || []).find(x => x.id === att().open); if(!s) return '';
-  const c = attSessionCount(s);
-  return `${c.here} de ${c.total} presentes`;
 }
 function attRollView(){
   const ic = (n) => shellIcon(n);
@@ -289,34 +322,58 @@ function attRollView(){
   const s = (A.sessions || []).find(x => x.id === A.open);
   if(!s){ A.open = null; return ''; }
   const today = s.class_date === attToday();
+  const { all, here, absent } = attRollMembers();
+  const pct = all.length ? Math.round(here / all.length * 100) : 0;
+  const key = A.rollSortKey, dir = A.rollSortDir;
+  const th = (k, label, cls) => `<span class="${cls || ''}"><button type="button" class="mb-sortbtn ${key === k ? 'on' : ''}" data-action="committee-att-rsort" data-key="${k}">${label}<span class="mb-arrow">${key === k ? (dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></span>`;
+  const chip = (k, label, id, n) => `<button type="button" class="db-status ${A.rollFilter === k ? 'active' : ''}" data-action="committee-att-rfilter" data-f="${k}">${label}<em id="${id}">${n}</em></button>`;
+  const catOpts = `<option value="all" ${A.rollCat === 'all' ? 'selected' : ''}>Todas las categorías</option><option value="none" ${A.rollCat === 'none' ? 'selected' : ''}>Sin categoría</option>` +
+    (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${A.rollCat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  const hero = cmHero('Asistencia · Pasar lista', esc(attTitle(s)),
+    'Toca a cada árbitro que esté en clase. Quien no esté marcado cuenta como falta. Se guarda al momento.',
+    today ? `<button class="btn btn-yellow" data-action="committee-att-qr" data-sid="${s.id}">${ic('qr')} Mostrar QR</button>` : '',
+    `<div class="lg-hero-stats cm-hero-stats">
+      <div class="lg-stat"><b id="at-st-here">${here}</b><span>Han venido</span></div>
+      <div class="lg-stat"><b id="at-st-abs">${absent}</b><span>No han venido</span></div>
+      <div class="lg-stat"><b id="at-st-pct">${pct}%</b><span>Asistencia</span></div>
+    </div>`);
   return `
+  <button class="backbtn" data-action="committee-att-close">&larr; Volver a Asistencia</button>
+  ${hero}
   <div class="tc-card at-roll" id="at-roll">
-    <div class="tc-card-head"><span class="tc-step">${ic('check')}</span><div><h3>${esc(attTitle(s))}</h3><small id="at-roll-count">${attRollCountText()}</small></div>
-      <div class="cm-actions">
-        <button class="btn btn-ghost" data-action="committee-att-close">← Volver</button>
-        ${today ? `<button class="btn btn-yellow" data-action="committee-att-qr" data-sid="${s.id}">${ic('qr')} Mostrar QR</button>` : ''}
-      </div>
+    <div class="at-toolbar">
+      <div class="ac-search at-tsearch">${ic('search')}<input type="text" id="at-roll-q" placeholder="Buscar por apellidos o nombre" value="${esc(A.rollQ)}" autocomplete="off" aria-label="Buscar árbitro"></div>
+      <select id="at-roll-cat" class="at-catsel" aria-label="Filtrar por categoría">${catOpts}</select>
     </div>
-    <div class="st-note" style="margin-bottom:12px;">Toca a cada árbitro que esté en clase. Lo que no esté marcado cuenta como falta. Se guarda al momento.</div>
-    <input type="text" id="at-roll-q" class="at-search" placeholder="Buscar por apellidos o nombre" value="${esc(A.rollQ)}" autocomplete="off" aria-label="Buscar árbitro">
-    <div class="at-rolllist" id="at-roll-list">${attRollList()}</div>
+    <div class="db-status-group at-chips">
+      ${chip('all', 'Todos', 'at-n-all', all.length)}${chip('here', 'Han venido', 'at-n-here', here)}${chip('absent', 'No han venido', 'at-n-abs', absent)}
+    </div>
+    <div class="at-rolltable">
+      <div class="at-rl-head"><span>#</span>${th('surname', 'Árbitro')}${th('cat', 'Categoría', 'at-c-cat')}${th('reg', 'Registro', 'at-c-reg')}${th('state', 'Asistencia', 'at-c-st')}</div>
+      <div class="at-rolllist" id="at-roll-list">${attRollList()}</div>
+    </div>
   </div>`;
 }
 function attRollRefresh(){
   const l = document.getElementById('at-roll-list'); if(l) l.innerHTML = attRollList();
-  const c = document.getElementById('at-roll-count'); if(c) c.textContent = attRollCountText();
+  const { all, here, absent } = attRollMembers();
+  const set = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  set('at-st-here', here); set('at-st-abs', absent); set('at-st-pct', (all.length ? Math.round(here / all.length * 100) : 0) + '%');
+  set('at-n-all', all.length); set('at-n-here', here); set('at-n-abs', absent);
 }
 async function attToggle(uid){
   const A = att(); const sid = A.open; if(!sid) return;
   const key = sid + '|' + uid;
   const was = A.set.has(key);
-  if(was) A.set.delete(key); else A.set.add(key);
+  const prevInfo = A.info.get(key);
+  if(was){ A.set.delete(key); A.info.delete(key); }
+  else { A.set.add(key); A.info.set(key, { method: 'manual', at: new Date().toISOString() }); }
   attRollRefresh();
   const r = was
     ? await supabaseClient.from('committee_attendance').delete().eq('session_id', sid).eq('user_id', uid)
     : await supabaseClient.from('committee_attendance').insert({ session_id: sid, user_id: uid, method: 'manual' });
   if(r.error){
-    if(was) A.set.add(key); else A.set.delete(key);
+    if(was){ A.set.add(key); if(prevInfo) A.info.set(key, prevInfo); } else { A.set.delete(key); A.info.delete(key); }
     attRollRefresh();
     cmToast(attErr(r.error));
   }
@@ -345,10 +402,11 @@ async function attQrPoll(){
   if(!ATT_QR) return;
   if(!document.getElementById('att-qr-ov') || !cmInCommittee()){ attCloseQr(); return; }
   const A = att(), sid = ATT_QR.sid;
-  const r = await supabaseClient.from('committee_attendance').select('user_id,marked_at').eq('session_id', sid).order('marked_at', { ascending: false });
+  const r = await supabaseClient.from('committee_attendance').select('user_id,marked_at,method').eq('session_id', sid).order('marked_at', { ascending: false });
   if(r.error || !ATT_QR) return;
-  Array.from(A.set).forEach(k => { if(k.startsWith(sid + '|')) A.set.delete(k); });
-  (r.data || []).forEach(x => A.set.add(sid + '|' + x.user_id));
+  Array.from(A.set).forEach(k => { if(k.startsWith(sid + '|')){ A.set.delete(k); A.info.delete(k); } });
+  (r.data || []).forEach(x => { A.set.add(sid + '|' + x.user_id); A.info.set(sid + '|' + x.user_id, { method: x.method, at: x.marked_at }); });
+  if(A.open === sid) attRollRefresh();
   const s = (A.sessions || []).find(x => x.id === sid); if(!s) return;
   const c = attSessionCount(s);
   const cnt = document.getElementById('att-qr-count'); if(cnt) cnt.innerHTML = `<b>${c.here}</b><span> / ${c.total} presentes</span>`;
@@ -416,7 +474,7 @@ async function attOnAction(action, el){
     A.season = attSeasonOf(r.data);
     STATE.toast = 'Clase creada: ' + attTitle(r.data); render();
   }
-  else if(action === 'committee-att-open'){ A.open = el.dataset.sid; A.rollQ = ''; render(); window.scrollTo(0, 0); }
+  else if(action === 'committee-att-open'){ A.open = el.dataset.sid; A.rollQ = ''; A.rollFilter = 'all'; A.rollCat = 'all'; A.rollSortKey = 'surname'; A.rollSortDir = 'asc'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-att-close'){ A.open = null; render(); await cmLoadAttendance(); cmRefresh(); }
   else if(action === 'committee-att-delete'){
     const s = (A.sessions || []).find(x => x.id === el.dataset.sid); if(!s) return;
@@ -428,6 +486,13 @@ async function attOnAction(action, el){
     STATE.toast = 'Clase eliminada.'; render();
   }
   else if(action === 'committee-att-qr'){ attOpenQr(el.dataset.sid); }
+  else if(action === 'committee-att-rsort'){
+    const k = el.dataset.key;
+    if(A.rollSortKey === k) A.rollSortDir = A.rollSortDir === 'asc' ? 'desc' : 'asc';
+    else { A.rollSortKey = k; A.rollSortDir = k === 'state' ? 'desc' : 'asc'; }
+    render();
+  }
+  else if(action === 'committee-att-rfilter'){ A.rollFilter = el.dataset.f; render(); }
   else if(action === 'committee-att-sort'){
     const k = el.dataset.key;
     if(A.sortKey === k) A.sortDir = A.sortDir === 'asc' ? 'desc' : 'asc';
@@ -478,6 +543,8 @@ function attAfterRender(){
     });
     const q = document.getElementById('at-roll-q');
     if(q) q.addEventListener('input', () => { A.rollQ = q.value; attRollRefresh(); });
+    const cs = document.getElementById('at-roll-cat');
+    if(cs) cs.addEventListener('change', () => { A.rollCat = cs.value; attRollRefresh(); });
   }
   const th = document.getElementById('at-threshold');
   if(th) th.addEventListener('change', async () => {
