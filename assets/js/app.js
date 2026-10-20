@@ -4041,6 +4041,133 @@ function filteredDbList(opts){
   return list;
 }
 
+/* ---------- Base de datos: filtro por fechas (selector propio: atajos + calendario) ----------
+   Se evita <input type="date">: el navegador avisa del cambio en cuanto se teclea la primera cifra del año
+   y la lista se repintaba a mitad de escribir. Aquí cada clic es una elección completa. */
+const DB_MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function dbIso(d){ const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+function dbFmtDay(iso){ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+function dbPresets(){
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  const day = (n) => { const d = new Date(y, m, now.getDate() - n); return dbIso(d); };
+  const seasonStart = m >= 6 ? y : y - 1;
+  return [
+    ['today', 'Hoy', dbIso(now), dbIso(now)],
+    ['yesterday', 'Ayer', day(1), day(1)],
+    ['7d', 'Últimos 7 días', day(6), dbIso(now)],
+    ['30d', 'Últimos 30 días', day(29), dbIso(now)],
+    ['month', 'Este mes', dbIso(new Date(y, m, 1)), dbIso(new Date(y, m + 1, 0))],
+    ['lastmonth', 'Mes pasado', dbIso(new Date(y, m - 1, 1)), dbIso(new Date(y, m, 0))],
+    ['season', 'Esta temporada', dbIso(new Date(seasonStart, 6, 1)), dbIso(new Date(seasonStart + 1, 5, 30))]
+  ];
+}
+function dbCalState(){
+  if(!STATE.dbCal){ const n = new Date(); STATE.dbCal = { open: null, y: n.getFullYear(), m: n.getMonth() }; }
+  return STATE.dbCal;
+}
+function dbCalendarHtml(f){
+  const c = dbCalState();
+  const first = new Date(c.y, c.m, 1);
+  const lead = (first.getDay() + 6) % 7;                 // semana que empieza en lunes
+  const start = new Date(c.y, c.m, 1 - lead);
+  const todayIso = dbIso(new Date());
+  let cells = '';
+  for(let i = 0; i < 42; i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const iso = dbIso(d);
+    const cls = ['dc-day'];
+    if(d.getMonth() !== c.m) cls.push('out');
+    if(iso === todayIso) cls.push('today');
+    if(f.dateFrom && f.dateTo && iso > f.dateFrom && iso < f.dateTo) cls.push('in');
+    if(iso === f.dateFrom) cls.push('sel', 'from');
+    if(iso === f.dateTo) cls.push('sel', 'to');
+    cells += `<button type="button" class="${cls.join(' ')}" data-action="db-cal-pick" data-date="${iso}">${d.getDate()}</button>`;
+  }
+  const ic = (n) => shellIcon(n);
+  return `<div class="dc-cal" role="dialog" aria-label="Calendario">
+    <div class="dc-ask">Elige la fecha <b>${c.open === 'to' ? 'Hasta' : 'Desde'}</b></div>
+    <div class="dc-head">
+      <button type="button" class="dc-nav" data-action="db-cal-nav" data-dm="-12" aria-label="Año anterior">«</button>
+      <button type="button" class="dc-nav" data-action="db-cal-nav" data-dm="-1" aria-label="Mes anterior">‹</button>
+      <b>${DB_MONTHS[c.m]} ${c.y}</b>
+      <button type="button" class="dc-nav" data-action="db-cal-nav" data-dm="1" aria-label="Mes siguiente">›</button>
+      <button type="button" class="dc-nav" data-action="db-cal-nav" data-dm="12" aria-label="Año siguiente">»</button>
+    </div>
+    <div class="dc-dow"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+    <div class="dc-grid">${cells}</div>
+    <div class="dc-foot">
+      <button type="button" class="btn btn-ghost" data-action="db-cal-today">Hoy</button>
+      <button type="button" class="btn btn-ghost" data-action="db-cal-clear" data-target="${c.open}">Quitar esta fecha</button>
+      <button type="button" class="btn btn-primary" data-action="db-cal-close">Listo</button>
+    </div>
+  </div>`;
+}
+function dbDateFilterHtml(f){
+  const c = dbCalState();
+  const fields = [['created', 'Creación'], ['updated', 'Última modificación'], ['reviewed', 'Revisión']];
+  const presets = dbPresets();
+  const active = presets.find(p => p[2] === f.dateFrom && p[3] === f.dateTo);
+  const btn = (target, label, val) => `<button type="button" class="dc-input ${c.open === target ? 'open' : ''} ${val ? 'has' : ''}" data-action="db-cal-open" data-target="${target}"><small>${label}</small><span>${val ? esc(dbFmtDay(val)) : 'Sin fecha'}</span></button>`;
+  return `<div class="dc-wrap">
+    <div class="dc-label">Filtrar por fecha de</div>
+    <div class="db-status-group dc-fields">${fields.map(([k, l]) => `<button type="button" class="db-status ${f.dateField === k ? 'active' : ''}" style="padding:8px 14px;" data-action="db-date-field" data-field="${k}">${l}</button>`).join('')}</div>
+    <div class="dc-label">Periodo rápido</div>
+    <div class="db-status-group dc-presets">${presets.map(p => `<button type="button" class="tx-filter ${active && active[0] === p[0] ? 'active' : ''}" data-action="db-date-preset" data-preset="${p[0]}">${p[1]}</button>`).join('')}</div>
+    <div class="dc-label">O elige tú las fechas</div>
+    <div class="dc-inputs">
+      ${btn('from', 'Desde', f.dateFrom)}
+      <span class="dc-sep">→</span>
+      ${btn('to', 'Hasta', f.dateTo)}
+      ${(f.dateFrom || f.dateTo) ? `<button type="button" class="btn btn-ghost" data-action="db-date-clear">Quitar fechas</button>` : ''}
+    </div>
+    ${c.open ? dbCalendarHtml(f) : ''}
+  </div>`;
+}
+/* Acciones del filtro de fechas. Devuelve true si la acción era suya. */
+function dbDateAction(action, el){
+  const f = STATE.dbFilter;
+  if(!/^db-(cal|date)-/.test(action)) return false;
+  const c = dbCalState();
+  f.advOpen = true; f.page = 1;
+  if(action === 'db-date-field'){ f.dateField = el.dataset.field; }
+  else if(action === 'db-date-preset'){
+    const p = dbPresets().find(x => x[0] === el.dataset.preset);
+    if(p){ f.dateFrom = p[2]; f.dateTo = p[3]; c.open = null; }
+  }
+  else if(action === 'db-date-clear'){ f.dateFrom = ''; f.dateTo = ''; c.open = null; }
+  else if(action === 'db-cal-open'){
+    const t = el.dataset.target;
+    c.open = c.open === t ? null : t;
+    const cur = t === 'to' ? (f.dateTo || f.dateFrom) : (f.dateFrom || f.dateTo);
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(cur || '') ? new Date(cur + 'T00:00:00') : new Date();
+    c.y = d.getFullYear(); c.m = d.getMonth();
+  }
+  else if(action === 'db-cal-nav'){
+    const d = new Date(c.y, c.m + parseInt(el.dataset.dm, 10), 1);
+    c.y = d.getFullYear(); c.m = d.getMonth();
+  }
+  else if(action === 'db-cal-today'){ const n = new Date(); c.y = n.getFullYear(); c.m = n.getMonth(); }
+  else if(action === 'db-cal-pick'){
+    const iso = el.dataset.date;
+    if(c.open === 'to'){ f.dateTo = iso; if(f.dateFrom && f.dateFrom > iso) f.dateFrom = ''; c.open = null; }
+    else {
+      f.dateFrom = iso; if(f.dateTo && f.dateTo < iso) f.dateTo = '';
+      if(f.dateTo) c.open = null;
+      else {                                  // sigue con la fecha final, mostrando el mismo mes
+        c.open = 'to';
+        const d = new Date(iso + 'T00:00:00'); c.y = d.getFullYear(); c.m = d.getMonth();
+      }
+    }
+  }
+  else if(action === 'db-cal-clear'){
+    if(el.dataset.target === 'to') f.dateTo = ''; else f.dateFrom = '';
+    c.open = null;
+  }
+  else if(action === 'db-cal-close'){ c.open = null; }
+  render();
+  return true;
+}
+
 function databaseView(){
   const ic = (n) => shellIcon(n);
   const f = STATE.dbFilter;
@@ -4205,16 +4332,7 @@ function databaseView(){
     </div>
     <details class="db-adv" ${advOpen ? 'open' : ''}>
       <summary>Filtros avanzados · fechas</summary>
-      <div class="db-filters">
-        <div><label for="db-date-field">Filtrar por fecha de</label>
-          <select id="db-date-field">
-            <option value="created" ${f.dateField==='created'?'selected':''}>Creación</option>
-            <option value="updated" ${f.dateField==='updated'?'selected':''}>Última modificación</option>
-            <option value="reviewed" ${f.dateField==='reviewed'?'selected':''}>Revisión</option>
-          </select></div>
-        <div><label for="db-date-from">Desde</label><input type="date" id="db-date-from" value="${esc(f.dateFrom)}"></div>
-        <div><label for="db-date-to">Hasta</label><input type="date" id="db-date-to" value="${esc(f.dateTo)}"></div>
-      </div>
+      ${dbDateFilterHtml(f)}
       ${(f.dateFrom || f.dateTo) ? (f.dateField === 'reviewed'
         ? `<div class="st-note" style="margin-top:4px;">La fecha de revisión se guarda desde que se añadió esta función: las preguntas que ya estaban marcadas como revisadas antes no tienen fecha y no aparecerán en este filtro. Si quieres que tengan fecha, desmárcalas y vuelve a marcarlas.</div>`
         : `<div class="st-note" style="margin-top:4px;">La fecha solo se registra desde que se añadió esta función: las preguntas antiguas que nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>`) : ''}
@@ -4792,12 +4910,6 @@ function bindEvents(){
   if(dbPageSize){ dbPageSize.addEventListener('change', (e)=>{ STATE.dbFilter.pageSize = parseInt(e.target.value, 10) || 25; STATE.dbFilter.page = 1; render(); }); }
   const dbAdv = document.querySelector('.db-adv');
   if(dbAdv){ dbAdv.addEventListener('toggle', () => { STATE.dbFilter.advOpen = dbAdv.open; }); }
-  const dbDateField = document.getElementById('db-date-field');
-  if(dbDateField){ dbDateField.addEventListener('change', (e)=>{ STATE.dbFilter.dateField = e.target.value; STATE.dbFilter.page = 1; render(); }); }
-  const dbDateFrom = document.getElementById('db-date-from');
-  if(dbDateFrom){ dbDateFrom.addEventListener('change', (e)=>{ STATE.dbFilter.dateFrom = e.target.value; STATE.dbFilter.page = 1; render(); }); }
-  const dbDateTo = document.getElementById('db-date-to');
-  if(dbDateTo){ dbDateTo.addEventListener('change', (e)=>{ STATE.dbFilter.dateTo = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dailyGoalSelect = document.getElementById('daily-goal-select');
   if(dailyGoalSelect){ dailyGoalSelect.addEventListener('change', (e)=>{ STATE.storage.dailyGoal = parseInt(e.target.value,10); saveDailyGoal(); render(); }); }
 
@@ -5032,6 +5144,7 @@ function onAction(e){
   else if(action==='start-hearts'){ startHeartsMode(); }
   else if(action==='start-suddendeath'){ startSuddenDeathMode(); }
   else if(action==='start-timeattack'){ startTimeAttackMode(); }
+  else if(dbDateAction(action, el)){ /* filtro de fechas de Base de datos */ }
   else if(action==='db-set-status'){ STATE.dbFilter.status = el.dataset.status; STATE.dbFilter.page = 1; STATE.editingId = null; render(); }
   else if(action==='db-prev-page'){ STATE.dbFilter.page = Math.max(1, STATE.dbFilter.page-1); render(); }
   else if(action==='db-next-page'){ STATE.dbFilter.page = STATE.dbFilter.page+1; render(); }
