@@ -1406,6 +1406,11 @@ function cmTrainingView(){
   const ic = (n) => shellIcon(n);
   const st = COMMITTEE.status || {};
   const tab = ['tests', 'messages', 'members', 'attendance', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
+  // Pasando lista: pantalla propia, sin la cabecera ni las pestañas del panel.
+  if(tab === 'attendance' && COMMITTEE.tests !== null && typeof attRollView === 'function' && att().open && att().sessions !== null && !att().missing){
+    const roll = attRollView();
+    if(roll) return roll;
+  }
   const nTests = (COMMITTEE.tests || []).length;
   const nMembers = (COMMITTEE.members || []).length;
   const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['attendance', 'Asistencia', 'calendar', null], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
