@@ -265,14 +265,16 @@ function attRollList(){
   const members = (COMMITTEE.members || []).slice().sort((a, b) => cmCollate(cmSurnameName(a), cmSurnameName(b)))
     .filter(m => !q || cmPlain(cmSurnameName(m) + ' ' + (m.email || '')).includes(q));
   if(!members.length) return `<div class="mb-empty" style="padding:18px;">Nadie coincide con la búsqueda.</div>`;
-  return members.map(m => {
+  const head = `<div class="at-rl-head"><span>#</span><span>Árbitro</span><span class="at-c-cat">Categoría</span><span class="at-c-st">Asistencia</span></div>`;
+  return head + members.map((m, i) => {
     const on = A.set.has(A.open + '|' + m.user_id);
     const cat = cmCatById(m.category_id);
     let h = 0; const seed = cmSurnameName(m); for(let k = 0; k < seed.length; k++) h = (h * 31 + seed.charCodeAt(k)) % 360;
     return `<button type="button" class="at-row ${on ? 'on' : ''}" data-uid="${m.user_id}" aria-pressed="${on}">
-      <span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span>
-      <span class="at-row-name"><strong>${esc(cmSurnameName(m))}</strong>${cat ? `<em style="--c:${esc(cat.color)}">${esc(cat.name)}</em>` : ''}</span>
-      <span class="at-check">${on ? shellIcon('check') : ''}<b>${on ? 'Presente' : ''}</b></span>
+      <span class="at-num">${i + 1}</span>
+      <span class="at-person"><span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span><strong>${esc(cmSurnameName(m))}</strong></span>
+      <span class="at-c-cat">${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : '<span class="mb-none">—</span>'}</span>
+      <span class="at-c-st"><span class="at-state ${on ? 'on' : ''}">${on ? shellIcon('check') + 'Presente' : 'No ha venido'}</span></span>
     </button>`;
   }).join('');
 }
