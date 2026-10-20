@@ -158,17 +158,15 @@ function attPctBadge(pct){
 }
 function attBodyHtml(){
   const { list, all } = attRows();
-  if(!all.length) return `<tr><td colspan="6" class="mb-empty">Todavía no hay árbitros.</td></tr>`;
-  if(!list.length) return `<tr><td colspan="6" class="mb-empty">Nadie coincide con esos filtros.</td></tr>`;
+  if(!all.length) return `<tr><td colspan="5" class="mb-empty">Todavía no hay árbitros.</td></tr>`;
+  if(!list.length) return `<tr><td colspan="5" class="mb-empty">Nadie coincide con esos filtros.</td></tr>`;
   return list.map(e => {
     const cat = cmCatById(e.m.category_id);
     const low = e.s.pct !== null && e.s.pct < att().threshold;
-    const dots = e.s.dots.map(d => `<i class="at-dot ${d.on ? 'on' : ''}" title="${esc(attFmtDate(d.s.class_date))} · ${d.on ? 'Presente' : 'No vino'}"></i>`).join('');
-    return `<tr class="${low ? 'low' : ''}">
+    return `<tr class="at-trow ${low ? 'low' : ''}" data-uid="${e.m.user_id}" title="Ver en qué fechas vino" tabindex="0">
       <td class="at-c-last"><strong>${esc(e.p.last || e.p.first || e.m.username || e.m.email || '—')}</strong></td>
       <td>${e.p.last ? esc(e.p.first || '—') : '<span class="mb-none">—</span>'}</td>
       <td>${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : '<span class="mb-none">—</span>'}</td>
-      <td class="at-c-dots">${dots || '<span class="mb-none">—</span>'}</td>
       <td class="rkt-c-num">${e.s.total ? e.s.got + '/' + e.s.total : '<span class="mb-none">—</span>'}</td>
       <td>${attPctBadge(e.s.pct)}</td>
     </tr>`;
@@ -247,21 +245,108 @@ function attTab(){
         <button class="btn btn-ghost" data-action="committee-att-export">${ic('download')} Exportar</button>
       </div>
     </div>
+    <div class="st-note" style="margin-bottom:12px;">Pulsa sobre un árbitro para ver en qué fechas vino: en verde los días que vino y en rojo los días que no.</div>
     <div class="mb-tablewrap">
       <table class="at-table">
         <thead>
-          <tr class="rkt-th">${th('surname', 'Apellidos')}${th('name', 'Nombre')}${th('cat', 'Categoría')}<th>Clases</th>${th('got', 'Asistidas')}${th('pct', '%')}</tr>
+          <tr class="rkt-th">${th('surname', 'Apellidos')}${th('name', 'Nombre')}${th('cat', 'Categoría')}${th('got', 'Asistidas')}${th('pct', '%')}</tr>
           <tr class="rkt-filters">
             <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
             <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
             <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catOpts}</select></th>
-            <th></th><th></th><th></th>
+            <th></th><th></th>
           </tr>
         </thead>
         <tbody id="at-body">${attBodyHtml()}</tbody>
       </table>
     </div>
   </div>`;
+}
+
+/* ---------- calendario de asistencia de un árbitro (al pulsar su fila en Seguimiento) ---------- */
+let ATT_CAL = null;
+function attCalBounds(season){
+  const y = parseInt(season, 10);
+  return { min: y * 12 + 6, max: (y + 1) * 12 + 5 };       // julio … junio
+}
+function attCalBody(){
+  const c = ATT_CAL;
+  const m = (COMMITTEE.members || []).find(x => x.user_id === c.uid);
+  if(!m) return '';
+  const ic = (n) => shellIcon(n);
+  const st = attMemberStats(m, c.season);
+  const here = {}; st.dots.forEach(d => { here[d.s.class_date] = d.on; });
+  const other = {}; attSeasonSessions(c.season).forEach(s => { if(!(s.class_date in here)) other[s.class_date] = true; });
+  const b = attCalBounds(c.season);
+  const y = Math.floor(c.idx / 12), mo = c.idx % 12;
+  const first = new Date(y, mo, 1);
+  const start = new Date(y, mo, 1 - ((first.getDay() + 6) % 7));
+  const todayIso = attToday();
+  let cells = '';
+  for(let i = 0; i < 42; i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const p = n => String(n).padStart(2, '0');
+    const iso = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    if(i >= 35 && d.getMonth() !== mo) break;
+    const cls = ['ac-cal-day'];
+    let title = '';
+    if(d.getMonth() !== mo) cls.push('out');
+    else if(iso in here){ cls.push(here[iso] ? 'yes' : 'no'); title = attFmtDate(iso) + ' · ' + (here[iso] ? 'Vino' : 'No vino'); }
+    else if(other[iso]){ cls.push('other'); title = attFmtDate(iso) + ' · Clase anterior a su alta'; }
+    if(iso === todayIso) cls.push('today');
+    cells += `<div class="${cls.join(' ')}" ${title ? `title="${esc(title)}"` : ''}>${d.getDate()}</div>`;
+  }
+  const cat = cmCatById(m.category_id);
+  return `
+    <button type="button" class="tx-icon ac-cal-x" data-cal="close" aria-label="Cerrar">✕</button>
+    <div class="ac-cal-head">
+      <h3>${esc(cmSurnameName(m))}</h3>
+      <div class="ac-cal-meta">
+        ${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : ''}
+        <span>Temporada ${cmSeasonLabel(c.season)}</span>
+        <span>·</span>
+        ${st.total ? `<span><b style="color:var(--ink);">${st.got} de ${st.total}</b> clases</span>${attPctBadge(st.pct)}` : '<span>Todavía no hay clases</span>'}
+      </div>
+    </div>
+    <div class="ac-cal-nav">
+      <button type="button" data-cal="prev" aria-label="Mes anterior" ${c.idx <= b.min ? 'disabled' : ''}>‹</button>
+      <b>${DB_MONTHS[mo]} ${y}</b>
+      <button type="button" data-cal="next" aria-label="Mes siguiente" ${c.idx >= b.max ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="ac-cal-dow"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+    <div class="ac-cal-grid">${cells}</div>
+    <div class="ac-cal-legend"><span><i></i>Vino</span><span><i class="no"></i>No vino</span></div>`;
+}
+function attCloseCal(){
+  const ov = document.getElementById('att-cal-ov'); if(ov) ov.remove();
+  if(ATT_CAL){ document.removeEventListener('keydown', ATT_CAL.onKey, true); ATT_CAL = null; }
+}
+function attOpenMemberCal(uid){
+  const A = att();
+  attCloseCal();
+  const season = attCurSeason();
+  const sess = attSeasonSessions(season).filter(s => s.class_date <= attToday());
+  const b = attCalBounds(season);
+  let idx;
+  if(sess.length){ const d = sess[sess.length - 1].class_date; idx = parseInt(d.slice(0, 4), 10) * 12 + parseInt(d.slice(5, 7), 10) - 1; }
+  else { const n = new Date(); idx = n.getFullYear() * 12 + n.getMonth(); }
+  idx = Math.max(b.min, Math.min(b.max, idx));
+  const onKey = (e) => { if(e.key === 'Escape'){ e.preventDefault(); attCloseCal(); } };
+  ATT_CAL = { uid, season, idx, onKey };
+  const ov = document.createElement('div');
+  ov.id = 'att-cal-ov'; ov.className = 'modal-backdrop';
+  ov.innerHTML = `<div class="ac-cal-card" role="dialog" aria-modal="true">${attCalBody()}</div>`;
+  ov.addEventListener('click', (e) => {
+    if(e.target === ov) return attCloseCal();
+    const t = e.target.closest('[data-cal]'); if(!t || !ATT_CAL) return;
+    if(t.dataset.cal === 'close') return attCloseCal();
+    const bb = attCalBounds(ATT_CAL.season);
+    if(t.dataset.cal === 'prev') ATT_CAL.idx = Math.max(bb.min, ATT_CAL.idx - 1);
+    if(t.dataset.cal === 'next') ATT_CAL.idx = Math.min(bb.max, ATT_CAL.idx + 1);
+    ov.firstChild.innerHTML = attCalBody();
+  });
+  document.body.appendChild(ov);
+  document.addEventListener('keydown', onKey, true);
 }
 
 /* ---------- pasar lista ---------- */
@@ -529,6 +614,15 @@ function attAfterRender(){
     tbl.addEventListener('input', (ev) => {
       const t = ev.target;
       if(t.classList && t.classList.contains('mb-f') && t.tagName === 'INPUT'){ A.filters[t.dataset.col] = t.value; refresh(); }
+    });
+    tbl.addEventListener('click', (ev) => {
+      const row = ev.target.closest('.at-trow');
+      if(row) attOpenMemberCal(row.dataset.uid);
+    });
+    tbl.addEventListener('keydown', (ev) => {
+      if(ev.key !== 'Enter') return;
+      const row = ev.target.closest && ev.target.closest('.at-trow');
+      if(row){ ev.preventDefault(); attOpenMemberCal(row.dataset.uid); }
     });
     tbl.addEventListener('change', (ev) => {
       const t = ev.target;
