@@ -180,6 +180,7 @@ async function cmLoadMyTests(){
   else { COMMITTEE.myTests = tests.data || []; }
   COMMITTEE.myAttempts = att.error ? [] : (att.data || []);   // la política solo deja ver los propios
   cmRefresh();
+  if(typeof cmLoadMyAttendance === 'function') cmLoadMyAttendance().then(() => cmRefresh());
 }
 
 /* Miembros con nombre y apellidos por separado; si el SQL nuevo aún no está, se usa la función antigua. */
@@ -225,6 +226,7 @@ async function cmLoadAdminData(){
     COMMITTEE.usedMap = used;
   }
   await cmLoadCategories();
+  if(typeof cmLoadAttendance === 'function') await cmLoadAttendance();
   cmRefresh();
 }
 
@@ -333,6 +335,7 @@ function cmMemberPerformance(){
     <div class="kpi"><div class="kpi-top">${ic('check')} Tests hechos</div><div class="kpi-val">${done.length}<small> / ${rows.length}</small></div><div class="kpi-sub">${rows.length - done.length ? (rows.length - done.length) + ' por hacer' : 'al día'}</div></div>
     <div class="kpi"><div class="kpi-top">${ic('clock')} Tiempo medio</div><div class="kpi-val">${cmFmtDur(avgDur)}</div><div class="kpi-sub">por test</div></div>
   </div>
+  ${typeof attPerfHtml === 'function' ? attPerfHtml(who, season) : ''}
   ${rows.length ? `
   <div class="tc-card" style="margin-bottom:16px;">
     <div class="tc-card-head"><span class="tc-step">${ic('chart')}</span><div><h3>Tu evolución</h3><small>% de acierto en cada test de la temporada</small></div></div>
@@ -1214,7 +1217,7 @@ function cmSettingsTab(){
         ${sugg}
       </div>
     </div>
-
+    ${typeof attSettingsCard === 'function' ? attSettingsCard() : ''}
   </div>`;
 }
 
@@ -1402,13 +1405,14 @@ function cmStatsTab(){
 function cmTrainingView(){
   const ic = (n) => shellIcon(n);
   const st = COMMITTEE.status || {};
-  const tab = ['tests', 'messages', 'members', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
+  const tab = ['tests', 'messages', 'members', 'attendance', 'ranking', 'stats', 'settings'].includes(COMMITTEE.tab) ? COMMITTEE.tab : 'tests';
   const nTests = (COMMITTEE.tests || []).length;
   const nMembers = (COMMITTEE.members || []).length;
-  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
+  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['attendance', 'Asistencia', 'calendar', null], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
   let content;
   if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
   else if(tab === 'members') content = cmMembersTab();
+  else if(tab === 'attendance') content = attTab();
   else if(tab === 'ranking') content = cmRankingTab();
   else if(tab === 'stats') content = cmStatsTab();
   else if(tab === 'settings') content = cmSettingsTab();
@@ -2021,6 +2025,7 @@ async function committeeOnAction(action, el){
   const tid = el.dataset.tid;
   const b = COMMITTEE.builder;
 
+  if(action.startsWith('committee-att-')){ if(typeof attOnAction === 'function') await attOnAction(action, el); return; }
   if(action === 'committee-open'){
     const st = COMMITTEE.status;
     if(!st) return;
@@ -2458,7 +2463,8 @@ function committeeAfterRender(){
   cmBindMembersTable();
   cmBindRankTable();
   cmBindSettings();
-  const nta = document.getElementById('cm-b-nums');
+  if(typeof attAfterRender === 'function') attAfterRender();
+  const nta =document.getElementById('cm-b-nums');
   if(nta) nta.addEventListener('input', () => {
     const b = COMMITTEE.builder; if(!b) return;
     b.numsText = nta.value;
