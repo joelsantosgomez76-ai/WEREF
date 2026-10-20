@@ -2823,6 +2823,15 @@ async function loadProfileData(){
   render();
 }
 
+/* Nombre de pila del perfil. Al entrar con Google, Supabase reescribe "full_name" con el nombre completo
+   de la cuenta de Google; el nombre que edita la persona se guarda aparte en "first_name" y manda sobre él
+   (aunque esté vacío). Si todavía no existe, se usa "full_name". */
+function profileFirstName(p){
+  if(!p) return '';
+  if(Object.prototype.hasOwnProperty.call(p, 'first_name') && p.first_name !== null && p.first_name !== undefined) return String(p.first_name);
+  return String(p.full_name || '');
+}
+
 function profileView(){
   const ic = (n) => shellIcon(n);
   const email = (typeof CURRENT_USER_EMAIL!=='undefined' && CURRENT_USER_EMAIL) ? CURRENT_USER_EMAIL : '';
@@ -2831,7 +2840,7 @@ function profileView(){
   const rank = currentRank(points);
   const unlockedCount = BADGES.filter(b => (STATE.storage.unlockedBadges || {})[b.id]).length;
   const p = STATE.profileData;
-  const fullName = p ? [p.full_name, p.last_name].filter(Boolean).join(' ') : '';
+  const fullName = p ? [profileFirstName(p), p.last_name].filter(Boolean).join(' ') : '';
   const initial = esc((username || email || '?').trim().charAt(0).toUpperCase());
 
   const row = (icon, label, value) => `<div class="pr-row"><span class="pr-row-ic">${ic(icon)}</span><span class="pr-row-label">${label}</span><span class="pr-row-val ${value ? '' : 'empty'}">${value ? esc(value) : 'Sin rellenar'}</span></div>`;
@@ -2866,7 +2875,7 @@ function profileView(){
       ${p ? `
         ${row('award', 'Usuario', username)}
         ${row('message', 'Correo', email)}
-        ${row('pencil', 'Nombre', p.full_name)}
+        ${row('pencil', 'Nombre', profileFirstName(p))}
         ${row('pencil', 'Apellidos', p.last_name)}
         ${row('calendar', 'Fecha de nacimiento', birth)}
         ${row('flag', 'País', p.country)}
@@ -2909,7 +2918,7 @@ function profileEditView(){
     <div class="tc-card">
       <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Datos personales</h3><small>Cómo te llamas y cuándo naciste</small></div></div>
       <div class="pr-fields">
-        <div><label for="profile-name">Nombre</label><input type="text" id="profile-name" maxlength="100" value="${esc(p.full_name||'')}"></div>
+        <div><label for="profile-name">Nombre</label><input type="text" id="profile-name" maxlength="100" value="${esc(profileFirstName(p))}"></div>
         <div><label for="profile-lastname">Apellidos</label><input type="text" id="profile-lastname" maxlength="100" value="${esc(p.last_name||'')}"></div>
         <div class="full"><label for="profile-birthdate">Fecha de nacimiento</label><input type="date" id="profile-birthdate" value="${esc(p.birthdate||'')}"></div>
       </div>
@@ -2936,8 +2945,11 @@ function profileEditView(){
 }
 
 async function saveProfileEdit(){
+  const firstName = document.getElementById('profile-name').value.trim();
   const updated = {
-    full_name: document.getElementById('profile-name').value.trim(),
+    first_name: firstName,        // el que se lee: Google no lo pisa
+    full_name: firstName,         // se mantiene por compatibilidad
+
     last_name: document.getElementById('profile-lastname').value.trim(),
     country: document.getElementById('profile-country').value,
     birthdate: document.getElementById('profile-birthdate').value,
