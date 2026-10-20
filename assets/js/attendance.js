@@ -295,8 +295,6 @@ function attRollView(){
       <div class="cm-actions">
         <button class="btn btn-ghost" data-action="committee-att-close">← Volver</button>
         ${today ? `<button class="btn btn-yellow" data-action="committee-att-qr" data-sid="${s.id}">${ic('qr')} Mostrar QR</button>` : ''}
-        <button class="btn btn-ghost" data-action="committee-att-all">${ic('check')} Marcar a todos</button>
-        <button class="btn btn-ghost" data-action="committee-att-none">${ic('trash')} Quitar a todos</button>
       </div>
     </div>
     <div class="st-note" style="margin-bottom:12px;">Toca a cada árbitro que esté en clase. Lo que no esté marcado cuenta como falta. Se guarda al momento.</div>
@@ -428,24 +426,6 @@ async function attOnAction(action, el){
     if(r.error){ cmToast(attErr(r.error)); return; }
     await cmLoadAttendance();
     STATE.toast = 'Clase eliminada.'; render();
-  }
-  else if(action === 'committee-att-all'){
-    const sid = A.open; if(!sid) return;
-    const rows = (COMMITTEE.members || []).filter(m => !A.set.has(sid + '|' + m.user_id)).map(m => ({ session_id: sid, user_id: m.user_id, method: 'manual' }));
-    if(!rows.length) return;
-    const r = await supabaseClient.from('committee_attendance').upsert(rows, { onConflict: 'session_id,user_id', ignoreDuplicates: true });
-    if(r.error){ cmToast(attErr(r.error)); return; }
-    rows.forEach(x => A.set.add(sid + '|' + x.user_id));
-    attRollRefresh();
-  }
-  else if(action === 'committee-att-none'){
-    const sid = A.open; if(!sid) return;
-    const ok = await appConfirm({ title: 'Quitar a todos', message: 'Se quitará la marca de presente a todos los árbitros de esta clase.', confirmText: 'Quitar a todos', danger: true });
-    if(!ok) return;
-    const r = await supabaseClient.from('committee_attendance').delete().eq('session_id', sid);
-    if(r.error){ cmToast(attErr(r.error)); return; }
-    Array.from(A.set).forEach(k => { if(k.startsWith(sid + '|')) A.set.delete(k); });
-    attRollRefresh();
   }
   else if(action === 'committee-att-qr'){ attOpenQr(el.dataset.sid); }
   else if(action === 'committee-att-sort'){
