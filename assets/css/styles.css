@@ -3088,3 +3088,10 @@ img, svg, video{max-width:100%;}
 .mb-acts{display:inline-flex; gap:6px; justify-content:flex-end;}
 .mb-table .mb-c-del{width:92px;}
 @media (max-width:700px){ .mb-acts{gap:8px;} .mb-c-del{align-self:center;} }
+
+/* Kahoot: borradores */
+.lv-gcard.is-draft{border-style:dashed; background:repeating-linear-gradient(135deg,#FFFFFF,#FFFFFF 14px,#FAF8F4 14px,#FAF8F4 28px);}
+.lv-saverow{display:flex; gap:10px; flex-wrap:wrap;}
+.lv-saverow .btn{flex:1 1 220px; padding:16px; font-size:15.5px; border-radius:14px; display:inline-flex; align-items:center; justify-content:center; gap:10px;}
+.lv-saverow .btn svg{width:19px; height:19px;}
+.lv-draftnote{margin:10px 2px 0; font-size:12.5px; color:var(--muted);}
