@@ -167,8 +167,8 @@ function attBodyHtml(){
       <td class="at-c-last"><strong>${esc(e.p.last || e.p.first || e.m.username || e.m.email || '—')}</strong></td>
       <td>${e.p.last ? esc(e.p.first || '—') : '<span class="mb-none">—</span>'}</td>
       <td>${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : '<span class="mb-none">—</span>'}</td>
-      <td class="rkt-c-num">${e.s.total ? e.s.got + '/' + e.s.total : '<span class="mb-none">—</span>'}</td>
-      <td>${attPctBadge(e.s.pct)}</td>
+      <td class="rkt-c-num" data-label="Asistidas">${e.s.total ? e.s.got + '/' + e.s.total : '<span class="mb-none">—</span>'}</td>
+      <td data-label="Asistencia">${attPctBadge(e.s.pct)}</td>
     </tr>`;
   }).join('');
 }
@@ -251,8 +251,8 @@ function attTab(){
         <thead>
           <tr class="rkt-th">${th('surname', 'Apellidos')}${th('name', 'Nombre')}${th('cat', 'Categoría')}${th('got', 'Asistidas')}${th('pct', '%')}</tr>
           <tr class="rkt-filters">
-            <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
-            <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
+            <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Apellidos" aria-label="Filtrar por apellidos" autocomplete="off"></th>
+            <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Nombre" aria-label="Filtrar por nombre" autocomplete="off"></th>
             <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catOpts}</select></th>
             <th></th><th></th>
           </tr>
