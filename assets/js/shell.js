@@ -156,6 +156,7 @@ function menuView(){
   return `
   <h2 style="margin-bottom:14px;">Más</h2>
   <div class="home-panel" style="padding:6px;">${extra.map(row).join('')}</div>
+  ${typeof installMenuRow === 'function' ? installMenuRow() : ''}
   ${flags ? `<div class="home-panel" style="padding:6px; margin-top:12px;">${row({ label: 'Preguntas marcadas', icon: 'flag', action: 'flagged-list', badge: flags })}</div>` : ''}
   ${admin.length ? `<div class="home-panel-title" style="margin:18px 4px 8px;">Administración</div><div class="home-panel" style="padding:6px;">${admin.map(row).join('')}</div>` : ''}
   <div class="home-panel" style="padding:6px; margin-top:12px;">
