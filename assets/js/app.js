@@ -3238,6 +3238,7 @@ function homeView(){
 
   return `
   ${hero}
+  ${typeof installBannerHtml === 'function' ? installBannerHtml() : ''}
   ${kpis}
   <div class="home-cols">
     <div class="home-left">
@@ -5175,6 +5176,7 @@ function onAction(e){
   else if(action==='start-suddendeath'){ startSuddenDeathMode(); }
   else if(action==='start-timeattack'){ startTimeAttackMode(); }
   else if(dbDateAction(action, el)){ /* filtro de fechas de Base de datos */ }
+  else if(typeof action === 'string' && action.startsWith('install-') && typeof installOnAction === 'function'){ installOnAction(action); }
   else if(action==='db-set-status'){ STATE.dbFilter.status = el.dataset.status; STATE.dbFilter.page = 1; STATE.editingId = null; render(); }
   else if(action==='db-prev-page'){ STATE.dbFilter.page = Math.max(1, STATE.dbFilter.page-1); render(); }
   else if(action==='db-next-page'){ STATE.dbFilter.page = STATE.dbFilter.page+1; render(); }
