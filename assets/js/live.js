@@ -1,4 +1,4 @@
-/* ---------------- WeRef Live · juego de preguntas en directo para clase ----------------
+/* ---------------- Kahoot · juego de preguntas en directo para clase ----------------
    Panel de Formación → pestaña "En directo" (crear sala, abrirla, histórico) y, para el alumno,
    la entrada desde CTA BAGES (código o QR). Es un juego aparte: no toca la asistencia ni la clasificación.
    Toda la lógica y la seguridad viven en Supabase (supabase/committee-live.sql): el móvil del alumno
@@ -36,7 +36,9 @@ function lvErr(err){
   if(/closed/.test(m)) return 'Se acabó el tiempo de esta pregunta.';
   if(/no_access/.test(m)) return 'Solo los árbitros del comité pueden jugar.';
   if(/bad_questions/.test(m)) return 'Revisa las preguntas: cada una necesita entre 2 y 4 opciones.';
-  if(/live_games|live_players|live_questions|live_answers|live_create|live_state|live_join|PGRST20[25]|42P01|42883|schema cache/i.test(m)) return 'Falta ejecutar el SQL de WeRef Live (committee-live.sql) en Supabase.';
+  if(/not_draft/.test(m)) return 'Este borrador ya no se puede abrir o editar.';
+  if(/live_open_draft|live_update_draft|p_draft|live_games_status_check/i.test(m)) return 'Falta ejecutar el SQL de borradores de Kahoot (committee-live-drafts.sql) en Supabase.';
+  if(/live_games|live_players|live_questions|live_answers|live_create|live_state|live_join|PGRST20[25]|42P01|42883|schema cache/i.test(m)) return 'Falta ejecutar el SQL de Kahoot (committee-live.sql) en Supabase.';
   return cmErrText(err);
 }
 async function lvFetchAll(table, cols, gameId){
@@ -62,15 +64,20 @@ async function liveLoadGames(){
 }
 function liveGameCard(g){
   const ic = (n) => shellIcon(n);
-  const active = g.status !== 'finished' && (Date.now() - Date.parse(g.created_at)) < 12 * 3600000;
-  const chip = active ? '<span class="cm-chip open">En curso</span>' : '<span class="cm-chip closed">Terminada</span>';
-  return `<article class="lv-gcard">
-    <div class="lv-gtop"><div><strong>${esc(g.title)}</strong><small>${esc(cmFmtDate(g.created_at))}</small></div>${chip}</div>
-    <ul class="lv-gmeta"><li>${ic('book')}<span>${g.question_count} ${g.question_count === 1 ? 'pregunta' : 'preguntas'}</span></li><li>${ic('users')}<span>${g.players} ${g.players === 1 ? 'jugador' : 'jugadores'}</span></li><li>${ic('timer')}<span>${g.seconds} s por pregunta</span></li></ul>
+  const draft = g.status === 'draft';
+  const active = !draft && g.status !== 'finished' && (Date.now() - Date.parse(g.created_at)) < 12 * 3600000;
+  const chip = draft ? '<span class="cm-chip draft">Borrador</span>' : active ? '<span class="cm-chip open">En curso</span>' : '<span class="cm-chip closed">Terminada</span>';
+  const actions = draft
+    ? `<button class="btn btn-primary" data-action="committee-live-open-draft" data-gid="${g.id}" ${g.question_count ? '' : 'disabled'}>${ic('play')} Abrir sala</button>
+       <button class="btn btn-ghost" data-action="committee-live-edit" data-gid="${g.id}">${ic('pencil')} Editar</button>`
+    : `${active ? `<button class="btn btn-primary" data-action="committee-live-open" data-gid="${g.id}">${ic('play')} Abrir sala</button>` : `<button class="btn btn-primary" data-action="committee-live-detail" data-gid="${g.id}">${ic('chart')} Resultados</button>`}
+       ${active ? `<button class="btn btn-ghost" data-action="committee-live-detail" data-gid="${g.id}">${ic('chart')} Resultados</button>` : ''}
+       <button class="btn btn-ghost" data-action="committee-live-repeat" data-gid="${g.id}">${ic('repeat')} Repetir</button>`;
+  return `<article class="lv-gcard ${draft ? 'is-draft' : ''}">
+    <div class="lv-gtop"><div><strong>${esc(g.title)}</strong><small>${draft ? 'Guardado el ' : ''}${esc(cmFmtDate(g.created_at))}</small></div>${chip}</div>
+    <ul class="lv-gmeta"><li>${ic('book')}<span>${g.question_count} ${g.question_count === 1 ? 'pregunta' : 'preguntas'}</span></li>${draft ? '' : `<li>${ic('users')}<span>${g.players} ${g.players === 1 ? 'jugador' : 'jugadores'}</span></li>`}<li>${ic('timer')}<span>${g.seconds} s por pregunta</span></li></ul>
     <div class="lv-gactions">
-      ${active ? `<button class="btn btn-primary" data-action="committee-live-open" data-gid="${g.id}">${ic('play')} Abrir sala</button>` : `<button class="btn btn-primary" data-action="committee-live-detail" data-gid="${g.id}">${ic('chart')} Resultados</button>`}
-      ${active ? `<button class="btn btn-ghost" data-action="committee-live-detail" data-gid="${g.id}">${ic('chart')} Resultados</button>` : ''}
-      <button class="btn btn-ghost" data-action="committee-live-repeat" data-gid="${g.id}">${ic('repeat')} Repetir</button>
+      ${actions}
       <button class="tx-icon danger" data-action="committee-live-delete" data-gid="${g.id}" title="Eliminar" aria-label="Eliminar">${ic('trash')}</button>
     </div>
   </article>`;
@@ -79,20 +86,23 @@ function liveTab(){
   const ic = (n) => shellIcon(n);
   const L = lv();
   if(L.games === null) return `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
-  if(L.missing) return `<div class="tc-card"><div class="st-note">Para usar WeRef Live falta ejecutar una vez el SQL <b>committee-live.sql</b> en Supabase (SQL Editor).</div></div>`;
+  if(L.missing) return `<div class="tc-card"><div class="st-note">Para usar Kahoot falta ejecutar una vez el SQL <b>committee-live.sql</b> en Supabase (SQL Editor).</div></div>`;
   if(L.creating) return liveCreateForm();
+  const drafts = L.games.filter(g => g.status === 'draft');
+  const played = L.games.filter(g => g.status !== 'draft');
   return `
   <div class="lv-intro">
     <div class="lv-intro-ic">${ic('zap')}</div>
-    <div class="lv-intro-t"><h3>WeRef Live</h3><p>Preguntas en directo para clase: proyectas la pantalla, los alumnos contestan desde el móvil y ves el resultado al instante. Es un juego aparte: no cuenta para la asistencia ni para la clasificación.</p></div>
-    <button class="btn btn-yellow" data-action="committee-live-new">${ic('plus')} Nueva sala</button>
+    <div class="lv-intro-t"><h3>Kahoot</h3><p>Preguntas en directo para clase: proyectas la pantalla, los alumnos contestan desde el móvil y ves el resultado al instante. Puedes prepararlo en borrador y abrirlo el día de la clase. Es un juego aparte: no cuenta para la asistencia ni para la clasificación.</p></div>
+    <button class="btn btn-yellow" data-action="committee-live-new">${ic('plus')} Nuevo Kahoot</button>
   </div>
-  <div class="lg-section-head" style="margin-top:18px;"><h2>Histórico <em class="cm-count">${L.games.length}</em></h2><span>Partidas anteriores: pulsa para revisarlas</span></div>
-  ${L.games.length ? `<div class="lv-glist">${L.games.map(liveGameCard).join('')}</div>` : `<div class="ac-empty">${ic('zap')}<strong>Todavía no has hecho ninguna partida</strong><span>Crea tu primera sala con «Nueva sala».</span></div>`}`;
+  ${drafts.length ? `<div class="lg-section-head" style="margin-top:18px;"><h2>Borradores <em class="cm-count">${drafts.length}</em></h2><span>Preparados, todavía sin abrir en clase</span></div><div class="lv-glist">${drafts.map(liveGameCard).join('')}</div>` : ''}
+  <div class="lg-section-head" style="margin-top:18px;"><h2>Histórico <em class="cm-count">${played.length}</em></h2><span>Partidas anteriores: pulsa para revisarlas</span></div>
+  ${played.length ? `<div class="lv-glist">${played.map(liveGameCard).join('')}</div>` : `<div class="ac-empty">${ic('zap')}<strong>Todavía no has hecho ninguna partida</strong><span>Crea tu primer Kahoot con «Nuevo Kahoot».</span></div>`}`;
 }
 
 /* ---------- crear una sala ---------- */
-function liveNewDraft(){ return { title: '', seconds: '20', numsText: '', selected: [], numsReport: null, copyTest: '' }; }
+function liveNewDraft(){ return { title: '', seconds: '20', numsText: '', selected: [], numsReport: null, copyTest: '', editId: null }; }
 function liveItemsHtml(d){
   const ic = (n) => shellIcon(n);
   if(!d.selected.length) return `<div class="st-note" style="margin-top:12px;">Todavía no hay preguntas. Escribe sus números arriba (los que ves con # en la Base de datos) o copia las de un test.</div>`;
@@ -116,9 +126,9 @@ function liveCreateForm(){
       ${rep.draft.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>En borrador (fuera del juego): <b>${rep.draft.join(', ')}</b>.</span></div>` : ''}` : '';
   const tests = (COMMITTEE.tests || []).filter(t => t.question_count);
   return `
-  <button class="backbtn" data-action="committee-live-cancel">&larr; Volver a En directo</button>
+  <button class="backbtn" data-action="committee-live-cancel">&larr; Volver a Kahoot</button>
   <div class="tc-card" style="margin-bottom:14px;">
-    <div class="tc-card-head"><span class="tc-step">1</span><div><h3>Nueva sala</h3><small>Ponle un nombre y elige cuánto tiempo tendrán</small></div></div>
+    <div class="tc-card-head"><span class="tc-step">1</span><div><h3>${d.editId ? 'Editar borrador' : 'Nuevo Kahoot'}</h3><small>Ponle un nombre y elige cuánto tiempo tendrán</small></div></div>
     <label for="lv-title">Nombre de la partida</label>
     <input type="text" id="lv-title" data-cm-field="live.draft.title" value="${esc(d.title)}" maxlength="120" placeholder="Ej.: Repaso Regla 11" autocomplete="off">
     <label for="lv-secs">Tiempo por pregunta</label>
@@ -137,22 +147,40 @@ function liveCreateForm(){
     <div class="lg-section-head" style="margin:18px 0 8px;"><h2 style="font-size:17px;">En el juego <em class="cm-count">${d.selected.length}</em></h2></div>
     ${liveItemsHtml(d)}
   </div>
-  <button class="btn btn-yellow lv-create" data-action="committee-live-create" ${d.saving ? 'disabled' : ''}>${ic('zap')} ${d.saving ? 'Creando...' : 'Crear y abrir la sala'}</button>`;
+  <div class="lv-saverow">
+    <button class="btn btn-ghost lv-draftbtn" data-action="committee-live-save-draft" ${d.saving ? 'disabled' : ''}>${ic('file')} ${d.editId ? 'Guardar cambios' : 'Guardar como borrador'}</button>
+    <button class="btn btn-yellow lv-create" data-action="committee-live-create" ${d.saving ? 'disabled' : ''}>${ic('zap')} ${d.saving ? 'Guardando...' : (d.editId ? 'Guardar y abrir la sala' : 'Crear y abrir la sala')}</button>
+  </div>
+  <p class="lv-draftnote">Un borrador no abre ninguna sala: lo dejas preparado y lo abres el día de la clase desde la lista.</p>`;
 }
-async function liveCreateGame(){
+/* Guarda la partida: como borrador (open = false) o creándola y abriendo la sala (open = true) */
+async function liveSaveGame(open){
   const d = lv().draft;
   if(!d || d.saving) return;
   const title = String(d.title || '').trim();
   if(!title){ cmToast('Ponle un nombre a la partida.'); return; }
   if(!d.selected.length){ cmToast('Añade al menos una pregunta.'); return; }
   d.saving = true; render();
+  const secs = parseInt(d.seconds, 10) || 20;
   const payload = d.selected.map(q => ({ question: q.question, options: (q.options || []).slice(0, 4), correct: q.correct, rule: q.rule || null, explanation: q.explanation || '', qnum: lvNum(q) || null }));
-  const r = await supabaseClient.rpc('live_create', { p_title: title, p_seconds: parseInt(d.seconds, 10) || 20, p_questions: payload });
+  let id = d.editId, err = null;
+  if(d.editId){
+    const r = await supabaseClient.rpc('live_update_draft', { p_game: id, p_title: title, p_seconds: secs, p_questions: payload });
+    err = r.error;
+    if(!err && open){ const o = await supabaseClient.rpc('live_open_draft', { p_game: id }); err = o.error; }
+  } else {
+    const args = { p_title: title, p_seconds: secs, p_questions: payload };
+    if(!open) args.p_draft = true;                       // abrir sin borrador funciona aunque falte el SQL de borradores
+    const r = await supabaseClient.rpc('live_create', args);
+    err = r.error || (!r.data ? { message: 'No se ha podido guardar. Inténtalo de nuevo.' } : null);
+    id = r.data && r.data.id;
+  }
   d.saving = false;
-  if(r.error || !r.data){ render(); cmToast(r.error ? lvErr(r.error) : 'No se ha podido crear la sala. Inténtalo de nuevo.'); return; }
+  if(err){ render(); cmToast(err.code === undefined && err.message ? err.message : lvErr(err)); return; }
   lv().creating = false; lv().draft = null;
   await liveLoadGames();
-  liveOpenHost(r.data.id);
+  if(open) liveOpenHost(id);
+  else { STATE.toast = 'Borrador guardado.'; render(); window.scrollTo(0, 0); }
 }
 
 /* ====================== Pantalla del proyector (formador) ====================== */
@@ -247,7 +275,7 @@ function liveHostView(){
     try{ qr = attQrSvg(url); }catch(e){}
     body = `<div class="lv-lobby">
         <div class="lv-join-box">
-          <div class="lv-step">Entra en <b>we-ref.com</b> → CTA BAGES → <b>WeRef Live</b> y escribe el código</div>
+          <div class="lv-step">Entra en <b>we-ref.com</b> → CTA BAGES → <b>Kahoot</b> y escribe el código</div>
           <div class="lv-bigcode">${esc(lvCode(d.code))}</div>
           <div class="lv-or">o escanea con la cámara</div>
           <div class="lv-qr">${qr}</div>
@@ -395,7 +423,7 @@ function liveJoinCard(){
   const a = L.active;
   return `<section class="lv-joincard">
     <div class="lv-jc-ic">${ic('zap')}</div>
-    <div class="lv-jc-t"><strong>WeRef Live</strong><span>${a ? `Hay una sala abierta: <b>${esc(a.title)}</b>` : 'Entra con el código que verás en el proyector'}</span></div>
+    <div class="lv-jc-t"><strong>Kahoot</strong><span>${a ? `Hay una sala abierta: <b>${esc(a.title)}</b>` : 'Entra con el código que verás en el proyector'}</span></div>
     <div class="lv-jc-f">
       <input type="text" id="lv-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="Código" value="${esc(L.joinCode || (a ? lvCode(a.code) : ''))}" autocomplete="off" aria-label="Código de la sala">
       <button class="btn btn-yellow" data-action="committee-live-join">Unirme</button>
@@ -460,7 +488,7 @@ function liveDetailStats(D){
 function liveDetailView(){
   const ic = (n) => shellIcon(n);
   const D = lv().detail;
-  const back = `<button class="backbtn" data-action="committee-live-back">&larr; Volver a En directo</button>`;
+  const back = `<button class="backbtn" data-action="committee-live-back">&larr; Volver a Kahoot</button>`;
   if(!D || D.loading) return `${back}<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
   if(D.error) return `${back}<div class="ac-empty">${ic('flag')}<strong>${esc(D.error)}</strong></div>`;
   const g = D.game, s = liveDetailStats(D);
@@ -482,7 +510,7 @@ function liveDetailView(){
   return `
   ${back}
   <section class="lg-hero ac-hero">
-    <div class="lg-hero-main"><div class="home-eyebrow">WeRef Live · ${esc(cmFmtDate(g.created_at))}</div><h1>${esc(g.title)}</h1>
+    <div class="lg-hero-main"><div class="home-eyebrow">Kahoot · ${esc(cmFmtDate(g.created_at))}</div><h1>${esc(g.title)}</h1>
       <div class="ac-hero-actions">
         ${active ? `<button class="btn btn-yellow" data-action="committee-live-open" data-gid="${g.id}">${ic('play')} Abrir sala</button>` : ''}
         <button class="btn btn-glass" data-action="committee-live-repeat" data-gid="${g.id}">${ic('repeat')} Repetir</button>
@@ -532,8 +560,22 @@ async function liveOnAction(action, el){
     const t = d.selected[i]; d.selected[i] = d.selected[j]; d.selected[j] = t; render();
   }
   else if(action === 'committee-live-q-del'){ const d = L.draft; if(!d) return; d.selected.splice(parseInt(el.dataset.i, 10), 1); render(); }
-  else if(action === 'committee-live-create'){ await liveCreateGame(); }
+  else if(action === 'committee-live-create'){ await liveSaveGame(true); }
+  else if(action === 'committee-live-save-draft'){ await liveSaveGame(false); }
   else if(action === 'committee-live-open'){ liveOpenHost(el.dataset.gid); }
+  else if(action === 'committee-live-open-draft'){
+    const r = await supabaseClient.rpc('live_open_draft', { p_game: el.dataset.gid });
+    if(r.error){ cmToast(lvErr(r.error)); return; }
+    await liveLoadGames();
+    liveOpenHost(el.dataset.gid);
+  }
+  else if(action === 'committee-live-edit'){
+    const gid = el.dataset.gid;
+    const [g, qs] = await Promise.all([supabaseClient.from('live_games').select('*').eq('id', gid).maybeSingle(), supabaseClient.from('live_questions').select('*').eq('game_id', gid).order('pos')]);
+    if(g.error || qs.error || !g.data){ cmToast('No se ha podido cargar el borrador.'); return; }
+    L.draft = Object.assign(liveNewDraft(), { editId: gid, title: g.data.title, seconds: String(g.data.seconds), selected: (qs.data || []).map(q => ({ id: 'rp' + q.pos, question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation || '', keepNum: q.qnum || null })) });
+    L.creating = true; render(); window.scrollTo(0, 0);
+  }
   else if(action === 'committee-live-host-next'){ await liveHostNext(); }
   else if(action === 'committee-live-host-end'){
     const H = L.host; if(!H) return;
@@ -567,7 +609,7 @@ async function liveOnAction(action, el){
   else if(action === 'committee-live-export'){
     const D = L.detail; if(!D || !D.game) return;
     const s = liveDetailStats(D);
-    cmExport(s.ranking.map(r => ({ 'Posición': r.rank, 'Nombre': r.p.name, 'Puntos': r.p.score, 'Aciertos': r.correct, 'Preguntas': D.questions.length })), 'WeRef Live', 'weref_live_' + String(D.game.title).replace(/[^\w]+/g, '_') + '.xlsx');
+    cmExport(s.ranking.map(r => ({ 'Posición': r.rank, 'Nombre': r.p.name, 'Puntos': r.p.score, 'Aciertos': r.correct, 'Preguntas': D.questions.length })), 'Kahoot', 'kahoot_' + String(D.game.title).replace(/[^\w]+/g, '_') + '.xlsx');
   }
   else if(action === 'committee-live-join'){
     const inp = document.getElementById('lv-join-code');

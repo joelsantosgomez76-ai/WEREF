@@ -1490,7 +1490,7 @@ function cmTrainingView(){
   }
   const nTests = (COMMITTEE.tests || []).length;
   const nMembers = (COMMITTEE.members || []).length;
-  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['attendance', 'Asistencia', 'calendar', null], ['live', 'En directo', 'zap', null], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
+  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['attendance', 'Asistencia', 'calendar', null], ['live', 'Kahoot', 'zap', null], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
   let content;
   if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
   else if(tab === 'members') content = cmMembersTab();
@@ -1516,7 +1516,7 @@ function cmTrainingView(){
   ${cmSetupWarning()}
   ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
   <nav class="cm-tabs" role="tablist" aria-label="Secciones del Panel de Formación">
-    ${tabs.map(([k, label, icon, n]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}" data-short="${({ tests: 'Tests', messages: 'Mensajes', members: 'Miembros', attendance: 'Asistencia', live: 'Live', ranking: 'Ranking', stats: 'Débiles', settings: 'Ajustes' })[k] || label}" aria-label="${label}" title="${label}">${shellIcon(icon)}<span>${label}</span>${n !== null ? `<em>${n}</em>` : ''}</button>`).join('')}
+    ${tabs.map(([k, label, icon, n]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}" data-short="${({ tests: 'Tests', messages: 'Mensajes', members: 'Miembros', attendance: 'Asistencia', live: 'Kahoot', ranking: 'Ranking', stats: 'Débiles', settings: 'Ajustes' })[k] || label}" aria-label="${label}" title="${label}">${shellIcon(icon)}<span>${label}</span>${n !== null ? `<em>${n}</em>` : ''}</button>`).join('')}
   </nav>
   <section class="cm-content">${content}</section>`;
 }
