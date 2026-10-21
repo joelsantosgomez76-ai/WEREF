@@ -117,8 +117,8 @@ function cmSetupWarning(){
     <div style="font-size:13.5px;">Hay que ejecutar una vez el archivo <span class="mono">supabase/committee.sql</span> en Supabase (SQL Editor). Hasta entonces este apartado no funcionará.</div>
   </div>`;
 }
-function cmExport(rows, sheetName, fileName){
-  if(typeof XLSX === 'undefined'){ cmToast('No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'); return; }
+async function cmExport(rows, sheetName, fileName){
+  if(!(await ensureXLSX())){ cmToast('No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'); return; }
   if(!rows.length){ cmToast('No hay datos que exportar.'); return; }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), sheetName);

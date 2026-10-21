@@ -2633,3 +2633,39 @@ body > .landing-section[style] h1{font:700 34px 'Oswald'; letter-spacing:0.01em;
 .ac-cal-legend i{width:12px; height:12px; border-radius:4px; background:var(--green-ok);}
 .ac-cal-legend i.no{background:var(--red);}
 .ac-cal-empty{margin-top:14px;}
+
+/* ---------- Móvil: rendimiento y comodidad táctil ---------- */
+html{-webkit-text-size-adjust:100%; text-size-adjust:100%;}
+body{-webkit-tap-highlight-color:rgba(255,106,43,0.12); overflow-wrap:break-word;}
+button, .btn, a, summary, select, label, [data-action]{touch-action:manipulation;}
+img, svg, video{max-width:100%;}
+/* altura real de pantalla en móvil (la barra del navegador ya no tapa el final) */
+@supports (height:100dvh){
+  body{min-height:100dvh;}
+  .shell{min-height:100dvh;}
+  .shell-side{height:100dvh;}
+  .auth-full .auth-card{height:100dvh;}
+  .auth-full .auth-main{max-height:100dvh;}
+}
+/* iPhone: con letra de menos de 16 px al tocar un campo la pantalla hace zoom y se descuadra */
+@media (pointer:coarse), (max-width:900px){
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),
+  select, select[class], textarea, textarea[class]{font-size:16px !important;}
+}
+/* dedos: zonas de toque de al menos 44 px */
+@media (pointer:coarse){
+  .btn{min-height:44px;}
+  .tx-icon{width:44px; height:44px;}
+  .tx-filter, .db-status, .cm-tab{min-height:42px;}
+  .mb-sortbtn{min-height:40px; padding-top:6px; padding-bottom:6px;}
+  .shell-bottom button{min-height:54px;}
+  .dc-day{min-height:40px;}
+  .at-row{min-height:54px;}
+}
+@media (max-width:900px){
+  /* zona segura del iPhone (muesca y barra de inicio), también en horizontal */
+  .shell-main{padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); padding-bottom:calc(100px + env(safe-area-inset-bottom));}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom)); max-width:calc(100vw - 32px);}
+  .modal-backdrop{padding:max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));}
+  .modal-card{max-height:calc(100dvh - 24px); overflow-y:auto; -webkit-overflow-scrolling:touch;}
+}
