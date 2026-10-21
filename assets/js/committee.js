@@ -1487,11 +1487,11 @@ function cmTestDetailView(){
     ? `<span class="cm-chip open cm-extra">+${COMMITTEE.grants[uid]} ${COMMITTEE.grants[uid] === 1 ? 'intento extra' : 'intentos extra'}<button class="cm-extra-x" data-action="committee-revoke-attempt" data-tid="${t.id}" data-uid="${uid}" title="Quitar el intento extra" aria-label="Quitar el intento extra">×</button></span>` : '';
   const rows = attempts.map(a => `<tr>
     <td><strong>${esc(labelOf(a))}</strong> ${a.attempt_no === lastNo[a.user_id] ? cutChip(a.user_id) + extraChip(a.user_id) : ''}</td>
-    <td class="mono">${a.attempt_no}</td>
-    <td class="mono">${a.score}/${a.total}</td>
-    <td>${accuracyBadge(Math.round(a.score / a.total * 100))}</td>
-    <td class="mono">${cmFmtDur(a.duration_sec)}</td>
-    <td class="mono">${cmFmtDate(a.finished_at)}</td>
+    <td class="mono" data-label="Intento">${a.attempt_no}</td>
+    <td class="mono" data-label="Puntos">${a.score}/${a.total}</td>
+    <td data-label="Acierto">${accuracyBadge(Math.round(a.score / a.total * 100))}</td>
+    <td class="mono" data-label="Tiempo">${cmFmtDur(a.duration_sec)}</td>
+    <td class="mono" data-label="Fecha">${cmFmtDate(a.finished_at)}</td>
     <td class="cm-grant-cell">${a.attempt_no === lastNo[a.user_id] ? grantBtn(a.user_id, 'Otro intento') : ''}</td>
   </tr>`).join('');
   const qrows = (COMMITTEE.qStats || []).map(s => {
