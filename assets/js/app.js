@@ -4745,8 +4745,26 @@ function statsView(){
   `;
 }
 
-function exportExcel(){
-  if(typeof XLSX === 'undefined'){ STATE.toast = 'No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'; render(); return; }
+/* La librería de Excel pesa unos 900 KB y solo hace falta al exportar o importar: se descarga entonces,
+   no al abrir la app (así la web carga mucho más rápido en el móvil). */
+let XLSX_LOADING = null;
+function ensureXLSX(){
+  if(typeof XLSX !== 'undefined') return Promise.resolve(true);
+  if(XLSX_LOADING) return XLSX_LOADING;
+  XLSX_LOADING = new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => resolve(typeof XLSX !== 'undefined');
+    s.onerror = () => { XLSX_LOADING = null; resolve(false); };
+    document.head.appendChild(s);
+  });
+  return XLSX_LOADING;
+}
+
+async function exportExcel(){
+  if(!(await ensureXLSX())){ STATE.toast = 'No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'; render(); return; }
   const rows = allQuestionsAdmin().map((q,i) => ({
     'Número': questionNumber(q, i+1),
     'ID': q.id,
@@ -4780,8 +4798,8 @@ function exportExcel(){
   XLSX.writeFile(wb, 'weref_base_de_datos.xlsx');
 }
 
-function importExcelFile(file){
-  if(typeof XLSX === 'undefined'){ STATE.toast = 'No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'; render(); return; }
+async function importExcelFile(file){
+  if(!(await ensureXLSX())){ STATE.toast = 'No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'; render(); return; }
   const reader = new FileReader();
   reader.onload = function(e){
     try{
