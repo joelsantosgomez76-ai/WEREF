@@ -73,3 +73,15 @@ function authErrorMessage(error){
   if(msg.includes('Unable to validate email') || msg.includes('invalid')) return 'Introduce un correo electrónico válido.';
   return msg || 'Ha ocurrido un error. Inténtalo de nuevo.';
 }
+
+/* Comprobación de nombre y apellidos (registro, perfil y la pantalla que se pide a los miembros del comité).
+   Devuelve un mensaje si algo no cuadra, o '' si está bien. */
+function nameProblem(first, last){
+  const f = String(first || '').trim(), l = String(last || '').trim();
+  const letters = (s) => s.replace(/[^\p{L}]/gu, '');
+  const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+  if(letters(f).length < 2) return 'Escribe tu nombre.';
+  if(letters(l).length < 2) return 'Escribe tus apellidos.';
+  if(norm(f) === norm(l)) return 'El nombre y los apellidos no pueden ser iguales: cada uno va en su casilla.';
+  return '';
+}

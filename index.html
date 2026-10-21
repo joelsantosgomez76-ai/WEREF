@@ -491,7 +491,7 @@
 
 <script src="https://unpkg.com/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
 <script src="assets/js/supabase-init.js"></script>
-<script src="assets/js/auth.js"></script>
+<script src="assets/js/auth.js?v=3"></script>
 <script>
 let mode = 'login'; // 'login' | 'register' | 'recover'
 
@@ -694,6 +694,13 @@ els.form.addEventListener('submit', async (e)=>{
       }
       if(!isStrongPassword(password)){
         els.error.textContent = PASSWORD_POLICY_MESSAGE;
+        els.error.style.display = 'block';
+        els.submit.disabled = false;
+        return;
+      }
+      const nameMsg = nameProblem(els.name.value, els.lastname.value);
+      if(nameMsg){
+        els.error.textContent = nameMsg;
         els.error.style.display = 'block';
         els.submit.disabled = false;
         return;

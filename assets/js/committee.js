@@ -32,7 +32,7 @@ const COMMITTEE = {
   memberAddOpen: false,
   memberSortKey: 'surname',
   memberSortDir: 'asc',
-  memberFilters: { last: '', first: '', email: '', cat: 'all' },
+  memberFilters: { last: '', first: '', email: '', cat: 'all', review: false },
   memberSel: {},
   categories: null,
   catsMissing: false,
@@ -994,15 +994,85 @@ function cmCompareMembers(a, b, key, dir){
     || cmCollate(a.p.first, b.p.first);
 }
 
+/* ¿El nombre o los apellidos de este miembro necesitan revisión? (sin apellidos, iguales al nombre, o sin letras) */
+function cmNameIssue(m){
+  const p = cmNameParts(m);
+  const first = (m.first_name !== undefined && m.first_name !== null) ? String(m.first_name) : p.first;
+  const last = (m.last_name !== undefined && m.last_name !== null) ? String(m.last_name) : p.last;
+  return typeof nameProblem === 'function' ? !!nameProblem(first, last) : !String(last || '').trim();
+}
+function cmReviewBarHtml(){
+  const n = (COMMITTEE.members || []).filter(cmNameIssue).length;
+  if(!n && !COMMITTEE.memberFilters.review) return '';
+  const on = COMMITTEE.memberFilters.review;
+  return `<div class="mb-review ${on ? 'on' : ''}">
+    <span class="mb-review-ic">${shellIcon('flag')}</span>
+    <span class="mb-review-t"><b>${n}</b> ${n === 1 ? 'árbitro tiene' : 'árbitros tienen'} el nombre o los apellidos sin completar (por ejemplo, todo el nombre en una sola casilla). Pulsa el lápiz de cada fila para corregirlo.</span>
+    <button class="btn ${on ? 'btn-primary' : 'btn-ghost'}" data-action="committee-member-review-filter">${on ? 'Ver todos' : 'Ver solo estos'}</button>
+  </div>`;
+}
+/* Cuadro para corregir el nombre y los apellidos de un miembro */
+function cmEditMemberName(uid){
+  const m = (COMMITTEE.members || []).find(x => x.user_id === uid); if(!m) return;
+  const p = cmNameParts(m);
+  let f = p.first, l = p.last;
+  if(f && !l && /\s/.test(f)){ const parts = f.trim().split(/\s+/); f = parts.shift(); l = parts.join(' '); }   // propuesta: la primera palabra es el nombre
+  const prev = document.getElementById('cm-name-dialog'); if(prev) prev.remove();
+  const el = document.createElement('div');
+  el.id = 'cm-name-dialog'; el.className = 'modal-backdrop';
+  el.innerHTML = `<div class="modal-card qz-confirm" role="dialog" aria-modal="true" aria-labelledby="cm-nd-title" style="text-align:left;">
+      <h3 id="cm-nd-title" style="text-align:center;">Nombre y apellidos</h3>
+      <p style="text-align:center;">${esc(m.email || '')}</p>
+      <label for="cm-nd-first">Nombre</label>
+      <input type="text" id="cm-nd-first" maxlength="100" value="${esc(f)}" autocomplete="off">
+      <label for="cm-nd-last">Apellidos</label>
+      <input type="text" id="cm-nd-last" maxlength="100" value="${esc(l)}" autocomplete="off">
+      <div class="auth-error" id="cm-nd-err" style="display:none; margin-top:10px;"></div>
+      <div class="qz-confirm-actions" style="margin-top:16px;">
+        <button type="button" class="btn btn-primary" data-nd="save">Guardar</button>
+        <button type="button" class="btn btn-ghost" data-nd="cancel">Cancelar</button>
+      </div>
+    </div>`;
+  const close = () => { el.remove(); document.removeEventListener('keydown', onKey, true); };
+  const save = async () => {
+    const fi = document.getElementById('cm-nd-first').value.trim(), la = document.getElementById('cm-nd-last').value.trim();
+    const err = document.getElementById('cm-nd-err');
+    const msg = typeof nameProblem === 'function' ? nameProblem(fi, la) : '';
+    if(msg){ err.textContent = msg; err.style.display = 'block'; return; }
+    const btn = el.querySelector('[data-nd="save"]'); btn.disabled = true;
+    const r = await supabaseClient.rpc('committee_admin_set_member_name', { p_user_id: uid, p_first: fi, p_last: la });
+    if(r.error){
+      btn.disabled = false;
+      err.textContent = /Could not find the function|PGRST202|42883|schema cache/i.test(String(r.error.message || '') + (r.error.code || ''))
+        ? 'Falta ejecutar el SQL committee-member-names.sql en Supabase.' : cmErrText(r.error);
+      err.style.display = 'block';
+      return;
+    }
+    m.first_name = fi; m.last_name = la; m.full_name = (fi + ' ' + la).trim();
+    close(); STATE.toast = 'Nombre actualizado.'; render();
+  };
+  const onKey = (e) => { if(e.key === 'Escape'){ e.preventDefault(); close(); } };
+  el.addEventListener('click', (e) => {
+    if(e.target === el) return close();
+    const t = e.target.closest('[data-nd]'); if(!t) return;
+    if(t.dataset.nd === 'cancel') close(); else save();
+  });
+  el.addEventListener('keydown', (e) => { if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); save(); } });
+  document.body.appendChild(el);
+  document.addEventListener('keydown', onKey, true);
+  const inp = document.getElementById('cm-nd-first'); if(inp){ inp.focus(); inp.select(); }
+}
+
 /* Lista ya filtrada (por las cajas de cada columna) y ordenada. */
 function cmMembersData(){
   const f = COMMITTEE.memberFilters;
   const all = (COMMITTEE.members || []).map(m => ({ m, s: cmMemberStats(m.user_id), p: cmNameParts(m) }));
   const has = (v, q) => { const t = cmPlain(q).trim(); return !t || cmPlain(v).includes(t); };
   const list = all.filter(e => has(e.p.last, f.last) && has(e.p.first, f.first) && has(e.m.email, f.email)
-    && (f.cat === 'all' || (f.cat === 'none' ? !e.m.category_id : e.m.category_id === f.cat)));
+    && (f.cat === 'all' || (f.cat === 'none' ? !e.m.category_id : e.m.category_id === f.cat))
+    && (!f.review || cmNameIssue(e.m)));
   list.sort((a, b) => cmCompareMembers(a, b, COMMITTEE.memberSortKey, COMMITTEE.memberSortDir));
-  const filtered = !!(f.last || f.first || f.email || f.cat !== 'all');
+  const filtered = !!(f.last || f.first || f.email || f.cat !== 'all' || f.review);
   return { all, list, filtered };
 }
 function cmMemberRowHtml(e){
@@ -1012,14 +1082,14 @@ function cmMemberRowHtml(e){
   let h = 0; const seed = cmSurnameName(m); for(let k = 0; k < seed.length; k++) h = (h * 31 + seed.charCodeAt(k)) % 360;
   return `<tr class="${COMMITTEE.memberSel[m.user_id] ? 'sel' : ''}">
       <td class="mb-c-chk"><input type="checkbox" class="mb-chk" data-uid="${m.user_id}" ${COMMITTEE.memberSel[m.user_id] ? 'checked' : ''} aria-label="Seleccionar"></td>
-      <td class="mb-c-last"><span class="mb-person"><span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span><strong>${esc(p.last || '—')}</strong></span></td>
+      <td class="mb-c-last"><span class="mb-person"><span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span><strong>${esc(p.last || '—')}</strong>${cmNameIssue(m) ? '<span class="mb-warn" title="Nombre o apellidos por revisar">!</span>' : ''}</span></td>
       <td class="mb-c-first">${esc(p.first || '—')}</td>
       <td class="mb-c-email" data-label="Correo" title="${esc(m.email || '')}">${esc(m.email || '—')}</td>
       <td class="mb-c-cat">
         <select class="mb-cat ${cat ? 'has' : ''}" data-uid="${m.user_id}" style="${cat ? '--c:' + esc(cat.color) : ''}" ${COMMITTEE.catsMissing ? 'disabled' : ''} aria-label="Categoría">${cmCatOptions(m.category_id, 'Sin categoría')}</select>
       </td>
       <td class="mb-c-date" data-label="Último acceso">${m.last_sign_in_at ? ic('clock') + ' ' + cmFmtDay(m.last_sign_in_at) : '<span class="mb-none">—</span>'}</td>
-      <td class="mb-c-del"><button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button></td>
+      <td class="mb-c-del"><div class="mb-acts"><button class="tx-icon" data-action="committee-member-edit-name" data-uid="${m.user_id}" title="Editar nombre y apellidos" aria-label="Editar nombre y apellidos">${ic('pencil')}</button><button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button></div></td>
     </tr>`;
 }
 function cmMembersBodyHtml(){
@@ -1071,6 +1141,7 @@ function cmMembersTab(){
         </div>
         ${COMMITTEE.catsMissing ? `<div class="st-note" style="margin-bottom:12px;">Para usar categorías falta ejecutar el SQL <b>committee-categories.sql</b> en Supabase.</div>` : ''}
         ${members.length && cats.length ? `<div class="mb-chipsrow" id="cm-members-chips">${chips}</div>` : ''}
+        ${cmReviewBarHtml()}
         <div id="cm-members-bulk">${cmMembersBulkHtml()}</div>
         <div class="mb-tablewrap">
           <table class="mb-table">
@@ -2199,8 +2270,10 @@ async function committeeOnAction(action, el){
     if(COMMITTEE.memberAddOpen) setTimeout(() => { const t = document.getElementById('cm-new-member'); if(t) t.focus(); }, 30);
   }
   else if(action === 'committee-member-cat-filter'){ COMMITTEE.memberFilters.cat = el.dataset.cat; render(); }
+  else if(action === 'committee-member-review-filter'){ COMMITTEE.memberFilters.review = !COMMITTEE.memberFilters.review; render(); }
+  else if(action === 'committee-member-edit-name'){ cmEditMemberName(el.dataset.uid); }
   else if(action === 'committee-member-clear-filters'){
-    COMMITTEE.memberFilters = { last: '', first: '', email: '', cat: 'all' };
+    COMMITTEE.memberFilters = { last: '', first: '', email: '', cat: 'all', review: false };
     render();
   }
   else if(action === 'committee-members-sel-clear'){ COMMITTEE.memberSel = {}; cmMembersRefreshParts(); }
