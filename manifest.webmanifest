@@ -1,0 +1,17 @@
+{
+  "id": "/app.html",
+  "name": "WeRef · Formación Arbitral",
+  "short_name": "WeRef",
+  "description": "Entrena las Reglas de Juego con tests, retos y el comité de árbitros del Bages.",
+  "lang": "es",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#16181D",
+  "theme_color": "#16181D",
+  "categories": ["education", "sports"],
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
