@@ -967,6 +967,8 @@ function cmCollate(a, b){ return String(a || '').localeCompare(String(b || ''), 
 function cmPlain(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 function cmFmtDay(iso){ return iso ? new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'; }
 function cmCatById(id){ return id ? ((COMMITTEE.categories || []).find(c => c.id === id) || null) : null; }
+/* Rango de una categoría: su posición en Configuración (0 = la más importante). Sin categoría = null, va al final. */
+function cmCatRank(id){ const i = id ? (COMMITTEE.categories || []).findIndex(c => c.id === id) : -1; return i < 0 ? null : i; }
 
 /* Valor por el que se ordena cada columna (null = vacío, siempre va al final). */
 function cmSortVal(e, key){
@@ -975,7 +977,7 @@ function cmSortVal(e, key){
   if(key === 'name') return (p.first || p.last) ? cmPlain(p.first || p.last) : null;
   if(key === 'user') return m.username ? cmPlain(m.username) : null;
   if(key === 'email') return m.email ? cmPlain(m.email) : null;
-  if(key === 'cat'){ const c = cmCatById(m.category_id); return c ? cmPlain(c.name) : null; }
+  if(key === 'cat') return cmCatRank(m.category_id);
   if(key === 'done') return e.s.done;
   if(key === 'acc') return e.s.pct;
   if(key === 'added') return m.added_at ? Date.parse(m.added_at) : null;
@@ -1264,13 +1266,34 @@ async function cmLoadCategories(){
   }catch(e){ COMMITTEE.categories = []; COMMITTEE.catsMissing = true; }
 }
 
+/* Sube o baja una categoría en el orden de importancia (la primera es la más importante) y lo guarda. */
+async function cmMoveCategory(cid, dir){
+  const old = (COMMITTEE.categories || []).slice();
+  const i = old.findIndex(c => c.id === cid), j = i + dir;
+  if(i < 0 || j < 0 || j >= old.length) return;
+  const arr = old.slice(); const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  COMMITTEE.categories = arr; render();
+  const changed = arr.map((c, idx) => ({ c, idx })).filter(x => x.c.position !== x.idx);
+  const res = await Promise.all(changed.map(x => supabaseClient.from('committee_member_categories').update({ position: x.idx }).eq('id', x.c.id)));
+  if(res.some(r => r && r.error)){
+    COMMITTEE.categories = old; cmToast('No se ha podido guardar el orden. Inténtalo de nuevo.');
+    return;
+  }
+  arr.forEach((c, idx) => { c.position = idx; });
+}
+
 function cmSettingsTab(){
   const ic = (n) => shellIcon(n);
   const cats = COMMITTEE.categories || [];
   const counts = {};
   (COMMITTEE.members || []).forEach(m => { if(m.category_id) counts[m.category_id] = (counts[m.category_id] || 0) + 1; });
   const dr = COMMITTEE.catDraft;
-  const rows = cats.map(c => `<div class="cs-cat">
+  const rows = cats.map((c, i) => `<div class="cs-cat">
+      <span class="cs-rank" title="Rango ${i + 1}">${i + 1}</span>
+      <span class="cs-move">
+        <button class="tx-icon" data-action="committee-cat-up" data-cid="${esc(c.id)}" ${i === 0 ? 'disabled' : ''} title="Subir (más importante)" aria-label="Subir">${ic('up')}</button>
+        <button class="tx-icon" data-action="committee-cat-down" data-cid="${esc(c.id)}" ${i === cats.length - 1 ? 'disabled' : ''} title="Bajar (menos importante)" aria-label="Bajar">${ic('down')}</button>
+      </span>
       <input type="color" class="cs-color" data-cid="${esc(c.id)}" value="${esc(c.color)}" aria-label="Color">
       <input type="text" class="cs-name" data-cid="${esc(c.id)}" value="${esc(c.name)}" maxlength="60" aria-label="Nombre de la categoría">
       <span class="cs-count">${counts[c.id] || 0} ${(counts[c.id] || 0) === 1 ? 'árbitro' : 'árbitros'}</span>
@@ -1281,7 +1304,7 @@ function cmSettingsTab(){
   return `
   <div class="tp-layout cs-layout" id="cm-settings">
     <div class="tc-card">
-      <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Categorías de árbitros</h3><small>Para clasificar a los miembros: categoría, situación especial, primer año…</small></div></div>
+      <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Categorías de árbitros</h3><small>Para clasificar a los miembros. Ordénalas de más a menos importante con las flechas: así se ordena la tabla al pulsar «Categoría».</small></div></div>
       ${COMMITTEE.catsMissing ? `<div class="st-note" style="margin-bottom:12px;">Para crear categorías falta ejecutar el SQL <b>committee-categories.sql</b> en Supabase.</div>` : ''}
       ${rows ? `<div class="cs-list">${rows}</div>` : `<div class="ac-empty" style="padding:22px 14px;">${ic('users')}<strong>Todavía no hay categorías</strong><span>Crea la primera abajo y asígnala desde la tabla de Miembros.</span></div>`}
       <div class="cs-add">
@@ -1333,7 +1356,7 @@ function cmRankSortVal(r, key){
   if(key === 'rank') return r.rank;
   if(key === 'surname') return (p.last || p.first) ? cmPlain(p.last || p.first) : null;
   if(key === 'name') return (p.first || p.last) ? cmPlain(p.first || p.last) : null;
-  if(key === 'cat'){ const c = cmCatById(r.m.category_id); return c ? cmPlain(c.name) : null; }
+  if(key === 'cat') return cmCatRank(r.m.category_id);
   if(key === 'done') return r.done;
   if(key === 'score') return r.done ? r.score : null;
   if(key === 'pct') return r.done ? r.pct : null;
@@ -2292,6 +2315,8 @@ async function committeeOnAction(action, el){
   else if(action === 'committee-cat-color'){ COMMITTEE.catDraft.color = el.dataset.color; render(); }
   else if(action === 'committee-cat-suggest'){ COMMITTEE.catDraft.name = el.dataset.name; await cmAddCategory(); }
   else if(action === 'committee-cat-add'){ await cmAddCategory(); }
+  else if(action === 'committee-cat-up'){ await cmMoveCategory(el.dataset.cid, -1); }
+  else if(action === 'committee-cat-down'){ await cmMoveCategory(el.dataset.cid, 1); }
   else if(action === 'committee-cat-delete'){
     const c = (COMMITTEE.categories || []).find(x => x.id === el.dataset.cid); if(!c) return;
     const n = (COMMITTEE.members || []).filter(m => m.category_id === c.id).length;
