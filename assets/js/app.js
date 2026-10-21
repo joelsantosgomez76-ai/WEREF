@@ -2946,6 +2946,11 @@ function profileEditView(){
 
 async function saveProfileEdit(){
   const firstName = document.getElementById('profile-name').value.trim();
+  // A los miembros del comité se les ordena por apellidos: nombre y apellidos tienen que estar bien separados.
+  if(typeof COMMITTEE !== 'undefined' && COMMITTEE.status && COMMITTEE.status.is_member && typeof nameProblem === 'function'){
+    const msg = nameProblem(firstName, document.getElementById('profile-lastname').value);
+    if(msg){ STATE.toast = msg; render(); return; }
+  }
   const updated = {
     first_name: firstName,        // el que se lee: Google no lo pisa
     full_name: firstName,         // se mantiene por compatibilidad

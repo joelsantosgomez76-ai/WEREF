@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=90">
+<link rel="stylesheet" href="assets/css/styles.css?v=91">
 </head>
 <body>
 <div id="app">
@@ -26,12 +26,12 @@
 
 <script src="https://unpkg.com/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
 <script src="assets/js/supabase-init.js"></script>
-<script src="assets/js/auth.js"></script>
+<script src="assets/js/auth.js?v=3"></script>
 <script src="assets/js/storage-adapter.js"></script>
 <script src="assets/js/questions-data.js"></script>
 <script src="assets/js/questions-assistants.js?v=1"></script>
-<script src="assets/js/app.js?v=shell47"></script>
-<script src="assets/js/committee.js?v=50"></script>
+<script src="assets/js/app.js?v=shell48"></script>
+<script src="assets/js/committee.js?v=51"></script>
 <script src="assets/js/qrcode.min.js?v=1"></script>
 <script src="assets/js/attendance.js?v=6"></script>
 <script src="assets/js/live.js?v=2"></script>
@@ -110,8 +110,53 @@ function showUsernamePrompt(){
     return;
   }
   CURRENT_USERNAME = unameRow.username;
+  // Los miembros del comité necesitan nombre y apellidos bien separados (se ordenan por apellidos).
+  try{
+    const cs = await supabaseClient.rpc('committee_status');
+    if(cs && !cs.error && cs.data && cs.data.is_member){
+      const ur = await supabaseClient.auth.getUser();
+      const meta = (ur && ur.data && ur.data.user && ur.data.user.user_metadata) || {};
+      const first = Object.prototype.hasOwnProperty.call(meta, 'first_name') ? meta.first_name : meta.full_name;
+      if(nameProblem(first, meta.last_name)){ showNamePrompt(first, meta.last_name); return; }
+    }
+  }catch(e){}
   startApp();
 })();
+
+/* Pantalla que se pide una sola vez a los miembros cuyo nombre o apellidos no están bien separados. */
+function showNamePrompt(first, last){
+  let f = String(first || '').trim(), l = String(last || '').trim();
+  if(f && !l && /\s/.test(f)){            // todo el nombre en un campo: se propone una separación para que la revise
+    const parts = f.split(/\s+/); f = parts.shift(); l = parts.join(' ');
+  }
+  const esc2 = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  document.getElementById('app').innerHTML = `
+    <div style="max-width:380px; margin:50px auto; padding:0 16px;">
+      <h2 style="text-align:center; margin-bottom:6px;">Completa tu nombre</h2>
+      <div style="text-align:center; color:var(--muted); font-size:13.5px; margin-bottom:20px;">Para el comité necesitamos tu nombre y tus apellidos, cada uno en su casilla. Revisa que estén bien.</div>
+      <div class="qcard">
+        <label for="np-first">Nombre</label>
+        <input type="text" id="np-first" maxlength="100" autocomplete="given-name" value="${esc2(f)}">
+        <label for="np-last">Apellidos</label>
+        <input type="text" id="np-last" maxlength="100" autocomplete="family-name" value="${esc2(l)}">
+        <button type="button" class="btn btn-primary" style="width:100%; margin-top:14px;" id="np-btn">Guardar y continuar</button>
+        <div class="auth-error" id="np-error" style="display:none;"></div>
+      </div>
+    </div>`;
+  const go = async () => {
+    const fi = document.getElementById('np-first').value.trim(), la = document.getElementById('np-last').value.trim();
+    const errEl = document.getElementById('np-error'), btn = document.getElementById('np-btn');
+    errEl.style.display = 'none';
+    const msg = nameProblem(fi, la);
+    if(msg){ errEl.textContent = msg; errEl.style.display = 'block'; return; }
+    btn.disabled = true;
+    const { error } = await supabaseClient.auth.updateUser({ data: { first_name: fi, full_name: fi, last_name: la } });
+    if(error){ errEl.textContent = 'No se pudo guardar. Inténtalo de nuevo.'; errEl.style.display = 'block'; btn.disabled = false; return; }
+    startApp();
+  };
+  document.getElementById('np-btn').addEventListener('click', go);
+  document.getElementById('np-last').addEventListener('keydown', (e) => { if(e.key === 'Enter') go(); });
+}
 
 supabaseClient.auth.onAuthStateChange((event, session) => {
   if(event === 'SIGNED_OUT'){

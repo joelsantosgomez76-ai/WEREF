@@ -3077,3 +3077,14 @@ img, svg, video{max-width:100%;}
 .lv-create svg{width:20px; height:20px;}
 .lv-stage{padding-bottom:96px;}
 @media (max-width:640px){ .lv-intro .btn{width:100%;} }
+
+/* Miembros: revisar nombres y apellidos */
+.mb-review{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; padding:12px 14px; border-radius:14px; background:#FFF6DE; border:1px solid #F0DCA4; color:var(--yellow-ink);}
+.mb-review.on{background:#FFF0E6; border-color:var(--accent);}
+.mb-review-ic svg{width:20px; height:20px; color:var(--accent);}
+.mb-review-t{flex:1 1 240px; min-width:0; font-size:13.5px; line-height:1.45;}
+.mb-review .btn{padding:8px 14px; font-size:13px; flex-shrink:0;}
+.mb-warn{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; margin-left:8px; border-radius:50%; background:var(--yellow); color:var(--yellow-ink); font:800 12px 'Work Sans'; flex-shrink:0;}
+.mb-acts{display:inline-flex; gap:6px; justify-content:flex-end;}
+.mb-table .mb-c-del{width:92px;}
+@media (max-width:700px){ .mb-acts{gap:8px;} .mb-c-del{align-self:center;} }
