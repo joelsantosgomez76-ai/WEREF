@@ -1008,11 +1008,11 @@ function cmMemberRowHtml(e){
       <td class="mb-c-chk"><input type="checkbox" class="mb-chk" data-uid="${m.user_id}" ${COMMITTEE.memberSel[m.user_id] ? 'checked' : ''} aria-label="Seleccionar"></td>
       <td class="mb-c-last"><span class="mb-person"><span class="lg-avatar mb-av" style="--h:${h};">${esc(cmInitials(m))}</span><strong>${esc(p.last || '—')}</strong></span></td>
       <td class="mb-c-first">${esc(p.first || '—')}</td>
-      <td class="mb-c-email" title="${esc(m.email || '')}">${esc(m.email || '—')}</td>
+      <td class="mb-c-email" data-label="Correo" title="${esc(m.email || '')}">${esc(m.email || '—')}</td>
       <td class="mb-c-cat">
         <select class="mb-cat ${cat ? 'has' : ''}" data-uid="${m.user_id}" style="${cat ? '--c:' + esc(cat.color) : ''}" ${COMMITTEE.catsMissing ? 'disabled' : ''} aria-label="Categoría">${cmCatOptions(m.category_id, 'Sin categoría')}</select>
       </td>
-      <td class="mb-c-date">${m.last_sign_in_at ? ic('clock') + ' ' + cmFmtDay(m.last_sign_in_at) : '<span class="mb-none">—</span>'}</td>
+      <td class="mb-c-date" data-label="Último acceso">${m.last_sign_in_at ? ic('clock') + ' ' + cmFmtDay(m.last_sign_in_at) : '<span class="mb-none">—</span>'}</td>
       <td class="mb-c-del"><button class="tx-icon danger" data-action="committee-remove-member" data-uid="${m.user_id}" title="Quitar acceso" aria-label="Quitar acceso">${ic('trash')}</button></td>
     </tr>`;
 }
@@ -1076,9 +1076,9 @@ function cmMembersTab(){
               </tr>
               <tr class="mb-filters">
                 <th></th>
-                <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
-                <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
-                <th><input class="mb-f" data-col="email" type="text" value="${esc(f.email)}" placeholder="Filtrar" aria-label="Filtrar por correo" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Apellidos" aria-label="Filtrar por apellidos" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Nombre" aria-label="Filtrar por nombre" autocomplete="off"></th>
+                <th><input class="mb-f" data-col="email" type="text" value="${esc(f.email)}" placeholder="Correo" aria-label="Filtrar por correo" autocomplete="off"></th>
                 <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catFilterOpts}</select></th>
                 <th></th><th></th>
               </tr>
@@ -1297,10 +1297,10 @@ function cmRankBodyHtml(){
       <td class="rkt-c-last"><strong>${esc(p.last || p.first || r.m.username || r.m.email || '—')}</strong></td>
       <td class="rkt-c-first">${p.last ? esc(p.first || '—') : '<span class="mb-none">—</span>'}</td>
       <td class="rkt-c-cat">${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : '<span class="mb-none">—</span>'}</td>
-      <td class="rkt-c-num">${r.done}/${testCount}</td>
-      <td class="rkt-c-num">${r.done ? r.score + '/' + r.total : '<span class="mb-none">—</span>'}</td>
-      <td class="rkt-c-acc">${r.done ? accuracyBadge(Math.round(r.pct)) : '<span class="mb-none">—</span>'}</td>
-      <td class="rkt-c-num">${r.done ? cmFmtDur(r.avgDur) : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-num" data-label="Tests">${r.done}/${testCount}</td>
+      <td class="rkt-c-num" data-label="Puntos">${r.done ? r.score + '/' + r.total : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-acc" data-label="Acierto">${r.done ? accuracyBadge(Math.round(r.pct)) : '<span class="mb-none">—</span>'}</td>
+      <td class="rkt-c-num" data-label="Tiempo">${r.done ? cmFmtDur(r.avgDur) : '<span class="mb-none">—</span>'}</td>
     </tr>`;
   }).join('');
 }
@@ -1363,8 +1363,8 @@ function cmRankingTab(){
           </tr>
           <tr class="rkt-filters">
             <th></th>
-            <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Filtrar" aria-label="Filtrar por apellidos" autocomplete="off"></th>
-            <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Filtrar" aria-label="Filtrar por nombre" autocomplete="off"></th>
+            <th><input class="mb-f" data-col="last" type="text" value="${esc(f.last)}" placeholder="Apellidos" aria-label="Filtrar por apellidos" autocomplete="off"></th>
+            <th><input class="mb-f" data-col="first" type="text" value="${esc(f.first)}" placeholder="Nombre" aria-label="Filtrar por nombre" autocomplete="off"></th>
             <th><select class="mb-f" data-col="cat" aria-label="Filtrar por categoría">${catOpts}</select></th>
             <th></th><th></th><th></th><th></th>
           </tr>
@@ -1438,7 +1438,7 @@ function cmTrainingView(){
   ${cmSetupWarning()}
   ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
   <nav class="cm-tabs" role="tablist" aria-label="Secciones del Panel de Formación">
-    ${tabs.map(([k, label, icon, n]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}">${shellIcon(icon)}<span>${label}</span>${n !== null ? `<em>${n}</em>` : ''}</button>`).join('')}
+    ${tabs.map(([k, label, icon, n]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}" data-short="${({ tests: 'Tests', messages: 'Mensajes', members: 'Miembros', attendance: 'Asistencia', ranking: 'Ranking', stats: 'Débiles', settings: 'Ajustes' })[k] || label}" aria-label="${label}" title="${label}">${shellIcon(icon)}<span>${label}</span>${n !== null ? `<em>${n}</em>` : ''}</button>`).join('')}
   </nav>
   <section class="cm-content">${content}</section>`;
 }
