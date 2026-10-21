@@ -30,7 +30,7 @@ const COMMITTEE = {
   rankFilters: { last: '', first: '', cat: 'all' },
   memberReport: null,
   memberAddOpen: false,
-  memberSortKey: 'surname',
+  memberSortKey: 'cat',
   memberSortDir: 'asc',
   memberFilters: { last: '', first: '', email: '', cat: 'all', review: false },
   memberSel: {},
