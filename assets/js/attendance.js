@@ -133,7 +133,7 @@ function attRows(){
   const val = (e) => {
     if(key === 'surname') return (e.p.last || e.p.first) ? cmPlain(e.p.last || e.p.first) : null;
     if(key === 'name') return (e.p.first || e.p.last) ? cmPlain(e.p.first || e.p.last) : null;
-    if(key === 'cat'){ const c = cmCatById(e.m.category_id); return c ? cmPlain(c.name) : null; }
+    if(key === 'cat') return cmCatRank(e.m.category_id);
     if(key === 'got') return e.s.total ? e.s.got : null;
     if(key === 'pct') return e.s.pct;
     return null;
@@ -362,7 +362,7 @@ function attRollMembers(){
     && (A.rollCat === 'all' || (A.rollCat === 'none' ? !e.m.category_id : e.m.category_id === A.rollCat)));
   const key = A.rollSortKey, dir = A.rollSortDir;
   const val = (e) => {
-    if(key === 'cat') return e.cat ? cmPlain(e.cat.name) : null;
+    if(key === 'cat') return cmCatRank(e.m.category_id);
     if(key === 'reg') return e.on && e.info && e.info.at ? Date.parse(e.info.at) : null;
     if(key === 'state') return e.on ? 1 : 0;
     return (e.p.last || e.p.first) ? cmPlain(e.p.last || e.p.first) : null;
