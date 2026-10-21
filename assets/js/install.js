@@ -55,7 +55,7 @@ function installBannerHtml(){
   return `<section class="inst-banner" aria-label="Instalar la app">
     <button type="button" class="inst-x" data-action="install-dismiss" aria-label="Ahora no">✕</button>
     <div class="inst-top">
-      <img class="inst-icon" src="assets/icon-192.png?v=1" width="56" height="56" alt="">
+      <img class="inst-icon" src="assets/icon-192.png?v=2" width="56" height="56" alt="">
       <div class="inst-text">
         <div class="inst-eyebrow">Mejor en tu móvil</div>
         <h3>Instala WeRef en tu pantalla de inicio</h3>
@@ -107,7 +107,7 @@ function installSheetOpen(){
   el.id = 'inst-sheet'; el.className = 'inst-sheet';
   el.innerHTML = `<div class="inst-card" role="dialog" aria-modal="true" aria-labelledby="inst-title">
       <div class="inst-grab" aria-hidden="true"></div>
-      <img class="inst-bigicon" src="assets/icon-192.png?v=1" width="72" height="72" alt="">
+      <img class="inst-bigicon" src="assets/icon-192.png?v=2" width="72" height="72" alt="">
       <h3 id="inst-title">Instala WeRef en tu ${plat === 'ios' ? 'iPhone' : 'móvil'}</h3>
       <p class="inst-sub">Son 3 pasos y tarda menos de 10 segundos.</p>
       <ol class="inst-steps">
