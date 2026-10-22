@@ -105,7 +105,7 @@ async function sendSuggestion(){
 }
 
 async function loadSuggestions(){
-  if(!isDevUser()) return;
+  if(!isMaster()) return;
   try{
     const { data, error } = await supabaseClient.from('suggestions').select('*').order('created_at', { ascending: false });
     if(error || !data) return;
@@ -115,7 +115,7 @@ async function loadSuggestions(){
 }
 
 async function setSuggestionStatus(id, status){
-  if(!isDevUser()) return;
+  if(!isMaster()) return;
   try{ await supabaseClient.from('suggestions').update({ status }).eq('id', id); }catch(e){}
   const s = STATE.suggestions.find(x=>x.id===id);
   if(s) s.status = status;
@@ -123,7 +123,7 @@ async function setSuggestionStatus(id, status){
 }
 
 async function deleteSuggestion(id){
-  if(!isDevUser()) return;
+  if(!isMaster()) return;
   try{ await supabaseClient.from('suggestions').delete().eq('id', id); }catch(e){}
   STATE.suggestions = STATE.suggestions.filter(x=>x.id!==id);
   render();
@@ -1539,7 +1539,7 @@ function viewFor(v){
   if(v==='flagged') return flaggedView();
   if(v==='savedBrowse') return savedBrowseView();
   if(v==='suggestForm') return suggestFormView();
-  if(v==='suggestionsAdmin') return suggestionsAdminView();
+  if(v==='suggestionsAdmin') return isMaster() ? suggestionsAdminView() : homeView();
   if(v==='database') return databaseView();
   if(v==='adminDashboard') return isMaster() ? adminDashboardView() : homeView();
   if(v==='dailyChallenge') return dailyChallengeView();
@@ -5282,7 +5282,7 @@ function onAction(e){
   else if(action==='saved-browse-next'){ STATE.savedBrowseIdx++; render(); }
   else if(action==='open-suggest'){ STATE.view = 'suggestForm'; render(); }
   else if(action==='send-suggestion'){ sendSuggestion(); }
-  else if(action==='suggestions-admin'){ if(!isDevUser()) return; STATE.view = 'suggestionsAdmin'; loadSuggestions(); render(); }
+  else if(action==='suggestions-admin'){ if(!isMaster()) return; STATE.view = 'suggestionsAdmin'; loadSuggestions(); render(); }
   else if(action==='admin-dashboard'){ if(!isMaster()) return; STATE.view = 'adminDashboard'; loadAdminStats(1); render(); }
   else if(action==='admin-users-prev-page'){ if(!isMaster() || STATE.adminUsersPage<=1) return; loadAdminStats(STATE.adminUsersPage-1); }
   else if(action==='admin-users-next-page'){ if(!isMaster() || !STATE.adminStats || STATE.adminUsersPage>=STATE.adminStats.usersTotalPages) return; loadAdminStats(STATE.adminUsersPage+1); }
@@ -5293,8 +5293,8 @@ function onAction(e){
   else if(action==='admin-set-role'){ if(!isMaster()) return; setUserRole(el.dataset.uid, el.dataset.role); }
   else if(action==='admin-block-user'){ if(!isMaster()) return; toggleBlockAdminUser(el.dataset.uid, true); }
   else if(action==='admin-unblock-user'){ if(!isMaster()) return; toggleBlockAdminUser(el.dataset.uid, false); }
-  else if(action==='suggestion-status'){ if(!isDevUser()) return; setSuggestionStatus(el.dataset.id, el.dataset.status); }
-  else if(action==='suggestion-delete'){ if(!isDevUser()) return; deleteSuggestion(el.dataset.id); }
+  else if(action==='suggestion-status'){ if(!isMaster()) return; setSuggestionStatus(el.dataset.id, el.dataset.status); }
+  else if(action==='suggestion-delete'){ if(!isMaster()) return; deleteSuggestion(el.dataset.id); }
   else if(action==='toggle-saved'){
     const qid = el.dataset.qid;
     const was = !!STATE.storage.saved[qid];
