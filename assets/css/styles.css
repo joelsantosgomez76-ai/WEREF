@@ -3111,3 +3111,99 @@ img, svg, video{max-width:100%;}
   .cs-name{order:4; flex:1 1 100%;}
   .cs-count{order:5; flex:1 1 100%; margin-top:-2px;}
 }
+
+/* ---------- Kahoot: pantalla del proyector (rediseño) ---------- */
+.lv-host .lv-qwrap{display:flex; flex-direction:column; gap:12px; padding-top:0;}
+.lv-qtop{display:flex; flex-direction:column; gap:8px;}
+.lv-host .lv-qhead{display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; margin:0;}
+.lv-host .lv-answered{margin-left:auto; font-size:clamp(13px,1.3vw,18px);}
+.lv-host .lv-timer{width:clamp(44px,4.4vw,60px); height:clamp(44px,4.4vw,60px); margin:0; flex-shrink:0; font:700 clamp(22px,2.4vw,32px) 'Oswald';}
+.lv-qcard{display:flex; align-items:center; justify-content:center; text-align:center; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.14); border-radius:20px; padding:clamp(12px,2.2vh,28px) clamp(16px,2.4vw,34px); box-shadow:0 10px 30px rgba(0,0,0,0.18);}
+.lv-host .lv-q{margin:0; font-weight:700; font-family:'Oswald'; font-size:calc(clamp(21px,3.2vw,44px) * var(--fs,1)); line-height:1.22; color:#fff; overflow-wrap:anywhere;}
+.lv-host .lv-opts{display:grid; grid-template-columns:1fr 1fr; gap:clamp(8px,1.4vh,16px);}
+.lv-host .lv-opts.n3 .lv-opt:nth-child(3){grid-column:1 / -1;}
+.lv-host .lv-opt{position:relative; overflow:hidden; display:flex; align-items:center; gap:clamp(10px,1.4vw,20px); min-height:0; padding:clamp(10px,1.6vh,22px) clamp(12px,1.6vw,24px);
+  border-radius:18px; color:#fff; font-weight:600; line-height:1.3; font-size:calc(clamp(15px,1.85vw,27px) * var(--fs,1));
+  background:linear-gradient(160deg, color-mix(in srgb, var(--c) 82%, #fff), var(--c)); box-shadow:inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 20px rgba(0,0,0,0.25);}
+.lv-opt-badge{width:clamp(34px,3.8vw,54px); height:clamp(34px,3.8vw,54px); flex-shrink:0; border-radius:14px; background:rgba(255,255,255,0.22); display:flex; align-items:center; justify-content:center;}
+.lv-opt-badge .lv-opt-ic{width:56%; height:56%;}
+.lv-host .lv-opt-t{flex:1; min-width:0; text-align:left; overflow-wrap:anywhere;}
+.lv-opt-res{flex-shrink:0; display:flex; flex-direction:column; align-items:center; line-height:1.05; background:rgba(0,0,0,0.26); border-radius:12px; padding:4px 12px;}
+.lv-opt-res b{font:700 clamp(20px,2.5vw,34px) 'Oswald';}
+.lv-opt-res small{font-size:clamp(10px,1vw,13px); opacity:0.85;}
+.lv-opt-tick{position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; background:#fff; color:#1E8F5E; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.lv-opt-tick svg{width:17px; height:17px; stroke-width:3.2;}
+.lv-host .lv-expl{margin-top:0; font-size:calc(clamp(13px,1.45vw,20px) * var(--fs,1));}
+.lv-side .lv-top{margin:0; max-width:none;}
+.lv-side .lv-trow{font-size:clamp(14px,1.45vw,20px); padding:8px 12px;}
+
+/* en pantalla grande (proyector) todo cabe sin desplazar: el texto se ajusta solo */
+@media (min-width:900px){
+  .lv-host.lv-fit{overflow:hidden;}
+  .lv-host.lv-fit .lv-stage{display:flex; flex-direction:column; min-height:0; overflow:hidden; padding-bottom:6px;}
+  .lv-host.lv-fit .lv-foot{position:relative; background:none; padding-top:8px;}
+  .lv-host.lv-fit .lv-qwrap{flex:1 1 auto; min-height:0;}
+  .lv-host.lv-fit .lv-qmain{flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:clamp(8px,1.4vh,16px);}
+  .lv-host.lv-fit .lv-qcard{flex:0 0 auto;}
+  .lv-host.lv-fit .lv-opts{flex:1 1 auto; min-height:0; grid-template-rows:repeat(2, minmax(0,1fr));}
+  .lv-host.lv-fit .lv-opts.n2{grid-template-rows:minmax(0,1fr);}
+  .lv-host.lv-fit .lv-qwrap.rev{display:grid; grid-template-columns:minmax(0,1fr) clamp(250px,24vw,340px); grid-template-rows:auto minmax(0,1fr); column-gap:20px; row-gap:12px;}
+  .lv-host.lv-fit .lv-qwrap.rev .lv-qtop{grid-column:1 / -1;}
+  .lv-host.lv-fit .lv-side{min-height:0; overflow:hidden;}
+}
+@media (max-width:899px){
+  .lv-host .lv-opts{grid-template-columns:1fr 1fr;}
+  .lv-qwrap.rev{display:flex;}
+}
+@media (max-width:640px){ .lv-host .lv-opts{grid-template-columns:1fr;} .lv-host .lv-opts.n3 .lv-opt:nth-child(3){grid-column:auto;} }
+
+/* ---------- Kahoot: podio con animación lenta ---------- */
+.lv-final{padding-top:0;}
+.lv-final h1{font:700 clamp(30px,4.4vw,54px) 'Oswald'; margin:0; animation:lvfade .8s ease both;}
+.lv-final > p{margin:2px 0 8px; animation:lvfade .8s ease both; animation-delay:.2s;}
+.lv-podwrap{position:relative; max-width:760px; margin:6px auto 0;}
+.lv-caps{position:relative; height:clamp(36px,5.5vh,56px); margin-bottom:4px; text-align:center;}
+.lv-cap{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font:700 clamp(22px,3.4vw,42px) 'Oswald'; color:var(--yellow); opacity:0; animation:lvcap 2.2s ease both; animation-delay:var(--d);}
+.lv-cap.last{animation:lvcapin .9s cubic-bezier(.2,1.4,.4,1) both; animation-delay:var(--d); color:#fff; text-shadow:0 0 28px rgba(255,201,60,0.8);}
+@keyframes lvcap{0%{opacity:0; transform:translateY(14px) scale(.92);} 14%{opacity:1; transform:none;} 82%{opacity:1;} 100%{opacity:0; transform:translateY(-8px);}}
+@keyframes lvcapin{0%{opacity:0; transform:scale(.5);} 100%{opacity:1; transform:scale(1);}}
+.lv-podium{display:flex; align-items:flex-end; justify-content:center; gap:clamp(8px,1.4vw,18px); margin:0 auto; min-height:clamp(200px,36vh,330px);}
+.lv-pod{flex:1; display:flex; flex-direction:column; align-items:center; min-width:0;}
+.lv-pod-n, .lv-pod-s{opacity:0; animation:lvfade .7s ease both; animation-delay:calc(var(--d) + 1.05s);}
+.lv-pod-n{max-width:100%; font:700 clamp(14px,1.9vw,24px) 'Work Sans'; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.lv-pod-s{font:700 clamp(18px,2.4vw,30px) 'Oswald'; color:var(--yellow); margin-bottom:6px;}
+.lv-pod-b{width:100%; height:0; overflow:hidden; border-radius:16px 16px 0 0; display:flex; align-items:flex-start; justify-content:center; padding-top:10px; font:700 clamp(30px,4.4vw,56px) 'Oswald'; color:var(--yellow-ink); animation:lvrise 1.5s cubic-bezier(.2,.9,.3,1) both; animation-delay:var(--d);}
+.lv-pod.p1{--h:clamp(140px,26vh,240px);} .lv-pod.p2{--h:clamp(104px,19vh,180px);} .lv-pod.p3{--h:clamp(76px,14vh,130px);}
+.lv-pod.p1 .lv-pod-b{background:linear-gradient(180deg,#FFD76A,#FFB300); box-shadow:0 0 60px rgba(255,201,60,0.55);}
+.lv-pod.p2 .lv-pod-b{background:linear-gradient(180deg,#ECEEF1,#B3B8BF);}
+.lv-pod.p3 .lv-pod-b{background:linear-gradient(180deg,#F6D1B1,#D9955B);}
+@keyframes lvrise{from{height:0;} to{height:var(--h);}}
+@keyframes lvfade{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+.lv-crown{width:clamp(34px,4vw,56px); height:clamp(34px,4vw,56px); color:var(--yellow); margin-bottom:2px; opacity:0; animation:lvfade .7s ease both, lvbob 1.7s ease-in-out infinite; animation-delay:calc(var(--d) + 1.05s), calc(var(--d) + 1.8s);}
+.lv-crown svg{width:100%; height:100%;}
+@keyframes lvbob{0%,100%{transform:translateY(0);} 50%{transform:translateY(-7px);}}
+.lv-confetti{position:absolute; left:0; right:0; top:-10px; height:100%; pointer-events:none; overflow:hidden;}
+.lv-confetti i{position:absolute; top:-14px; width:9px; height:15px; border-radius:2px; background:var(--c); opacity:0; animation:lvfall var(--cs) ease-in both; animation-delay:var(--cd);}
+@keyframes lvfall{0%{opacity:0; transform:translateY(0) rotate(var(--r));} 8%{opacity:1;} 100%{opacity:0; transform:translateY(clamp(280px,56vh,480px)) rotate(calc(var(--r) + 560deg));}}
+.lv-all{opacity:0; animation:lvfade 1s ease both;}
+@media (prefers-reduced-motion:reduce){ .lv-cap,.lv-pod-n,.lv-pod-s,.lv-pod-b,.lv-crown,.lv-all,.lv-final h1,.lv-final > p{animation-duration:.01s !important; animation-delay:0s !important;} .lv-confetti{display:none;} }
+
+/* resultado: la pregunta pasa a segundo plano y las respuestas (con su recuento) ganan sitio */
+.lv-qwrap.rev .lv-q{font-size:calc(clamp(16px,1.8vw,25px) * var(--fs,1)); line-height:1.25;}
+.lv-qwrap.rev .lv-qcard{padding:clamp(8px,1.3vh,16px) clamp(12px,1.6vw,22px);}
+.lv-qwrap.rev .lv-opt{font-size:calc(clamp(15px,1.9vw,27px) * var(--fs,1));}
+@media (min-width:900px){ .lv-host.lv-fit .lv-qwrap.rev{grid-template-columns:minmax(0,1fr) clamp(230px,21vw,300px);} }
+.lv-pod-b{padding:0; box-sizing:border-box;}
+.lv-pod-b span{margin-top:10px;}
+
+/* podio ya terminado: se queda quieto (si la pantalla se repinta no vuelve a animarse) */
+.done .lv-pod-b{animation:none; height:var(--h);}
+.done .lv-pod-n, .done .lv-pod-s, .done .lv-crown, .done .lv-all, .done .lv-cap.last, .done.lv-final h1, .done.lv-final > p{animation:none; opacity:1;}
+.done .lv-cap:not(.last), .done .lv-confetti{display:none;}
+
+/* tamaño base mayor en el proyector: el ajuste automático lo reduce solo si el texto es largo */
+.lv-host .lv-q{font-size:calc(clamp(21px,3.6vw,56px) * var(--fs,1));}
+.lv-host .lv-opt{font-size:calc(clamp(15px,2.5vw,38px) * var(--fs,1));}
+.lv-qwrap.rev .lv-q{font-size:calc(clamp(16px,2vw,30px) * var(--fs,1));}
+.lv-qwrap.rev .lv-opt{font-size:calc(clamp(15px,2.4vw,34px) * var(--fs,1));}
+.lv-host .lv-expl{font-size:calc(clamp(13px,1.6vw,24px) * var(--fs,1));}
