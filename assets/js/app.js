@@ -742,6 +742,7 @@ async function loadStorage(){
     if(backfilled){ saveUserQuestions(); saveGlossaryQuestions(); }
   }
   await sharedMigrateLocal();
+  pruneSavedStale();
   checkAndUnlockBadges();
   render();
 }
@@ -774,7 +775,26 @@ function markDayActive(){
 }
 async function saveUserQuestions(){ await storageSet('userQuestions', JSON.stringify(STATE.storage.userQuestions)); }
 async function saveFlags(){ await storageSet('flags', JSON.stringify(STATE.storage.flags)); }
-async function saveSaved(){ await storageSet('saved', JSON.stringify(STATE.storage.saved)); }
+/* Guardadas: las escrituras van de una en una y siempre con el estado más reciente, así borrar varias seguidas no deja que una copia vieja llegue la última y resucite lo borrado. */
+let SAVED_BUSY = false, SAVED_AGAIN = false;
+async function saveSaved(){
+  if(SAVED_BUSY){ SAVED_AGAIN = true; return; }
+  SAVED_BUSY = true;
+  try{ do{ SAVED_AGAIN = false; await storageSet('saved', JSON.stringify(STATE.storage.saved)); }while(SAVED_AGAIN); }
+  finally{ SAVED_BUSY = false; }
+}
+/* Ids guardados que siguen siendo preguntas que existen y se ven en el juego. */
+function savedValidIds(){
+  const ok = new Set(allQuestions().map(q => q.id));
+  return Object.keys(STATE.storage.saved || {}).filter(id => ok.has(id));
+}
+/* Quita de Guardadas lo que apunta a preguntas que ya no existen (eliminadas): no se pueden ver ni borrar a mano. */
+function pruneSavedStale(){
+  const all = new Set(allQuestionsAdmin().map(q => q.id));
+  let changed = false;
+  Object.keys(STATE.storage.saved || {}).forEach(id => { if(!all.has(id)){ delete STATE.storage.saved[id]; changed = true; } });
+  if(changed) saveSaved();
+}
 async function saveEdits(){ await storageSet('edits', JSON.stringify(STATE.storage.edits)); }
 async function saveReviewed(){ await storageSet('reviewed', JSON.stringify(STATE.storage.reviewed)); }
 async function saveGlossaryQuestions(){ await storageSet('glossaryQuestions', JSON.stringify(STATE.storage.glossaryQuestions)); }
@@ -2987,7 +3007,8 @@ function academiaView(){
   const savedMap = STATE.storage.saved||{};
   const docsCount = docs.length;
   const bankCount = bank.length;
-  const savedCount = Object.keys(savedMap).length;
+  const savedIds = savedValidIds();
+  const savedCount = savedIds.length;
   const hasContent = docsCount>0 || bankCount>0 || savedCount>0;
 
   // Fechas válidas: algunas guardadas antiguas valen true (=1) o 0 en vez de una fecha; se ignoran.
@@ -2995,7 +3016,7 @@ function academiaView(){
   const lastOf = (arr) => { const m = Math.max(0, ...arr.map(validTs)); return m || null; };
   const docsLastTs = docsCount>0 ? lastOf(docs.map(d=>d.createdAt)) : null;
   const bankLastTs = bankCount>0 ? lastOf(bank.map(q=>q.createdAt)) : null;
-  const savedLastTs = savedCount>0 ? lastOf(Object.values(savedMap)) : null;
+  const savedLastTs = savedCount>0 ? lastOf(savedIds.map(id => savedMap[id])) : null;
   const overallLastTs = [docsLastTs, bankLastTs, savedLastTs].filter(Boolean);
   const overallLastText = overallLastTs.length ? formatRelativeTime(Math.max(...overallLastTs)) : null;
 
@@ -3810,7 +3831,7 @@ function trainConfigView(){
 
 function savedBrowseView(){
   const ic = (n) => shellIcon(n);
-  const ids = Object.keys(STATE.storage.saved);
+  const ids = savedValidIds();
   const letters=['a','b','c','d'];
   if(ids.length===0){
     return `<button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas guardadas</button>
@@ -5289,9 +5310,11 @@ function onAction(e){
   else if(action==='suggestion-delete'){ if(!isDevUser()) return; deleteSuggestion(el.dataset.id); }
   else if(action==='toggle-saved'){
     const qid = el.dataset.qid;
-    if(STATE.storage.saved[qid]) delete STATE.storage.saved[qid];
+    const was = !!STATE.storage.saved[qid];
+    if(was) delete STATE.storage.saved[qid];
     else STATE.storage.saved[qid] = Date.now();
     saveSaved();
+    if(was) STATE.toast = 'Pregunta quitada de Guardadas.';   // antes no se veía que se hubiera borrado
     render();
   }
   else if(action==='edit-question'){ STATE.editingId = el.dataset.qid; render(); }
