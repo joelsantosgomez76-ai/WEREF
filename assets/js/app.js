@@ -1019,7 +1019,7 @@ function formatEventDate(dateStr){
 }
 
 function formatRelativeTime(ts){
-  if(!ts) return null;
+  if(!ts || Number(ts) < 1e11) return null;   // sin fecha real (por ejemplo true o 0): no se inventa «hace 57 años»
   const diffMs = Date.now() - Number(ts);
   const diffMin = Math.floor(diffMs/60000);
   if(diffMin < 1) return 'Hace un momento';
@@ -2986,9 +2986,12 @@ function academiaView(){
   const savedCount = Object.keys(savedMap).length;
   const hasContent = docsCount>0 || bankCount>0 || savedCount>0;
 
-  const docsLastTs = docsCount>0 ? Math.max(...docs.map(d=>d.createdAt||0)) : null;
-  const bankLastTs = bankCount>0 ? Math.max(...bank.map(q=>q.createdAt||0)) : null;
-  const savedLastTs = savedCount>0 ? Math.max(...Object.values(savedMap).map(v=>Number(v)||0)) : null;
+  // Fechas válidas: algunas guardadas antiguas valen true (=1) o 0 en vez de una fecha; se ignoran.
+  const validTs = (n) => (Number(n) > 1e11 ? Number(n) : 0);
+  const lastOf = (arr) => { const m = Math.max(0, ...arr.map(validTs)); return m || null; };
+  const docsLastTs = docsCount>0 ? lastOf(docs.map(d=>d.createdAt)) : null;
+  const bankLastTs = bankCount>0 ? lastOf(bank.map(q=>q.createdAt)) : null;
+  const savedLastTs = savedCount>0 ? lastOf(Object.values(savedMap)) : null;
   const overallLastTs = [docsLastTs, bankLastTs, savedLastTs].filter(Boolean);
   const overallLastText = overallLastTs.length ? formatRelativeTime(Math.max(...overallLastTs)) : null;
 
