@@ -26,6 +26,17 @@ const LV_SHAPES = [
   '<circle cx="12" cy="12" r="9" fill="currentColor"/>',
   '<rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor"/>'
 ];
+/* Los números de pregunta se cargan desde el servidor la primera vez; hasta entonces no se puede saber
+   si un número existe (antes salía "no existe o se eliminó" para todos). */
+function lvNumsReady(){ return !!(QNUM.ready || QNUM.failed); }
+function lvNumsPreview(d){
+  return lvNumsReady() ? cmNumsPreviewHtml(d) : `<div class="st-note">Cargando los números de las preguntas…</div>`;
+}
+async function liveEnsureNumbers(){
+  try{ await qnumSync(); }catch(e){}
+  for(let i = 0; i < 40 && QNUM.busy; i++) await new Promise(r => setTimeout(r, 150));   // si ya había otra carga en marcha, se espera
+  if(lv().creating && STATE.view === 'committeeTraining') render();
+}
 function lvNum(q){ return questionNumber(q) || q.keepNum || null; }
 function lvShape(i){ return `<svg viewBox="0 0 24 24" aria-hidden="true">${LV_SHAPES[i] || ''}</svg>`; }
 function lvCode(c){ const s = String(c || ''); return s.length === 6 ? s.slice(0, 3) + ' ' + s.slice(3) : s; }
@@ -137,7 +148,7 @@ function liveCreateForm(){
   <div class="tc-card" style="margin-bottom:14px;">
     <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Preguntas</h3><small>Con los números de la Base de datos, o copiando un test</small></div></div>
     <textarea id="lv-nums" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" autocomplete="off">${esc(d.numsText)}</textarea>
-    <div id="lv-nums-preview" style="margin-top:8px;">${cmNumsPreviewHtml(d)}</div>
+    <div id="lv-nums-preview" style="margin-top:8px;">${lvNumsPreview(d)}</div>
     <div class="lv-addrow">
       <button class="btn btn-primary" data-action="committee-live-add">${ic('plus')} Añadir al juego</button>
       ${tests.length ? `<select id="lv-copy" data-cm-field="live.draft.copyTest" aria-label="Copiar de un test"><option value="">Copiar las preguntas de un test…</option>${tests.map(t => `<option value="${t.id}" ${d.copyTest === t.id ? 'selected' : ''}>${esc(t.title)} (${t.question_count})</option>`).join('')}</select>
@@ -536,10 +547,12 @@ function liveDetailView(){
 async function liveOnAction(action, el){
   const L = lv();
   if(!isDevUser() && !/^committee-live-(join|answer|play-exit)$/.test(action)) return;
-  if(action === 'committee-live-new'){ L.draft = liveNewDraft(); L.creating = true; render(); window.scrollTo(0, 0); }
+  if(action === 'committee-live-new'){ L.draft = liveNewDraft(); L.creating = true; render(); window.scrollTo(0, 0); liveEnsureNumbers(); }
   else if(action === 'committee-live-cancel'){ L.creating = false; L.draft = null; render(); }
   else if(action === 'committee-live-add'){
     const d = L.draft; if(!d) return;
+    if(!lvNumsReady()){ await liveEnsureNumbers(); }
+    if(!lvNumsReady()){ cmToast('Todavía se están cargando los números de las preguntas. Inténtalo en unos segundos.'); return; }
     cmAddByNumbers(d);
     d.numsText = ''; render();
   }
@@ -574,7 +587,7 @@ async function liveOnAction(action, el){
     const [g, qs] = await Promise.all([supabaseClient.from('live_games').select('*').eq('id', gid).maybeSingle(), supabaseClient.from('live_questions').select('*').eq('game_id', gid).order('pos')]);
     if(g.error || qs.error || !g.data){ cmToast('No se ha podido cargar el borrador.'); return; }
     L.draft = Object.assign(liveNewDraft(), { editId: gid, title: g.data.title, seconds: String(g.data.seconds), selected: (qs.data || []).map(q => ({ id: 'rp' + q.pos, question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation || '', keepNum: q.qnum || null })) });
-    L.creating = true; render(); window.scrollTo(0, 0);
+    L.creating = true; render(); window.scrollTo(0, 0); liveEnsureNumbers();
   }
   else if(action === 'committee-live-host-next'){ await liveHostNext(); }
   else if(action === 'committee-live-host-end'){
@@ -596,7 +609,7 @@ async function liveOnAction(action, el){
     const [g, qs] = await Promise.all([supabaseClient.from('live_games').select('*').eq('id', gid).maybeSingle(), supabaseClient.from('live_questions').select('*').eq('game_id', gid).order('pos')]);
     if(g.error || qs.error || !g.data){ cmToast('No se ha podido cargar la partida.'); return; }
     L.draft = Object.assign(liveNewDraft(), { title: g.data.title, seconds: String(g.data.seconds), selected: (qs.data || []).map(q => ({ id: 'rp' + q.pos, question: q.question, options: q.options, correct: q.correct, rule: q.rule, explanation: q.explanation || '', keepNum: q.qnum || null })) });
-    L.creating = true; COMMITTEE.tab = 'live'; STATE.view = 'committeeTraining'; render(); window.scrollTo(0, 0);
+    L.creating = true; COMMITTEE.tab = 'live'; STATE.view = 'committeeTraining'; render(); window.scrollTo(0, 0); liveEnsureNumbers();
   }
   else if(action === 'committee-live-delete'){
     const g = (L.games || []).find(x => x.id === el.dataset.gid); if(!g) return;
@@ -630,7 +643,7 @@ function liveAfterRender(){
   if(ta) ta.addEventListener('input', () => {
     const d = lv().draft; if(!d) return;
     d.numsText = ta.value;
-    const pv = document.getElementById('lv-nums-preview'); if(pv) pv.innerHTML = cmNumsPreviewHtml(d);
+    const pv = document.getElementById('lv-nums-preview'); if(pv) pv.innerHTML = lvNumsPreview(d);
   });
   const jc = document.getElementById('lv-join-code');
   if(jc) jc.addEventListener('input', () => { lv().joinCode = jc.value; });
