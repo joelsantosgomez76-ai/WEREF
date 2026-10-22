@@ -644,7 +644,11 @@ function allQuestionsAdmin(){
         if(o.correct) f.correct = o.correct;
         if(o.explanation != null) f.explanation = o.explanation;
         if(o.difficulty) f.difficulty = o.difficulty;
-        if(o.domain === 'law' && o.rule != null) f.rule = o.rule;
+        if(o.domain && o.domain !== q.domain){
+          // La pregunta se movió de ámbito (por ejemplo, de una regla a Asistentes): fuera de las reglas no lleva número de regla.
+          f.domain = o.domain;
+          f.rule = o.domain === 'law' ? (o.rule != null ? o.rule : q.rule) : null;
+        } else if(o.domain === 'law' && o.rule != null) f.rule = o.rule;
         if(o.updated_at) f.updatedAt = o.updated_at;
         if(o.draft) f.draft = true;
         r = Object.assign({}, q, f);
@@ -3965,9 +3969,22 @@ function flaggedView(){
 }
 
 function saveQuestionEdit(qid, alsoUnflag){
-  const domain = document.getElementById('e-domain').value;
-  const ruleSelEl = document.getElementById('e-rule');
-  const selectedNum = ruleSelEl ? parseInt(ruleSelEl.value,10) : null;
+  const before = allQuestionsAdmin().find(x => x.id === qid) || {};
+  let domain, selectedNum;
+  const scopeEl = document.getElementById('e-law');
+  if(scopeEl){
+    // Desplegable de ámbito: un número = esa regla; si no, Glosario, Asistentes o FCF.
+    const v = scopeEl.value;
+    domain = (v === 'glossary' || v === 'assistants' || v === 'fcf') ? v : 'law';
+    selectedNum = domain === 'law' ? parseInt(v, 10) : null;
+  } else {
+    domain = document.getElementById('e-domain').value;
+    const ruleSelEl = document.getElementById('e-rule');
+    selectedNum = ruleSelEl ? parseInt(ruleSelEl.value,10) : null;
+  }
+  const moved = (before.domain && before.domain !== domain) || (domain === 'law' && before.rule !== selectedNum);
+  const scopeNames = { glossary: 'Glosario IFAB', assistants: 'Árbitros Asistentes', fcf: 'Reglament General FCF' };
+  const movedTo = domain === 'law' ? 'la Regla ' + selectedNum : scopeNames[domain];
   const question = document.getElementById('e-question').value.trim();
   const a = document.getElementById('e-a').value.trim();
   const b = document.getElementById('e-b').value.trim();
@@ -4004,7 +4021,7 @@ function saveQuestionEdit(qid, alsoUnflag){
   }
   if(alsoUnflag){ delete STATE.storage.flags[qid]; saveFlags(); }
   STATE.editingId = null;
-  STATE.toast = 'Pregunta actualizada.';
+  STATE.toast = moved ? 'Pregunta actualizada y movida a ' + movedTo + '.' : 'Pregunta actualizada.';
   render();
 }
 
@@ -4573,10 +4590,17 @@ function editFormHtml(q){
   const isGlossaryQ = q.domain === 'glossary' || q.domain === 'assistants' || q.domain === 'fcf';
   const lawOpts = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${q.rule===i?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('');
   const tagLabel = q.domain === 'fcf' ? 'Reglament General FCF' : q.domain === 'assistants' ? 'Árbitros Asistentes' : isGlossaryQ ? 'Glosario IFAB' : 'Regla '+q.rule+' · '+esc(LAW_NAMES[q.rule]);
+  // Con el banco compartido se puede cambiar el ámbito (regla, Glosario, Asistentes o FCF); sin él solo la regla.
+  const scopeOpts = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${q.domain==='law' && q.rule===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('')
+    + `<option value="glossary" ${q.domain==='glossary'?'selected':''}>Glosario IFAB</option>`
+    + `<option value="assistants" ${q.domain==='assistants'?'selected':''}>Árbitros Asistentes</option>`
+    + `<option value="fcf" ${q.domain==='fcf'?'selected':''}>Reglament General FCF (solo Base de datos y tests)</option>`;
   const sections = questionFormSections('e', {
     options: q.options || ['', '', '', ''], correct: q.correct, question: q.question, explanation: q.explanation || '', hard: q.difficulty === 'hard',
     scopeHint: tagLabel,
-    scopeHtml: `<input type="hidden" id="e-domain" value="${q.domain}">${isGlossaryQ ? '' : `<label for="e-rule">Regla</label><select id="e-rule">${lawOpts}</select>`}`
+    scopeHtml: sharedActive()
+      ? `<label for="e-law">Ámbito</label><select id="e-law">${scopeOpts}</select>`
+      : `<input type="hidden" id="e-domain" value="${q.domain}">${isGlossaryQ ? '' : `<label for="e-rule">Regla</label><select id="e-rule">${lawOpts}</select>`}`
   });
   return `<article class="fq-edit">
     <div class="fq-edit-head"><span class="cm-chip open">Editando</span><strong>${tagLabel}</strong></div>
