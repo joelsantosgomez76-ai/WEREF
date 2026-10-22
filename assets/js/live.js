@@ -199,6 +199,7 @@ function liveHostStop(){
   const H = lv().host; if(!H) return;
   H.running = false; clearTimeout(H.poll); clearInterval(H.tick);
   document.removeEventListener('keydown', liveHostKey, true);
+  window.removeEventListener('resize', liveFitSoon);
 }
 function liveHostKey(e){
   if(!lv().host || STATE.view !== 'committeeLiveHost') return;
@@ -210,6 +211,7 @@ function liveOpenHost(id){
   lv().host = { id, data: null, offset: 0, running: true, sig: '', err: null, busy: false, revealedCur: -2 };
   STATE.view = 'committeeLiveHost'; render(); window.scrollTo(0, 0);
   document.addEventListener('keydown', liveHostKey, true);
+  window.addEventListener('resize', liveFitSoon);
   const H = lv().host;
   H.tick = setInterval(liveHostTick, 250);
   liveHostPoll();
@@ -231,7 +233,7 @@ async function liveHostPoll(){
   }
   const d = H.data;
   const sig = JSON.stringify([H.err, d && [d.phase, d.cur, d.answered, d.player_count, (d.names || []).length, (d.top || []).map(t => t.score).join(',')]]);
-  if(sig !== H.sig){ H.sig = sig; render(); }
+  if(sig !== H.sig){ H.sig = sig; render(); liveFitSoon(); }
   H.poll = setTimeout(liveHostPoll, 1000);
 }
 function liveRemaining(src){
@@ -262,17 +264,54 @@ function liveOpts(q, revealed, counts, total){
     const n = counts ? (counts[L] || 0) : 0;
     const pct = revealed && total ? Math.round(n / total * 100) : 0;
     return `<div class="${cls.join(' ')}" style="--c:${LV_COLORS[i]}">
-      <span class="lv-opt-ic">${lvShape(i)}</span><span class="lv-opt-t">${esc(o)}</span>
-      ${revealed ? `<span class="lv-opt-n"><b>${n}</b></span><span class="lv-opt-bar"><i style="width:${pct}%"></i></span>` : ''}
+      <span class="lv-opt-badge"><span class="lv-opt-ic">${lvShape(i)}</span></span>
+      <span class="lv-opt-t">${esc(o)}</span>
+      ${revealed ? `<span class="lv-opt-res"><b>${n}</b><small>${pct}%</small></span>` : ''}
+      ${revealed && q.correct === L ? `<span class="lv-opt-tick">${shellIcon('check')}</span>` : ''}
+      ${revealed ? `<span class="lv-opt-bar"><i style="width:${pct}%"></i></span>` : ''}
     </div>`;
   }).join('');
 }
-function livePodium(top){
-  const t = (top || []).slice(0, 3);
-  if(!t.length) return '';
-  const order = [t[1], t[0], t[2]].filter(Boolean);
-  return `<div class="lv-podium">${order.map(p => `<div class="lv-pod p${p.rank > 3 ? 3 : p.rank}"><div class="lv-pod-n">${esc(p.name)}</div><div class="lv-pod-s">${p.score}</div><div class="lv-pod-b"><span>${p.rank}</span></div></div>`).join('')}</div>`;
+
+/* Podio con animación lenta: primero el 3.º, luego el 2.º y al final el ganador, con confeti.
+   startedAt = momento en que se mostró el podio; los retrasos se descuentan para que, si la pantalla se
+   repinta, la animación continúe donde iba en vez de empezar otra vez. */
+function livePodium(list, startedAt){
+  const t = (list || []).slice(0, 3);
+  if(!t.length) return { html: '', ends: 0 };
+  const n = t.length;
+  const el = startedAt ? (Date.now() - startedAt) / 1000 : 99;
+  const delayOf = (idx) => (n - 1 - idx) * 2.3 + 0.6 + (idx === 0 ? 0.4 : 0);
+  const names = ['¡El ganador!', '2.º puesto', '3.er puesto'];
+  const order = [1, 0, 2].filter(i => t[i]);
+  const cols = order.map(idx => { const p = t[idx];
+    return `<div class="lv-pod p${idx + 1}" style="--d:${(delayOf(idx) - el).toFixed(2)}s">
+      ${idx === 0 ? `<div class="lv-crown">${shellIcon('trophy')}</div>` : ''}
+      <div class="lv-pod-n">${esc(p.name)}</div><div class="lv-pod-s">${p.score}</div>
+      <div class="lv-pod-b"><span>${idx + 1}</span></div></div>`; }).join('');
+  const caps = t.map((p, idx) => idx).reverse().map(idx =>
+    `<div class="lv-cap ${idx === 0 ? 'last' : ''}" style="--d:${(delayOf(idx) - el - 0.3).toFixed(2)}s">${names[idx]}</div>`).join('');
+  const wd = delayOf(0) + 1.0 - el;
+  const colors = ['#FFC93C', '#FF6A2B', '#6EE7A0', '#7CB4FF', '#FF8A9C', '#FFFFFF'];
+  const confetti = Array.from({ length: 40 }, (_, i) =>
+    `<i style="left:${(i * 37 + 11) % 100}%; --c:${colors[i % colors.length]}; --cd:${(wd + (i % 10) * 0.13).toFixed(2)}s; --cs:${(3.2 + (i % 5) * 0.5).toFixed(1)}s; --r:${(i * 53) % 360}deg"></i>`).join('');
+  return { done: (delayOf(0) + 3 - el) <= 0, html: `<div class="lv-podwrap"><div class="lv-caps">${caps}</div><div class="lv-podium">${cols}</div><div class="lv-confetti" aria-hidden="true">${confetti}</div></div>`, ends: delayOf(0) + 2.4 - el };
 }
+
+/* Ajusta el tamaño del texto para que la pregunta y TODAS las respuestas quepan siempre en la pantalla del proyector,
+   sin tener que desplazarla (solo en pantallas grandes). */
+function liveFitHost(){
+  if(innerWidth < 900) return;
+  const s = document.querySelector('.lv-screen.lv-fit');
+  if(!s) return;
+  const stage = s.querySelector('.lv-stage'); if(!stage) return;
+  let k = 1; stage.style.setProperty('--fs', '1');
+  const over = () => stage.scrollHeight > stage.clientHeight + 1 || s.scrollHeight > s.clientHeight + 1 ||
+    Array.from(s.querySelectorAll('.lv-opt, .lv-qcard')).some(e => e.scrollHeight > e.clientHeight + 1);
+  for(let i = 0; i < 60 && k > 0.3 && over(); i++){ k -= 0.03; stage.style.setProperty('--fs', k.toFixed(2)); }
+}
+function liveFitSoon(){ liveFitHost(); requestAnimationFrame(liveFitHost); }
+
 function liveHostView(){
   const ic = (n) => shellIcon(n);
   const H = lv().host;
@@ -299,25 +338,30 @@ function liveHostView(){
     const q = d.question || {};
     const rev = ph === 'reveal';
     const rem = liveRemaining(H);
-    body = `<div class="lv-qwrap">
-        <div class="lv-qhead"><span class="lv-qcount">Pregunta ${d.cur + 1} de ${d.total}</span>${q.rule ? `<span class="lv-qrule">Regla ${q.rule}</span>` : ''}
-          ${rev ? '' : `<span class="lv-answered">${d.answered} / ${d.player_count} han respondido</span>`}</div>
-        <h1 class="lv-q">${esc(q.question)}</h1>
-        ${rev ? '' : `<div class="lv-tline"><div class="lv-timer"><span id="lv-timer-n">${rem === null ? d.seconds : Math.max(0, Math.ceil(rem / 1000))}</span></div><div class="lv-tbar"><i id="lv-tbar" style="width:${rem === null ? 100 : Math.max(0, Math.min(100, rem / (d.seconds * 1000) * 100))}%"></i></div></div>`}
+    const timer = rev ? '' : `<span class="lv-timer"><span id="lv-timer-n">${rem === null ? d.seconds : Math.max(0, Math.ceil(rem / 1000))}</span></span>`;
+    const head = `<div class="lv-qhead"><span class="lv-qcount">Pregunta ${d.cur + 1} de ${d.total}</span>${q.rule ? `<span class="lv-qrule">Regla ${q.rule}</span>` : ''}
+        ${rev ? '' : `<span class="lv-answered">${d.answered} / ${d.player_count} han respondido</span>`}${timer}</div>
+      ${rev ? '' : `<div class="lv-tbar"><i id="lv-tbar" style="width:${rem === null ? 100 : Math.max(0, Math.min(100, rem / (d.seconds * 1000) * 100))}%"></i></div>`}`;
+    const main = `<div class="lv-qmain">
+        <div class="lv-qcard"><h1 class="lv-q">${esc(q.question)}</h1></div>
         <div class="lv-opts n${(q.options || []).length}">${liveOpts(q, rev, d.counts, d.answered)}</div>
         ${rev && q.explanation ? `<div class="lv-expl">${ic('idea')}<span>${esc(q.explanation)}</span></div>` : ''}
-        ${rev ? `<div class="lv-top"><h3>Clasificación</h3>${(d.top || []).map(t => `<div class="lv-trow"><span class="lv-tpos">${t.rank}</span><span class="lv-tname">${esc(t.name)}</span><b>${t.score}</b></div>`).join('') || ''}</div>` : ''}
       </div>`;
+    const side = rev ? `<aside class="lv-side"><div class="lv-top"><h3>Clasificación</h3>${(d.top || []).map(t => `<div class="lv-trow"><span class="lv-tpos">${t.rank}</span><span class="lv-tname">${esc(t.name)}</span><b>${t.score}</b></div>`).join('')}</div></aside>` : '';
+    body = `<div class="lv-qwrap ${rev ? 'rev' : ''}"><div class="lv-qtop">${head}</div>${main}${side}</div>`;
     primary = rev
       ? `<button class="btn btn-yellow lv-main" data-action="committee-live-host-next">${d.cur + 1 >= d.total ? 'Ver resultados finales' : 'Siguiente pregunta'} →</button>`
       : `<button class="btn btn-yellow lv-main" data-action="committee-live-host-next">Mostrar resultado</button>`;
   } else {
-    body = `<div class="lv-final"><div class="lv-trophy">${ic('trophy')}</div><h1>¡Partida terminada!</h1><p>${esc(d.title)}</p>
-        ${livePodium(d.all)}
-        <div class="lv-top lv-all"><h3>Clasificación final</h3>${(d.all || []).map(t => `<div class="lv-trow"><span class="lv-tpos">${t.rank}</span><span class="lv-tname">${esc(t.name)}</span><b>${t.score}</b></div>`).join('')}</div></div>`;
+    if(!H.podiumStart) H.podiumStart = Date.now();
+    const pod = livePodium(d.all, H.podiumStart);
+    body = `<div class="lv-final ${pod.done ? 'done' : ''}"><h1>¡Partida terminada!</h1><p>${esc(d.title)}</p>
+        ${pod.html}
+        <div class="lv-top lv-all" style="animation-delay:${Math.max(0, pod.ends).toFixed(2)}s"><h3>Clasificación final</h3>${(d.all || []).map(t => `<div class="lv-trow"><span class="lv-tpos">${t.rank}</span><span class="lv-tname">${esc(t.name)}</span><b>${t.score}</b></div>`).join('')}</div></div>`;
     primary = `<button class="btn btn-yellow lv-main" data-action="committee-live-host-detail">${ic('chart')} Ver resultados completos</button>`;
   }
-  return `<div class="lv-screen lv-host lv-ph-${ph}">
+  const fit = (ph === 'question' || ph === 'reveal') ? ' lv-fit' : '';
+  return `<div class="lv-screen lv-host lv-ph-${ph}${fit}">
     <div class="lv-bar">${exit}<div class="lv-title">${esc(d.title)}</div>${ph === 'lobby' ? '' : `<span class="lv-codepill">Código ${esc(lvCode(d.code))}</span>`}</div>
     <div class="lv-stage">${H.err ? `<div class="lv-err">${esc(H.err)}</div>` : ''}${body}</div>
     <div class="lv-foot">${ph === 'finished' ? '' : `<button class="btn btn-ghost lv-endbtn" data-action="committee-live-host-end">Terminar partida</button>`}${primary}</div>
@@ -418,9 +462,11 @@ function livePlayView(){
         <p class="lv-wait" style="text-align:center;">Siguiente pregunta en cuanto el formador continúe…</p>
       </div>`;
   } else {
-    body = `<div class="lv-pq lv-pfinal"><div class="lv-trophy">${ic('trophy')}</div><h2>¡Partida terminada!</h2>
+    if(!P.podiumStart) P.podiumStart = Date.now();
+    const pod = livePodium(d.top, P.podiumStart);
+    body = `<div class="lv-pq lv-pfinal ${pod.done ? 'done' : ''}"><div class="lv-trophy">${ic('trophy')}</div><h2>¡Partida terminada!</h2>
         <div class="lv-me big"><div><small>Tu puesto</small><b>${d.rank}º<em> de ${d.player_count}</em></b></div><div><small>Puntos</small><b>${d.score}</b></div></div>
-        ${livePodium(d.top)}
+        ${pod.html}
         <div class="lv-top"><h3>Clasificación</h3>${(d.top || []).map(t => `<div class="lv-trow"><span class="lv-tpos">${t.rank}</span><span class="lv-tname">${esc(t.name)}</span><b>${t.score}</b></div>`).join('')}</div>
         <button class="btn btn-yellow lv-main" data-action="committee-live-play-exit">Salir</button></div>`;
   }
