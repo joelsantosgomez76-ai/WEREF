@@ -236,7 +236,7 @@ const BASE_QUESTIONS = BASE_QUESTIONS_RAW;
 BASE_QUESTIONS.forEach(q => { q.id = 'R'+q.rule+'-'+q.num; q.source = 'base'; q.domain = 'law'; if(!q.difficulty) q.difficulty = 'normal'; });
 
 const ASSISTANT_QUESTIONS = (typeof ASSISTANT_QUESTIONS_RAW !== 'undefined') ? ASSISTANT_QUESTIONS_RAW : [];
-ASSISTANT_QUESTIONS.forEach(q => { q.id = 'A-'+q.num; q.source = 'base'; q.domain = 'assistants'; q.rule = null; if(!q.difficulty) q.difficulty = 'normal'; });
+ASSISTANT_QUESTIONS.forEach(q => { q.id = 'A-'+q.num; q.source = 'base'; q.domain = 'law'; q.rule = 6; if(!q.difficulty) q.difficulty = 'normal'; });
 
 let STATE = {
   view: 'home',
@@ -654,7 +654,9 @@ function allQuestionsAdmin(){
         r = Object.assign({}, q, f);
       }
       const e = STATE.storage.edits && STATE.storage.edits[q.id];
-      return e ? Object.assign({}, r, e) : r;
+      const out = e ? Object.assign({}, r, e) : r;
+      // La sala «Árbitros Asistentes» ya no existe: sus preguntas pertenecen a la Regla 6.
+      return out.domain === 'assistants' ? Object.assign({}, out, { domain: 'law', rule: 6 }) : out;
     });
 }
 /* Lo que ve la web: sin las preguntas del Reglament General FCF ni las retiradas del juego (borrador). */
@@ -3162,7 +3164,6 @@ function homeView(){
   const gs = lawStats('glossary');
   const hs = lawStats('hard');
   const fs2 = lawStats('failed');
-  const as2 = lawStats('assistants');
   const failRatio = os.attempted > 0 ? Math.round(fs2.total / os.attempted * 100) : 0;
   cards += `<button class="law-card law-card-failed" data-action="open-law" data-law="failed">
       <div class="law-icon">${ic('repeat')}</div>
@@ -3185,17 +3186,6 @@ function homeView(){
         <div class="law-pct">${hs.completionPct}%</div>
       </div>
       <div class="law-sub">${hs.total === 0 ? '<span class="law-sub-muted">Todavía no hay ninguna</span>' : lawSubLine(hs)}</div>
-    </button>
-    <button class="law-card law-card-hard law-card-assist" data-action="open-law" data-law="assistants">
-      <div class="law-icon">${ic('flag')}</div>
-      <div class="law-num">A</div>
-      <div class="law-name">Árbitros Asistentes</div>
-      <div class="hard-tag">Sala especial</div>
-      <div class="law-meta">
-        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${as2.completionPct}%"></div></div>
-        <div class="law-pct">${as2.completionPct}%</div>
-      </div>
-      <div class="law-sub">${as2.total === 0 ? '<span class="law-sub-muted">Próximamente</span>' : lawSubLine(as2)}</div>
     </button>
     <button class="law-card" data-action="open-law" data-law="glossary">
       <div class="law-icon">${ic('glossary')}</div>
@@ -3752,7 +3742,7 @@ function trainConfigView(){
     const active = cfg.laws.includes(i);
     chips += `<button class="tc-rule ${active?'active':''}" data-action="toggle-train-law" data-law="${i}"><b>${i}</b><span>${esc(LAW_NAMES[i])}</span></button>`;
   }
-  [['glossary', 'G', 'Preguntas Glosario'], ['assistants', 'A', 'Árbitros Asistentes']].forEach(([key, letter, name]) => {
+  [['glossary', 'G', 'Preguntas Glosario']].forEach(([key, letter, name]) => {
     chips += `<button class="tc-rule special ${cfg.laws.includes(key)?'active':''}" data-action="toggle-train-law" data-law="${key}"><b>${letter}</b><span>${name}</span></button>`;
   });
   const opt = (on, action, attrs, icon, title, text) => `<button class="tc-opt ${on?'active':''}" data-action="${action}" ${attrs}>
@@ -3808,7 +3798,7 @@ function trainConfigView(){
 
       ${scopeOverride ? '' : `
       <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">4</span><div><h3>Reglas incluidas</h3><small>Elige reglas, Glosario o Árbitros Asistentes · sin selección entran las 17 reglas y el Glosario</small></div>
+        <div class="tc-card-head"><span class="tc-step">4</span><div><h3>Reglas incluidas</h3><small>Elige reglas o el Glosario · sin selección entran las 17 reglas y el Glosario</small></div>
           <button class="tc-all ${cfg.laws.length===0?'active':''}" data-action="toggle-train-law" data-law="all">Todas</button></div>
         <div class="tc-rules">${chips}</div>
       </div>`}
@@ -4248,7 +4238,6 @@ function databaseView(){
     `<optgroup label="Reglas IFAB">` +
     Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${f.law==String(i)?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
     `<option value="glossary" ${f.law==='glossary'?'selected':''}>Preguntas Glosario</option>` +
-    `<option value="assistants" ${f.law==='assistants'?'selected':''}>Árbitros Asistentes</option>` +
     `<option value="hard" ${f.law==='hard'?'selected':''}>Sala VAR (difíciles)</option>` +
     `</optgroup>`;
 
@@ -4325,7 +4314,6 @@ function databaseView(){
   const lawCountChipsHtml = `<button class="db-lawchip all ${String(f.law)==='all' ? 'active' : ''}" data-action="db-view-law-questions" data-law="all"><b>Todas</b><span>${noLaw.length}</span></button>`
     + Array.from({length:17},(_,i)=>i+1).map(i => lawChip(i, 'R' + i, lawCounts[i] || 0)).join('')
     + lawChip('glossary', 'Glosario', glossaryCount)
-    + lawChip('assistants', 'Asistentes', assistantsCount, true)
     + lawChip('fcf', 'Reglament FCF', fcfCount, true);
 
   const statusChip = (key, label, n) => `<button class="db-status ${key} ${statusNow === key ? 'active' : ''}" data-action="db-set-status" data-status="${key}">${label}<em>${n}</em></button>`;
@@ -4586,7 +4574,6 @@ function addQuestionView(){
   const currentLawNum = typeof STATE.lawId === 'number' ? STATE.lawId : null;
   const lawSel = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${currentLawNum===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('')
     + `<option value="glossary" ${isGlossaryContext?'selected':''}>Glosario IFAB</option>`
-    + (sharedActive() ? `<option value="assistants" ${STATE.lawId==='assistants'?'selected':''}>Árbitros Asistentes</option>` : '')
     + (sharedActive() ? `<option value="fcf" ${STATE.lawId==='fcf'?'selected':''}>Reglament General FCF (solo Base de datos y tests)</option>` : '');
   const backAction = STATE.cameFromDb ? 'database' : (STATE.lawId!=null ? 'open-law' : 'home');
   const sections = questionFormSections('f', {
@@ -4614,7 +4601,6 @@ function editFormHtml(q){
   // Con el banco compartido se puede cambiar el ámbito (regla, Glosario, Asistentes o FCF); sin él solo la regla.
   const scopeOpts = Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${q.domain==='law' && q.rule===i?'selected':''}>Regla ${i} — ${esc(LAW_NAMES[i])}</option>`).join('')
     + `<option value="glossary" ${q.domain==='glossary'?'selected':''}>Glosario IFAB</option>`
-    + `<option value="assistants" ${q.domain==='assistants'?'selected':''}>Árbitros Asistentes</option>`
     + `<option value="fcf" ${q.domain==='fcf'?'selected':''}>Reglament General FCF (solo Base de datos y tests)</option>`;
   const sections = questionFormSections('e', {
     options: q.options || ['', '', '', ''], correct: q.correct, question: q.question, explanation: q.explanation || '', hard: q.difficulty === 'hard',
@@ -4842,7 +4828,7 @@ async function exportExcel(){
     ['- La columna "Número" es solo de referencia (la misma que ves en Base de datos como #123 en la app); no hace falta rellenarla en filas nuevas.'],
     ['- Deja la columna ID tal cual para EDITAR una pregunta existente.'],
     ['- Borra el ID (déjalo vacío) en una fila nueva para AÑADIR una pregunta.'],
-    ['- En "Ámbito" pon el número de regla (1-17), Glosario, Asistentes o FCF (Reglament General FCF).'],
+    ['- En "Ámbito" pon el número de regla (1-17), Glosario o FCF (Reglament General FCF).'],
     ['- En "Correcta" pon solo la letra: a, b, c o d.'],
     ['- No borres filas para eliminar preguntas: usa el botón Eliminar en la app.'],
     ['- Cuando termines, guarda el archivo y súbelo con "Importar desde Excel".']
@@ -4874,10 +4860,11 @@ async function importExcelFile(file){
         const correct = String(row['Correcta (a/b/c/d)']||'').trim().toLowerCase();
         const explanation = String(row['Explicación']||'').trim();
         const difficulty = String(row['Difícil (SI/NO)']||'').trim().toUpperCase()==='SI' ? 'hard' : 'normal';
-        const isAssist = ambito.toLowerCase().startsWith('asis');
+        const isAssistWord = ambito.toLowerCase().startsWith('asis');
+        const isAssist = false;   // esa sala ya no existe: lo que venga como Asistentes va a la Regla 6
         const isFcf = ambito.toLowerCase().startsWith('fcf') || ambito.toLowerCase().startsWith('reglament');
         const isGlossary = ambito.toLowerCase().startsWith('glos') || isAssist || isFcf;
-        const rule = isGlossary ? null : parseInt(ambito,10);
+        const rule = isGlossary ? null : (isAssistWord ? 6 : parseInt(ambito,10));
 
         if(!question || !a || !b || !c || !['a','b','c','d'].includes(correct)){ skipped++; return; }
         if(!isGlossary && (!rule || rule<1 || rule>17)){ skipped++; return; }
