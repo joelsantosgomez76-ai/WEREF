@@ -96,7 +96,7 @@ function shellNavItems(){
     const pending = (STATE.suggestions || []).filter(s => s.status === 'pending').length;
     admin.push({ id: 'db', label: 'Base de datos', icon: 'database', action: 'database', badge: reports, alert: true });
     admin.push({ id: 'sug', label: 'Sugerencias', icon: 'message', action: 'suggestions-admin', badge: pending, alert: true });
-    admin.push({ id: 'panel', label: 'Panel de administración', icon: 'dashboard', action: 'admin-dashboard' });
+    if(isMaster()) admin.push({ id: 'panel', label: 'Panel de administración', icon: 'dashboard', action: 'admin-dashboard' });
     admin.push({ id: 'formacion', label: 'Panel de Formación', icon: 'target', action: 'committee-training' });
   }
   return { main, admin };
