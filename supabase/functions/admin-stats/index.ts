@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
       const { data: roleRow } = await adminClient.from("user_roles").select("role").eq("user_id", callerData.user.id).maybeSingle();
       if (roleRow && roleRow.role === "developer") callerRole = "developer";
     }
-    if (callerRole === "user") {
+    if (callerRole !== "master") {   // el panel de administración es solo del usuario maestro
       return new Response(JSON.stringify({ error: "No autorizado" }), {
         status: 403,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
