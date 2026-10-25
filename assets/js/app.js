@@ -578,6 +578,143 @@ async function sharedDelete(ids){
   }
   return true;
 }
+/* ---------- Base de datos compartida entre maestro y desarrolladores ----------
+   · "Revisada" ya no se guarda en la cuenta de cada persona: vive en la tabla question_reviews, igual para todos.
+   · Los cambios de las demás personas (revisar, añadir, editar, quitar, retirar del juego) llegan en directo
+     por Realtime; y como respaldo, cada pocos segundos se compara con el servidor por si Realtime no está activado. */
+const REV = { ready: false };
+const ADMIN_SYNC = { started: false, busy: false, rtOk: false, timer: null, renderTimer: null };
+
+async function adminFetchAll(table, cols){
+  const out = [];
+  for(let from = 0; ; from += 1000){
+    const r = await supabaseClient.from(table).select(cols).range(from, from + 999);
+    if(r.error) return { error: r.error, data: null };
+    out.push.apply(out, r.data || []);
+    if(!r.data || r.data.length < 1000) break;
+  }
+  return { error: null, data: out };
+}
+
+/* Lee las revisiones compartidas. Lo que esta cuenta tenía revisado solo para ella se pasa al compartido (una vez). */
+async function loadReviews(){
+  if(!sharedActive()) return;
+  const r = await adminFetchAll('question_reviews', 'qid,reviewed_at');
+  if(r.error){ REV.ready = false; return; }          // el SQL aún no está ejecutado: se sigue como antes
+  const remote = {}, known = new Set();
+  r.data.forEach(x => { known.add(x.qid); if(x.reviewed_at != null) remote[x.qid] = Number(x.reviewed_at); });
+  const local = STATE.storage.reviewed || {};
+  const now = Date.now();
+  const push = Object.keys(local).filter(id => !known.has(id)).map(id => ({
+    qid: id, reviewed_at: Number(local[id]) > 1e11 ? Number(local[id]) : now, updated_at: now
+  }));
+  for(let i = 0; i < push.length; i += 200){
+    const e = await supabaseClient.from('question_reviews').upsert(push.slice(i, i + 200), { onConflict: 'qid' });
+    if(e.error){ REV.ready = false; return; }
+  }
+  push.forEach(x => { remote[x.qid] = x.reviewed_at; });
+  STATE.storage.reviewed = remote;
+  REV.ready = true;
+  if(Object.keys(local).length) await storageSet('reviewed', '{}');     // ya no se guarda en la cuenta personal
+}
+
+/* Marca o desmarca una pregunta como revisada para todos. */
+function setReviewed(qid, on){
+  const ts = Date.now();
+  if(on) STATE.storage.reviewed[qid] = ts; else delete STATE.storage.reviewed[qid];
+  if(REV.ready){
+    supabaseClient.from('question_reviews').upsert({ qid, reviewed_at: on ? ts : null, updated_at: ts }, { onConflict: 'qid' })
+      .then(r => { if(r && r.error){ STATE.toast = 'No se pudo guardar la revisión. Inténtalo de nuevo.'; adminSyncPoll(); } });
+  } else {
+    saveReviewed();
+  }
+}
+
+/* Repinta la Base de datos con lo nuevo, sin pisar lo que se está escribiendo. */
+function adminSyncRender(){
+  clearTimeout(ADMIN_SYNC.renderTimer);
+  ADMIN_SYNC.renderTimer = setTimeout(function tryRender(){
+    if(STATE.view !== 'database') return;
+    const a = document.activeElement;
+    const typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest && a.closest('#app');
+    if(STATE.editingId || typing){ ADMIN_SYNC.renderTimer = setTimeout(tryRender, 1500); return; }
+    render();
+  }, 250);
+}
+function adminSyncShared(p){
+  try{
+    if(p.eventType === 'DELETE'){ const id = p.old && p.old.id; if(id) delete SHARED.rows[id]; }
+    else if(p.new && p.new.id){ SHARED.rows[p.new.id] = sharedNormRow(p.new); }
+    else return;
+    sharedRebuild(); adminSyncRender();
+  }catch(e){}
+}
+function adminSyncReview(p){
+  try{
+    if(p.eventType === 'DELETE'){ const q = p.old && p.old.qid; if(q) delete STATE.storage.reviewed[q]; }
+    else if(p.new && p.new.qid){
+      if(p.new.reviewed_at != null) STATE.storage.reviewed[p.new.qid] = Number(p.new.reviewed_at);
+      else delete STATE.storage.reviewed[p.new.qid];
+    } else return;
+    adminSyncRender();
+  }catch(e){}
+}
+
+/* Respaldo: compara con el servidor y trae solo lo que ha cambiado. */
+async function adminSyncPoll(){
+  if(!sharedActive() || ADMIN_SYNC.busy || document.hidden) return;
+  ADMIN_SYNC.busy = true;
+  let changed = false;
+  try{
+    const cols = 'id,updated_at,deleted' + (SHARED.hasDraftCol ? ',draft' : '');
+    const rem = await adminFetchAll('shared_questions', cols);
+    if(!rem.error){
+      const remoteIds = new Set(rem.data.map(r => r.id));
+      const need = [];
+      rem.data.forEach(r => {
+        const l = SHARED.rows[r.id];
+        if(!l || (l.updated_at || null) !== (r.updated_at || null) || !!l.deleted !== !!r.deleted || (SHARED.hasDraftCol && !!l.draft !== !!r.draft)) need.push(r.id);
+      });
+      Object.keys(SHARED.rows).forEach(id => { if(!remoteIds.has(id)){ delete SHARED.rows[id]; changed = true; } });
+      for(let i = 0; i < need.length; i += 100){
+        const q = await supabaseClient.from('shared_questions').select('*').in('id', need.slice(i, i + 100));
+        if(!q.error) (q.data || []).forEach(r => { SHARED.rows[r.id] = sharedNormRow(r); changed = true; });
+      }
+      if(changed) sharedRebuild();
+    }
+    if(REV.ready){
+      const rv = await adminFetchAll('question_reviews', 'qid,reviewed_at');
+      if(!rv.error){
+        const next = {};
+        rv.data.forEach(x => { if(x.reviewed_at != null) next[x.qid] = Number(x.reviewed_at); });
+        const cur = STATE.storage.reviewed || {};
+        const a = Object.keys(next), b = Object.keys(cur);
+        if(a.length !== b.length || a.some(k => cur[k] !== next[k])){ STATE.storage.reviewed = next; changed = true; }
+      }
+    }
+  }catch(e){}
+  ADMIN_SYNC.busy = false;
+  if(changed) adminSyncRender();
+}
+function adminSyncSchedule(){
+  clearTimeout(ADMIN_SYNC.timer);
+  // con Realtime activo basta una comprobación tranquila; sin él, una cada 15 segundos
+  ADMIN_SYNC.timer = setTimeout(async () => { await adminSyncPoll(); adminSyncSchedule(); }, ADMIN_SYNC.rtOk ? 60000 : 15000);
+}
+function startAdminSync(){
+  if(ADMIN_SYNC.started || !sharedActive()) return;
+  ADMIN_SYNC.started = true;
+  try{
+    const ch = supabaseClient.channel('weref-admin-sync');
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'shared_questions' }, adminSyncShared);
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'question_reviews' }, adminSyncReview);
+    ch.subscribe((status) => { ADMIN_SYNC.rtOk = (status === 'SUBSCRIBED'); });
+    ADMIN_SYNC.ch = ch;
+  }catch(e){ ADMIN_SYNC.rtOk = false; }
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) adminSyncPoll(); });
+  adminSyncSchedule();
+}
+
 /* Fila para una pregunta (nueva o editada) con los campos del formulario. */
 function sharedRowFor(qid, domain, f, createdAt){
   const ex = SHARED.rows[qid];
@@ -744,6 +881,8 @@ async function loadStorage(){
     if(backfilled){ saveUserQuestions(); saveGlossaryQuestions(); }
   }
   await sharedMigrateLocal();
+  await loadReviews();
+  startAdminSync();
   pruneSavedStale();
   checkAndUnlockBadges();
   render();
@@ -798,7 +937,7 @@ function pruneSavedStale(){
   if(changed) saveSaved();
 }
 async function saveEdits(){ await storageSet('edits', JSON.stringify(STATE.storage.edits)); }
-async function saveReviewed(){ await storageSet('reviewed', JSON.stringify(STATE.storage.reviewed)); }
+async function saveReviewed(){ if(REV.ready) return; await storageSet('reviewed', JSON.stringify(STATE.storage.reviewed)); }
 async function saveGlossaryQuestions(){ await storageSet('glossaryQuestions', JSON.stringify(STATE.storage.glossaryQuestions)); }
 async function saveMyBank(){ await storageSet('myBank', JSON.stringify(STATE.storage.myBank)); }
 async function saveMyBankCategories(){ await storageSet('myBankCategories', JSON.stringify(STATE.storage.myBankCategories)); }
@@ -5222,9 +5361,7 @@ function onAction(e){
   else if(action==='db-next-page'){ STATE.dbFilter.page = STATE.dbFilter.page+1; render(); }
   else if(action==='toggle-reviewed'){
     const qid = el.dataset.qid;
-    if(STATE.storage.reviewed[qid]) delete STATE.storage.reviewed[qid];
-    else STATE.storage.reviewed[qid] = Date.now();   // se guarda la fecha para poder filtrar por revisión
-    saveReviewed();
+    setReviewed(qid, !STATE.storage.reviewed[qid]);
     render();
   }
   else if(action==='delete-question'){
@@ -5248,7 +5385,7 @@ function onAction(e){
         saveDeleted();
       }
       delete STATE.storage.flags[qid]; saveFlags();
-      delete STATE.storage.reviewed[qid]; saveReviewed();
+      setReviewed(qid, false);
       STATE.toast = 'Pregunta eliminada.';
     }
     STATE.confirmDeleteId = null;
