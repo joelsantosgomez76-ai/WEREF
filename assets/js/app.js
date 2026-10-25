@@ -252,7 +252,7 @@ let STATE = {
   editingId: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, failedStreaks:{}, userQuestions:[], flags:{}, saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
+  storage: { progress:{}, failedStreaks:{}, userQuestions:[], saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
   toast: null,
   reviewDetailIdx: null,
   savedBrowseIdx: 0,
@@ -283,7 +283,7 @@ let STATE = {
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
-  dbFilter: { search: '', law: 'all', difficulty: 'all', status: 'all', pageSize: 25, flaggedOnly: false, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', advOpen: null, page: 1 },
+  dbFilter: { search: '', law: 'all', difficulty: 'all', status: 'all', pageSize: 25, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', advOpen: null, page: 1 },
   reportedIds: {},
   reports: {},
   reportsLoaded: false,
@@ -835,7 +835,6 @@ async function loadStorage(){
   let failedStreaksWasNew = false;
   try{ const v = await storageGet('failedStreaks'); if(v){ STATE.storage.failedStreaks = JSON.parse(v); } else { STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; } }catch(e){ STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; }
   try{ const v = await storageGet('userQuestions'); STATE.storage.userQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.userQuestions = []; }
-  try{ const v = await storageGet('flags'); STATE.storage.flags = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.flags = {}; }
   try{ const v = await storageGet('saved'); STATE.storage.saved = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.saved = {}; }
   try{ const v = await storageGet('edits'); STATE.storage.edits = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.edits = {}; }
   try{ const v = await storageGet('reviewed'); STATE.storage.reviewed = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.reviewed = {}; }
@@ -929,7 +928,6 @@ function markDayActive(){
   }
 }
 async function saveUserQuestions(){ await storageSet('userQuestions', JSON.stringify(STATE.storage.userQuestions)); }
-async function saveFlags(){ await storageSet('flags', JSON.stringify(STATE.storage.flags)); }
 /* Guardadas: las escrituras van de una en una y siempre con el estado más reciente, así borrar varias seguidas no deja que una copia vieja llegue la última y resucite lo borrado. */
 let SAVED_BUSY = false, SAVED_AGAIN = false;
 async function saveSaved(){
@@ -1689,7 +1687,6 @@ function viewFor(v){
   if(v==='add') return addQuestionView();
   if(v==='stats') return statsView();
   if(v==='trainConfig') return trainConfigView();
-  if(v==='flagged') return flaggedView();
   if(v==='savedBrowse') return savedBrowseView();
   if(v==='suggestForm') return suggestFormView();
   if(v==='suggestionsAdmin') return isMaster() ? suggestionsAdminView() : homeView();
@@ -3388,15 +3385,6 @@ function homeView(){
         <div class="home-card-text" style="color:var(--muted);">Completa algunos tests y aquí te diré qué regla conviene reforzar.</div>
       </div>`;
 
-  const flagCount = Object.keys(STATE.storage.flags || {}).length;
-  const flaggedHtml = flagCount > 0
-    ? `<button class="qcard home-card-btn" data-action="flagged-list" style="display:flex; align-items:center; gap:10px;">
-        <span style="color:var(--accent);">${ic('flag')}</span>
-        <span style="font-weight:700; font-size:14px;">Preguntas marcadas</span>
-        <span class="badge" style="margin-left:auto;">${flagCount}</span>
-      </button>`
-    : '';
-
   const cst = (typeof COMMITTEE !== 'undefined') ? COMMITTEE.status : null;
   const committeeHtml = (cst && (cst.is_admin || cst.is_member))
     ? `<button class="qcard home-card-btn" data-action="committee-open">
@@ -3428,7 +3416,6 @@ function homeView(){
       ${weakHtml}
       ${eventHtml}
       ${committeeHtml}
-      ${flaggedHtml}
       ${suggestHtml}
     </aside>
   </div>
@@ -3440,7 +3427,6 @@ function lawMenuView(){
   const law = STATE.lawId;
   const s = lawStats(law);
   const scopeIds = questionsForLaw(law).map(q=>q.id);
-  const flaggedCount = Object.keys(STATE.storage.flags).filter(id => scopeIds.includes(id)).length;
   const isHard = law === 'hard';
   const isFailed = law === 'failed';
   const isGlossary = law === 'glossary';
@@ -3527,9 +3513,8 @@ function lawMenuView(){
     ${opt('lw-custom', 'wand', 'Personalizable', 'Test personalizado', 'Crea un entrenamiento a tu medida.', 'Elige el número de preguntas, activa el cronómetro y selecciona el modo Estudio o Examen para adaptar la sesión.', `data-action="train-config-scoped" data-law="${law}"`)}
   </div>
 
-  ${(isSaved || flaggedCount>0) ? `<div class="lw-extras">
-    ${isSaved ? `<button class="lw-extra" data-action="saved-browse"><span class="lw-extra-ic">${ic('eye')}</span><span><strong>Ver tus guardadas</strong><small>Repásalas de una en una, con la respuesta y explicación</small></span><span class="ac-folder-go">${ic('chevron')}</span></button>` : ''}
-    ${flaggedCount>0 ? `<button class="lw-extra" data-action="review-flagged" data-law="${law}"><span class="lw-extra-ic">${ic('flag')}</span><span><strong>Revisar marcadas <em>${flaggedCount}</em></strong><small>Preguntas que marcaste como posiblemente desactualizadas</small></span><span class="ac-folder-go">${ic('chevron')}</span></button>` : ''}
+  ${isSaved ? `<div class="lw-extras">
+    <button class="lw-extra" data-action="saved-browse"><span class="lw-extra-ic">${ic('eye')}</span><span><strong>Ver tus guardadas</strong><small>Repásalas de una en una, con la respuesta y explicación</small></span><span class="ac-folder-go">${ic('chevron')}</span></button>
   </div>` : ''}
 
   ${(!isHard && !isFailed && !isGlossary && !isAssistants && !isSaved && s.attempted>0) ? `
@@ -3550,9 +3535,7 @@ function pickQuestions(law, mode){
 }
 
 function startQuiz(law, mode){
-  const qids = mode==='review' ? Object.keys(STATE.storage.flags).filter(id=>{
-      const q=allQuestions().find(x=>x.id===id); return q && (!law || q.rule===law);
-    }) : pickQuestions(law, mode);
+  const qids = pickQuestions(law, mode);
   if(qids.length===0){ STATE.toast="No hay preguntas disponibles para este modo."; render(); return; }
   STATE.quiz = { qids, idx:0, mode: mode||'short', law, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null };
   STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
@@ -4101,38 +4084,7 @@ function suggestionsAdminView(){
   `;
 }
 
-function flaggedView(){
-  const ids = Object.keys(STATE.storage.flags);
-  const letters=['a','b','c','d'];
-  if(ids.length===0){
-    return `<button class="backbtn" data-action="home">&larr; Inicio</button>
-    <h2 style="margin-bottom:10px;">Preguntas marcadas</h2>
-    <div class="empty-state">Todavía no has marcado ninguna pregunta. Cuando veas una que parezca desactualizada o con un error, pulsa "Marcar esta pregunta" en el test o en modo estudio, y aparecerá aquí para que la corrijas.</div>`;
-  }
-  let items = ids.map(id=>{
-    const q = allQuestionsAdmin().find(x=>x.id===id);
-    if(!q) return '';
-    if(STATE.editingId === id) return editFormHtml(q);
-    return `<div class="qcard" style="margin-bottom:10px;">
-      <div class="qtag">${scopeLabel(q)}${q.explanation?' <span class="badge" style="background:var(--green-ok); color:#fff;">Con explicación</span>':''}</div>
-      <div class="qtext">${esc(q.question)}</div>
-      ${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}
-      ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-      <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-        <button class="btn btn-secondary" data-action="edit-question" data-qid="${q.id}">Editar / añadir explicación</button>
-        <button class="btn btn-ghost" data-action="unflag" data-qid="${q.id}">Quitar marca (ya revisada)</button>
-      </div>
-    </div>`;
-  }).join('');
-  return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <h2 style="margin-bottom:4px;">Preguntas marcadas para revisar</h2>
-  <div class="sub" style="color:var(--muted); margin-bottom:16px; font-size:13.5px;">${ids.length} pregunta(s) señaladas como posiblemente desactualizadas o con error.</div>
-  ${items}
-  `;
-}
-
-function saveQuestionEdit(qid, alsoUnflag){
+function saveQuestionEdit(qid){
   const before = allQuestionsAdmin().find(x => x.id === qid) || {};
   let domain, selectedNum;
   const scopeEl = document.getElementById('e-law');
@@ -4183,7 +4135,6 @@ function saveQuestionEdit(qid, alsoUnflag){
     STATE.storage.edits[qid] = edit;
     saveEdits();
   }
-  if(alsoUnflag){ delete STATE.storage.flags[qid]; saveFlags(); }
   STATE.editingId = null;
   STATE.toast = moved ? 'Pregunta actualizada y movida a ' + movedTo + '.' : 'Pregunta actualizada.';
   render();
@@ -4201,10 +4152,9 @@ function filteredDbList(opts){
   else if(f.law !== 'all') list = list.filter(q => q.domain !== 'glossary' && q.rule === parseInt(f.law,10));
   if(f.difficulty === 'hard') list = list.filter(q => q.difficulty === 'hard');
   else if(f.difficulty === 'normal') list = list.filter(q => q.difficulty !== 'hard');
-  if(f.flaggedOnly) list = list.filter(q => !!STATE.storage.flags[q.id]);
   if(f.myOnly) list = list.filter(q => q.source === 'user');
   if(opts.skipStatus){ /* sin filtrar por estado (para los contadores) */ }
-  else if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => !!STATE.storage.flags[q.id] || (STATE.reports[q.id]||0) > 0 || dups.has(q.id)); }
+  else if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => (STATE.reports[q.id]||0) > 0 || dups.has(q.id)); }
   else if(f.status === 'draft') list = list.filter(q => !!q.draft);
   else if(f.status === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
   else if(f.status === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
@@ -4402,7 +4352,6 @@ function databaseView(){
     const tags = [
       q.draft ? chip('draft', 'Borrador · fuera del juego') : '',
       q.difficulty==='hard' ? chip('hard', 'Difícil') : '',
-      STATE.storage.flags[q.id] ? chip('flag', 'Marcada') : '',
       q.source==='user' ? chip('mine', 'Añadida') : '',
       isReviewed ? chip('ok', 'Revisada') : '',
       reportCount>0 ? chip('bad', 'Reportada x' + reportCount) : '',
@@ -4434,7 +4383,7 @@ function databaseView(){
 
   const reviewedCount = all.filter(q => STATE.storage.reviewed[q.id]).length;
   const reportedCount = Object.keys(STATE.reports).length;
-  const attentionCount = all.filter(q => STATE.storage.flags[q.id] || (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
+  const attentionCount = all.filter(q => (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
   const pendingCount = all.length - reviewedCount;
   const draftCount = all.filter(q => q.draft).length;
   // Contadores cruzados: los de estado respetan la regla elegida y los de regla respetan el estado elegido,
@@ -4444,7 +4393,7 @@ function databaseView(){
   const sAll = noStatus.length;
   const sReviewed = noStatus.filter(q => STATE.storage.reviewed[q.id]).length;
   const sPending = sAll - sReviewed;
-  const sAttention = noStatus.filter(q => STATE.storage.flags[q.id] || (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
+  const sAttention = noStatus.filter(q => (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
   const sDraft = noStatus.filter(q => q.draft).length;
   const lawsCount = {};
   for(let i = 1; i <= 17; i++) lawsCount[i] = 0;
@@ -4455,7 +4404,7 @@ function databaseView(){
     else if(q.domain === 'fcf') fcfCnt++;
     else if(q.rule) lawsCount[q.rule] = (lawsCount[q.rule] || 0) + 1;
   });
-  const countsFiltered = f.status !== 'all' || f.difficulty !== 'all' || f.flaggedOnly || f.myOnly || f.reportedOnly || f.duplicatesOnly || (f.search && f.search.trim()) || f.dateFrom || f.dateTo;
+  const countsFiltered = f.status !== 'all' || f.difficulty !== 'all' || f.myOnly || f.reportedOnly || f.duplicatesOnly || (f.search && f.search.trim()) || f.dateFrom || f.dateTo;
   const statusNow = f.status || 'all';
 
   const LOW_COUNT_THRESHOLD = 30;
@@ -4768,7 +4717,6 @@ function editFormHtml(q){
       ${sections}
       <div class="fq-actions">
         <button class="btn btn-primary" data-action="save-edit" data-qid="${q.id}">${shellIcon('check')} Guardar cambios</button>
-        <button class="btn btn-secondary" data-action="save-edit-unflag" data-qid="${q.id}">Guardar y quitar marca</button>
         <button class="btn btn-ghost" data-action="cancel-edit">Cancelar</button>
       </div>
     </div>
@@ -4832,7 +4780,6 @@ function statsView(){
   const streak = computeStreak();
   const rp = recentPerformance(20);
   const failedCount = allQuestions().filter(isFailedQuestion).length;
-  const flaggedTotal = Object.keys(STATE.storage.flags).length;
   const tone = (p) => p >= 80 ? 'good' : p >= 60 ? 'mid' : 'bad';
 
   const laws = [];
@@ -4924,15 +4871,6 @@ function statsView(){
           ${strong.length ? `<div class="st-sub">Tus puntos fuertes</div>${strong.map(pill).join('')}` : ''}
         ` : `<div class="st-note">Responde algunas preguntas de cada regla y aquí verás cuáles dominas y cuáles reforzar.</div>`}
       </div>
-
-      ${flaggedTotal>0 ? `
-      <div class="tc-card">
-        <div class="tc-card-head"><span class="tc-step">${ic('flag')}</span><div><h3>Preguntas marcadas</h3><small>${flaggedTotal} para revisar</small></div></div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-secondary" data-action="flagged-list">Ver y corregir</button>
-          <button class="btn btn-ghost" data-action="review-flagged">Practicarlas como test</button>
-        </div>
-      </div>` : ''}
     </aside>
   </div>
   `;
@@ -5122,8 +5060,6 @@ function bindEvents(){
   if(dbLaw){ dbLaw.addEventListener('change', (e)=>{ STATE.dbFilter.law = e.target.value; STATE.dbFilter.page = 1; render(); }); }
   const dbDifficulty = document.getElementById('db-difficulty');
   if(dbDifficulty){ dbDifficulty.addEventListener('change', (e)=>{ STATE.dbFilter.difficulty = e.target.value; STATE.dbFilter.page = 1; render(); }); }
-  const dbFlaggedOnly = document.getElementById('db-flagged-only');
-  if(dbFlaggedOnly){ dbFlaggedOnly.addEventListener('change', (e)=>{ STATE.dbFilter.flaggedOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
   const dbReportedOnly = document.getElementById('db-reported-only');
   if(dbReportedOnly){ dbReportedOnly.addEventListener('change', (e)=>{ STATE.dbFilter.reportedOnly = e.target.checked; STATE.dbFilter.page = 1; render(); }); }
   const dbDuplicatesOnly = document.getElementById('db-duplicates-only');
@@ -5398,7 +5334,6 @@ function onAction(e){
         STATE.storage.deleted[qid] = true;
         saveDeleted();
       }
-      delete STATE.storage.flags[qid]; saveFlags();
       setReviewed(qid, false);
       STATE.toast = 'Pregunta eliminada.';
     }
@@ -5426,8 +5361,6 @@ function onAction(e){
     STATE.confirmDeleteId = null;
     render();
   }
-  else if(action==='review-flagged'){ startQuiz(law, 'review'); }
-  else if(action==='flagged-list'){ STATE.editingId=null; STATE.view='flagged'; render(); }
   else if(action==='saved-browse'){ STATE.savedBrowseIdx = 0; STATE.view = 'savedBrowse'; render(); }
   else if(action==='saved-browse-prev'){ STATE.savedBrowseIdx--; render(); }
   else if(action==='saved-browse-next'){ STATE.savedBrowseIdx++; render(); }
@@ -5457,13 +5390,7 @@ function onAction(e){
   }
   else if(action==='edit-question'){ STATE.editingId = el.dataset.qid; render(); }
   else if(action==='cancel-edit'){ STATE.editingId = null; render(); }
-  else if(action==='save-edit'){ saveQuestionEdit(el.dataset.qid, false); }
-  else if(action==='save-edit-unflag'){ saveQuestionEdit(el.dataset.qid, true); }
-  else if(action==='unflag'){
-    delete STATE.storage.flags[el.dataset.qid];
-    saveFlags();
-    render();
-  }
+  else if(action==='save-edit'){ saveQuestionEdit(el.dataset.qid); }
   else if(action==='export-excel'){ exportExcel(); }
   else if(action==='reset-law-progress'){ STATE.confirmResetLawId = parseInt(el.dataset.law,10); render(); }
   else if(action==='confirm-reset-law'){

@@ -63,7 +63,7 @@ function shellSection(view){
   const v = String(view);
   if(v === 'home') return 'home';
   if(v === 'add' && typeof STATE !== 'undefined' && STATE.cameFromDb) return 'db';
-  if(['law', 'trainConfig', 'result', 'flagged', 'add'].includes(v)) return 'reglas';
+  if(['law', 'trainConfig', 'result', 'add'].includes(v)) return 'reglas';
   if(['dailyChallenge', 'leaderboard'].includes(v)) return 'league';
   if(v === 'academia' || v === 'savedBrowse' || v.startsWith('myBank') || v.startsWith('myDocs')) return 'academia';
   if(['stats', 'recentPerformance', 'streakCalendar'].includes(v)) return 'stats';
@@ -152,12 +152,10 @@ function menuView(){
     <span class="menu-ic">${shellIcon(it.icon)}</span><span class="menu-label">${it.label}</span>
     ${it.badge ? `<span class="shell-badge ${it.alert ? 'alert' : ''}">${it.badge}</span>` : ''}
     <span class="menu-chev">${shellIcon('chevron')}</span></button>`;
-  const flags = Object.keys(STATE.storage.flags || {}).length;
   return `
   <h2 style="margin-bottom:14px;">Más</h2>
   <div class="home-panel" style="padding:6px;">${extra.map(row).join('')}</div>
   ${typeof installMenuRow === 'function' ? installMenuRow() : ''}
-  ${flags ? `<div class="home-panel" style="padding:6px; margin-top:12px;">${row({ label: 'Preguntas marcadas', icon: 'flag', action: 'flagged-list', badge: flags })}</div>` : ''}
   ${admin.length ? `<div class="home-panel-title" style="margin:18px 4px 8px;">Administración</div><div class="home-panel" style="padding:6px;">${admin.map(row).join('')}</div>` : ''}
   <div class="home-panel" style="padding:6px; margin-top:12px;">
     ${row({ label: 'Configuración de la cuenta', icon: 'settings', action: 'profile' })}
