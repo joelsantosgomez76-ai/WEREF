@@ -66,13 +66,21 @@ async function reportQuestion(qid){
   }catch(e){ /* aviso ya mostrado igualmente; el fallo de red no debe bloquear al usuario */ }
 }
 
-async function loadQuestionReports(){
+async function loadQuestionReports(quiet){
   if(!isDevUser()) return;
   try{
     const { data, error } = await supabaseClient.from('question_reports').select('question_id');
     if(error || !data) return;
     const counts = {};
     data.forEach(r => { counts[r.question_id] = (counts[r.question_id]||0) + 1; });
+    if(quiet === true){
+      // Sincronización en segundo plano: solo se repinta si algo ha cambiado (y sin pisar lo que se escribe).
+      const cur = STATE.reports || {}, a = Object.keys(counts), b = Object.keys(cur);
+      const same = STATE.reportsLoaded && a.length === b.length && a.every(k => cur[k] === counts[k]);
+      STATE.reports = counts; STATE.reportsLoaded = true;
+      if(!same) adminSyncRender();
+      return;
+    }
     STATE.reports = counts;
     STATE.reportsLoaded = true;
     render();
@@ -682,6 +690,7 @@ async function adminSyncPoll(){
       }
       if(changed) sharedRebuild();
     }
+    loadQuestionReports(true);
     if(REV.ready){
       const rv = await adminFetchAll('question_reviews', 'qid,reviewed_at');
       if(!rv.error){
@@ -708,6 +717,11 @@ function startAdminSync(){
     const ch = supabaseClient.channel('weref-admin-sync');
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'shared_questions' }, adminSyncShared);
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'question_reviews' }, adminSyncReview);
+    // Avisos de usuarios: un aviso nuevo o descartado se ve en todas las cuentas admin.
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'question_reports' }, () => {
+      clearTimeout(ADMIN_SYNC.repTimer);
+      ADMIN_SYNC.repTimer = setTimeout(() => loadQuestionReports(true), 400);
+    });
     ch.subscribe((status) => { ADMIN_SYNC.rtOk = (status === 'SUBSCRIBED'); });
     ADMIN_SYNC.ch = ch;
   }catch(e){ ADMIN_SYNC.rtOk = false; }
