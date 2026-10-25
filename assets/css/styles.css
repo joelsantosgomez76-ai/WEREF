@@ -3244,3 +3244,5 @@ img, svg, video{max-width:100%;}
   .ex-actions{margin-left:auto;}
   .ex-edit{grid-template-columns:1fr;}
 }
+#ex-up-title, #ex-e-title{text-transform:uppercase;}
+#ex-up-title::placeholder{text-transform:none;}
