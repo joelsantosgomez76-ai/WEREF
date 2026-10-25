@@ -40,6 +40,8 @@ function examFmtSize(n){
   if(n < 1024 * 1024) return Math.max(1, Math.round(n / 1024)) + ' KB';
   return (n / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB';
 }
+/* Los títulos de los exámenes van siempre en mayúsculas. */
+function examUpper(s){ return String(s == null ? '' : s).toLocaleUpperCase('es'); }
 function examUuid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -114,7 +116,7 @@ function examRowHtml(e){
     const catOpts = '<option value="">Sin categoría</option>' + (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${X.edit.cat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
     return `<div class="ex-row ex-editing">
       <div class="ex-edit">
-        <div><label for="ex-e-title">Título</label><input type="text" id="ex-e-title" data-cm-field="exams.edit.title" value="${esc(X.edit.title)}" maxlength="160" autocomplete="off"></div>
+        <div><label for="ex-e-title">Título</label><input type="text" id="ex-e-title" data-cm-field="exams.edit.title" value="${esc(examUpper(X.edit.title))}" maxlength="160" autocomplete="off"></div>
         <div><label for="ex-e-date">Fecha</label><input type="date" id="ex-e-date" data-cm-field="exams.edit.date" value="${esc(X.edit.date)}"></div>
         <div><label for="ex-e-cat">Categoría</label><select id="ex-e-cat" data-cm-field="exams.edit.cat">${catOpts}</select></div>
       </div>
@@ -128,7 +130,7 @@ function examRowHtml(e){
   if(e.in_app && e.in_app_at) meta.push('en la app desde el ' + examFmtDateTime(e.in_app_at));
   return `<div class="ex-row ${e.in_app ? 'done' : ''}">
     <button class="ex-toggle ${e.in_app ? 'on' : ''}" data-action="committee-exam-toggle" data-id="${e.id}" aria-pressed="${e.in_app ? 'true' : 'false'}" title="${e.in_app ? 'Pulsa para marcarlo como pendiente' : 'Pulsa cuando ya esté pasado a la app / base de datos'}">${ic(e.in_app ? 'check' : 'clock')}<span>${e.in_app ? 'En la app' : 'Pendiente'}</span></button>
-    <div class="ex-main"><strong title="${esc(e.title)}">${esc(e.title)}</strong><small>${meta.filter(Boolean).map(esc).join(' · ')}</small></div>
+    <div class="ex-main"><strong title="${esc(examUpper(e.title))}">${esc(examUpper(e.title))}</strong><small>${meta.filter(Boolean).map(esc).join(' · ')}</small></div>
     <div class="ex-actions">
       <button class="btn btn-ghost" data-action="committee-exam-view" data-id="${e.id}">${ic('eye')} Ver PDF</button>
       <button class="tx-icon" data-action="committee-exam-edit" data-id="${e.id}" title="Editar título, fecha o categoría" aria-label="Editar">${ic('pencil')}</button>
@@ -270,7 +272,7 @@ async function examUpload(){
     const path = sid + '/' + examUuid() + '.pdf';
     const up = await supabaseClient.storage.from(EXAM_BUCKET).upload(path, f, { contentType: 'application/pdf', upsert: false });
     if(up.error){ failed.push(f.name); lastErr = up.error; continue; }
-    const title = (single || f.name.replace(/\.pdf$/i, '')).trim().slice(0, 160) || 'Examen';
+    const title = examUpper((single || f.name.replace(/\.pdf$/i, '')).trim()).slice(0, 160) || 'EXAMEN';
     const ins = await supabaseClient.from('exam_files').insert({
       season_id: sid, category_id: cat, title, exam_date: date,
       file_path: path, file_name: f.name, file_size: f.size
@@ -325,7 +327,7 @@ async function examOnAction(action, el){
     const e = byId(); if(!e || !X.edit) return;
     const title = X.edit.title.trim();
     if(!title){ cmToast('Escribe un título.'); return; }
-    const patch = { title: title.slice(0, 160), exam_date: X.edit.date || null, category_id: X.edit.cat || null };
+    const patch = { title: examUpper(title).slice(0, 160), exam_date: X.edit.date || null, category_id: X.edit.cat || null };
     const r = await supabaseClient.from('exam_files').update(patch).eq('id', e.id);
     if(r.error){ cmToast(examErr(r.error)); return; }
     Object.assign(e, patch);
