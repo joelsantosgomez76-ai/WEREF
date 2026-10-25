@@ -1,6 +1,37 @@
 -- "Revisada" compartida entre todas las cuentas de administración (maestro + desarrolladores)
 -- y tiempo real para la Base de datos (preguntas compartidas + revisadas).
 
+-- 0) Funciones de roles (idénticas a roles.sql; si ya existen no cambian nada).
+create table if not exists public.user_roles (
+  user_id     uuid primary key references auth.users(id) on delete cascade,
+  role        text not null check (role = 'developer'),
+  assigned_at timestamptz not null default now()
+);
+alter table public.user_roles enable row level security;
+
+create or replace function public.is_weref_master()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(auth.jwt() ->> 'email', '') = 'info@we-ref.com';
+$$;
+
+create or replace function public.weref_role()
+returns text
+language sql stable security definer set search_path = public as $$
+  select case
+    when public.is_weref_master() then 'master'
+    when exists (select 1 from public.user_roles where user_id = auth.uid() and role = 'developer') then 'developer'
+    else 'user'
+  end;
+$$;
+
+create or replace function public.is_weref_admin()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.weref_role() in ('master', 'developer');
+$$;
+
+-- 1) Tabla de revisadas
 create table if not exists public.question_reviews (
   qid         text primary key,
   reviewed_at bigint,
