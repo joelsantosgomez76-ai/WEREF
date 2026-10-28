@@ -88,9 +88,10 @@ async function cmLoadAttendance(){
 async function cmLoadMyAttendance(){
   const A = att();
   try{
+    const uid = await cmMyUid();      // un administrador ve la asistencia de todos: aquí solo la mía
     const [s, r] = await Promise.all([
       supabaseClient.from('committee_sessions').select('*').order('class_date', { ascending: false }),
-      supabaseClient.from('committee_attendance').select('session_id,user_id')
+      uid ? supabaseClient.from('committee_attendance').select('session_id,user_id').eq('user_id', uid) : Promise.resolve({ error: true })
     ]);
     if(s.error || r.error){ A.mySessions = []; A.mySet = new Set(); return; }
     A.mySessions = s.data || [];
