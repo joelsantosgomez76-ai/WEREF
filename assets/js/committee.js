@@ -169,16 +169,24 @@ async function loadCommitteeStatus(){
   if(STATE.view === 'home') render();
 }
 
+/* Mi identificador. Los administradores ven los datos de todos, así que lo "mío" siempre se pide filtrado por usuario. */
+async function cmMyUid(){
+  if(typeof CURRENT_USER_ID !== 'undefined' && CURRENT_USER_ID) return CURRENT_USER_ID;
+  try{ const s = await supabaseClient.auth.getSession(); return (s && s.data && s.data.session && s.data.session.user.id) || null; }
+  catch(e){ return null; }
+}
+
 async function cmLoadMyTests(){
   COMMITTEE.error = null;
   await cmLoadMyMessages();
+  const uid = await cmMyUid();
   const [tests, att] = await Promise.all([
     supabaseClient.rpc('committee_my_tests'),
-    supabaseClient.from('committee_attempts').select('test_id,attempt_no,score,total,duration_sec,finished_at')
+    uid ? supabaseClient.from('committee_attempts').select('test_id,attempt_no,score,total,duration_sec,finished_at').eq('user_id', uid) : Promise.resolve({ error: true })
   ]);
   if(tests.error){ COMMITTEE.error = cmErrText(tests.error); COMMITTEE.myTests = []; }
   else { COMMITTEE.myTests = tests.data || []; }
-  COMMITTEE.myAttempts = att.error ? [] : (att.data || []);   // la política solo deja ver los propios
+  COMMITTEE.myAttempts = att.error ? [] : (att.data || []);
   cmRefresh();
   if(typeof cmLoadMyAttendance === 'function') cmLoadMyAttendance().then(() => cmRefresh());
   if(typeof liveCheckActive === 'function') liveCheckActive().then(() => cmRefresh());
