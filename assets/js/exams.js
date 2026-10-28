@@ -6,7 +6,7 @@
    · Búsqueda al momento, vistas guardadas, selección múltiple, arrastrar para mover o marcar,
      subida arrastrando PDF, atajos de teclado y sincronización entre cuentas de administración.
    Las categorías son las mismas de los miembros del comité (Configuración). Los PDF viven en un almacén
-   privado de Supabase (solo administración). Seguridad: supabase/exams.sql. Novedades (notas, preguntas,
+   privado de Supabase (solo administración). Seguridad: supabase/exams.sql. Novedades (notas,
    quién lo subió, tiempo real): supabase/exams-library.sql.
    Depende de committee.js (COMMITTEE, cm*) y de app.js (esc, appConfirm, storageGet/storageSet). */
 
@@ -114,7 +114,7 @@ async function examLoad(){
     const [s, f, probe] = await Promise.all([
       supabaseClient.from('exam_seasons').select('*').order('name', { ascending: false }),
       supabaseClient.from('exam_files').select('*').order('exam_date', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }),
-      supabaseClient.from('exam_files').select('notes,q_total,q_done,created_by_name,in_app_by_name,updated_at').limit(1)
+      supabaseClient.from('exam_files').select('notes,created_by_name,in_app_by_name,updated_at').limit(1)
     ]);
     if(s.error || f.error){ X.seasons = []; X.files = []; X.missing = true; return; }
     X.missing = false;
@@ -193,7 +193,7 @@ async function examSilentReload(){
     supabaseClient.from('exam_files').select('*').order('exam_date', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false })
   ]);
   if(s.error || f.error || X.inflight) return;
-  const sig = (arr) => arr.map(e => [e.id, e.updated_at || '', e.in_app ? 1 : 0, e.title, e.category_id || '', e.season_id, e.exam_date || '', e.notes || '', e.q_done == null ? '' : e.q_done, e.q_total == null ? '' : e.q_total].join('|')).sort().join('\n');
+  const sig = (arr) => arr.map(e => [e.id, e.updated_at || '', e.in_app ? 1 : 0, e.title, e.category_id || '', e.season_id, e.exam_date || '', e.notes || ''].join('|')).sort().join('\n');
   const changed = sig(f.data || []) !== sig(X.files) || (s.data || []).length !== (X.seasons || []).length;
   if(!changed) return;
   X.seasons = s.data || [];
@@ -368,11 +368,10 @@ function examRowHtml(e){
   const cat = cmCatById(e.category_id);
   const picked = X.sel.has(e.id);
   const title = examUpper(e.title);
-  const hasQ = X.v2 && Number.isFinite(e.q_total) && e.q_total > 0;
   const meta = [examSeasonName(e.season_id), examFmtSize(e.file_size)];
   return `<tr class="ex-tr ${e.in_app ? 'done' : ''} ${X.fresh.has(e.id) ? 'fresh' : ''} ${picked ? 'picked' : ''} ${X.active === e.id ? 'active' : ''}" data-id="${e.id}" draggable="true">
     <td class="ex-c-sel"><input type="checkbox" data-ex-sel="${e.id}" ${picked ? 'checked' : ''} aria-label="Seleccionar ${esc(title)}"></td>
-    <td class="ex-c-title"><strong title="${esc(title)}">${esc(title)}</strong><small>${meta.map(esc).join(' · ')}${hasQ ? ` · <span class="ex-qprog">${e.q_done || 0}/${e.q_total} preguntas</span>` : ''}${X.v2 && e.notes ? ` · <span class="ex-hasnote">${shellIcon('message')} nota</span>` : ''}</small></td>
+    <td class="ex-c-title"><strong title="${esc(title)}">${esc(title)}</strong><small>${meta.map(esc).join(' · ')}${X.v2 && e.notes ? ` · <span class="ex-hasnote">${shellIcon('message')} nota</span>` : ''}</small></td>
     <td class="ex-c-cat" data-label="Categoría">${cat ? `<span class="rkt-cat" style="--c:${esc(cat.color)}">${esc(cat.name)}</span>` : '<span class="mb-none">—</span>'}</td>
     <td class="ex-c-date" data-label="Fecha">${esc(examFmtDate(e.exam_date))}</td>
     <td class="ex-c-state">${examStatusPill(e)}</td>
@@ -454,8 +453,6 @@ function examPanelBodyHtml(e){
   }
   const kv = (k, v) => `<div class="ex-kv"><span>${k}</span><span>${v}</span></div>`;
   const who = (name, when) => (name ? esc(name) : '—') + (when ? ' · ' + esc(examFmtDateTime(when)) : '');
-  const qd = Number.isFinite(e.q_done) ? e.q_done : '', qt = Number.isFinite(e.q_total) ? e.q_total : '';
-  const qpct = Number.isFinite(e.q_total) && e.q_total > 0 ? Math.min(100, Math.round((e.q_done || 0) / e.q_total * 100)) : 0;
   return `<div class="ex-d-seg" role="group" aria-label="Estado del examen">
       <button type="button" class="ex-seg-btn ${!e.in_app ? 'on' : ''}" data-exa="set-pending" data-id="${e.id}">${ic('clock')} Pendiente</button>
       <button type="button" class="ex-seg-btn ok ${e.in_app ? 'on' : ''}" data-exa="set-done" data-id="${e.id}">${ic('check')} En la app</button>
@@ -469,12 +466,9 @@ function examPanelBodyHtml(e){
       ${X.v2 && e.in_app ? kv('Pasado a la app', who(e.in_app_by_name, e.in_app_at)) : ''}
     </div>
     ${X.v2 ? `<div class="ex-d-block">
-      <label>Preguntas pasadas a la base de datos</label>
-      <div class="ex-qrow"><input type="number" min="0" inputmode="numeric" data-ex-q="done" value="${qd}" placeholder="0" aria-label="Preguntas pasadas"> <span>de</span> <input type="number" min="0" inputmode="numeric" data-ex-q="total" value="${qt}" placeholder="total" aria-label="Preguntas en total"></div>
-      <div class="ex-qbar"><i style="width:${qpct}%"></i></div>
       <label for="ex-notes">Notas <small id="ex-saved" class="ex-saved"></small></label>
-      <textarea id="ex-notes" data-ex-notes rows="4" maxlength="2000" placeholder="Por ejemplo: faltan las 7 últimas preguntas">${esc(e.notes || '')}</textarea>
-    </div>` : `<div class="st-note">Para añadir notas y contar las preguntas pasadas falta ejecutar el SQL <b>exams-library.sql</b> en Supabase.</div>`}
+      <textarea id="ex-notes" data-ex-notes rows="3" maxlength="2000" placeholder="Por ejemplo: revisar la pregunta 12">${esc(e.notes || '')}</textarea>
+    </div>` : `<div class="st-note">Para añadir notas y ver quién subió cada examen falta ejecutar el SQL <b>exams-library.sql</b> en Supabase.</div>`}
     <div class="ex-d-actions">
       <button type="button" class="btn btn-primary" data-exa="view" data-id="${e.id}">${ic('eye')} Abrir PDF</button>
       <button type="button" class="btn btn-ghost" data-exa="edit" data-id="${e.id}">${ic('pencil')} Editar</button>
@@ -540,12 +534,43 @@ function examForgetBlob(id){
   const c = exm().blobs;
   if(c.has(id)){ try{ URL.revokeObjectURL(c.get(id)); }catch(err){} c.delete(id); }
 }
+function examCanEmbed(){
+  return navigator.pdfViewerEnabled !== false && !(window.matchMedia && window.matchMedia('(max-width:760px)').matches);
+}
+/* Visor grande: el PDF a casi toda la pantalla. */
+async function examExpand(id){
+  const e = examById(id); if(!e) return;
+  if(!examCanEmbed()){ await examView(id); return; }
+  examCloseViewer();
+  const v = document.createElement('div');
+  v.id = 'ex-viewer'; v.className = 'ex-viewer';
+  v.innerHTML = `<div class="ex-viewer-bar"><strong>${esc(examUpper(e.title))}</strong>
+    <button type="button" class="btn btn-ghost" data-v="tab">${shellIcon('eye')} Abrir en otra pestaña</button>
+    <button type="button" class="btn btn-primary" data-v="close" aria-label="Cerrar el visor">✕ Cerrar</button></div>
+    <div class="ex-viewer-body"><div class="ex-prev-msg">${shellIcon('clock')}<strong>Cargando el PDF...</strong></div></div>`;
+  v.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-v]');
+    if(b && b.dataset.v === 'close') examCloseViewer();
+    else if(b && b.dataset.v === 'tab') examView(id);
+    else if(ev.target === v) examCloseViewer();
+  });
+  document.body.appendChild(v);
+  try{
+    const url = await examBlobUrl(e);
+    const body = v.querySelector('.ex-viewer-body');
+    if(body) body.innerHTML = `<iframe class="ex-frame" src="${url}#navpanes=0&view=FitH" title="${esc(examUpper(e.title))}"></iframe>`;
+  }catch(err){
+    const body = v.querySelector('.ex-viewer-body');
+    if(body) body.innerHTML = `<div class="ex-prev-msg">${shellIcon('flag')}<strong>No se pudo cargar el PDF</strong></div>`;
+  }
+}
+function examCloseViewer(){ const v = document.getElementById('ex-viewer'); if(v) v.remove(); }
 async function examLoadPreview(e){
   const X = exm();
   const box = document.getElementById('ex-prev'); if(!box) return;
   const ic = (n) => shellIcon(n);
   X.prevId = e.id;
-  const canEmbed = navigator.pdfViewerEnabled !== false && !(window.matchMedia && window.matchMedia('(max-width:760px)').matches);
+  const canEmbed = examCanEmbed();
   if(!canEmbed){
     box.innerHTML = `<div class="ex-prev-msg">${ic('file')}<strong>Vista previa no disponible aquí</strong><span>Abre el PDF para verlo.</span></div>`;
     return;
@@ -554,7 +579,8 @@ async function examLoadPreview(e){
   try{
     const url = await examBlobUrl(e);
     if(X.active !== e.id || X.prevId !== e.id) return;
-    box.innerHTML = `<iframe class="ex-frame" src="${url}#toolbar=0&navpanes=0&view=FitH" title="Vista previa de ${esc(examUpper(e.title))}"></iframe>`;
+    box.innerHTML = `<iframe class="ex-frame" src="${url}#navpanes=0&view=FitH" title="Vista previa de ${esc(examUpper(e.title))}"></iframe>
+      <button type="button" class="ex-expand" data-exa="expand" data-id="${e.id}" title="Ver el PDF a pantalla grande" aria-label="Ampliar la vista previa">${ic('eye')} Ampliar</button>`;
   }catch(err){
     if(X.prevId !== e.id) return;
     box.innerHTML = `<div class="ex-prev-msg">${ic('flag')}<strong>No se pudo cargar el PDF</strong><button type="button" class="btn btn-ghost" data-exa="prev-retry" data-id="${e.id}">Reintentar</button></div>`;
@@ -815,6 +841,7 @@ async function examOnAction(action, el){
   if(a === 'upload'){ await examUpload(); }
   else if(a === 'queue-clear'){ X.queue = []; examRender(); }
   else if(a === 'view'){ await examView(id); }
+  else if(a === 'expand'){ await examExpand(id); }
   else if(a === 'prev-retry'){ const e = examById(id); if(e) examLoadPreview(e); }
   else if(a === 'pill'){ const e = examById(id); if(e) await examSetInApp([e.id], !e.in_app); }
   else if(a === 'set-done'){ await examSetInApp([id], true); }
@@ -951,8 +978,9 @@ function examIsTyping(){
 function examKeydown(ev){
   const X = exm();
   if(!document.getElementById('ex-lib') || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-  if(document.querySelector('.modal-backdrop')) return;
   const k = ev.key;
+  if(document.getElementById('ex-viewer')){ if(k === 'Escape'){ ev.preventDefault(); examCloseViewer(); } return; }
+  if(document.querySelector('.modal-backdrop')) return;
   if(k === 'Escape'){
     if(examIsTyping()){ document.activeElement.blur(); return; }
     if(X.active){ examClosePanel(); ev.preventDefault(); } else if(X.sel.size){ X.sel.clear(); examSyncSelection(); }
@@ -1005,13 +1033,6 @@ function examAfterRender(){
       examSyncSelection();
     } else if(t.dataset && t.dataset.exEdit && X.edit){
       X.edit[t.dataset.exEdit] = t.value;
-    } else if(t.dataset && t.dataset.exQ && X.active){
-      const e = examById(X.active); if(!e) return;
-      const toInt = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : null; };
-      const dEl = lib.querySelector('[data-ex-q="done"]'), tEl = lib.querySelector('[data-ex-q="total"]');
-      let qd = toInt(dEl.value), qt = toInt(tEl.value);
-      if(qd !== null && qt !== null && qd > qt) qd = qt;
-      examPatch(e.id, { q_done: qd, q_total: qt }, true).then(() => { examRefresh(); examPanelSync(); });
     }
   });
   lib.addEventListener('input', (ev) => {
