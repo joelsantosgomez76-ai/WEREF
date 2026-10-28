@@ -470,7 +470,8 @@ function examPanelBodyHtml(e){
       <textarea id="ex-notes" data-ex-notes rows="3" maxlength="2000" placeholder="Por ejemplo: revisar la pregunta 12">${esc(e.notes || '')}</textarea>
     </div>` : `<div class="st-note">Para añadir notas y ver quién subió cada examen falta ejecutar el SQL <b>exams-library.sql</b> en Supabase.</div>`}
     <div class="ex-d-actions">
-      <button type="button" class="btn btn-primary" data-exa="view" data-id="${e.id}">${ic('eye')} Abrir PDF</button>
+      <button type="button" class="btn btn-primary" data-exa="expand" data-id="${e.id}">${ic('eye')} Ver PDF</button>
+      <button type="button" class="btn btn-ghost" data-exa="download" data-id="${e.id}">${ic('download')} Descargar</button>
       <button type="button" class="btn btn-ghost" data-exa="edit" data-id="${e.id}">${ic('pencil')} Editar</button>
       <button type="button" class="btn btn-ghost danger" data-exa="delete" data-id="${e.id}">${ic('trash')} Eliminar</button>
     </div>`;
@@ -540,25 +541,25 @@ function examCanEmbed(){
 /* Visor grande: el PDF a casi toda la pantalla. */
 async function examExpand(id){
   const e = examById(id); if(!e) return;
-  if(!examCanEmbed()){ await examView(id); return; }
+  if(!examCanEmbed()){ await examDownload(id); return; }      // en móvil no hay visor incrustado: se descarga con su nombre
   examCloseViewer();
   const v = document.createElement('div');
   v.id = 'ex-viewer'; v.className = 'ex-viewer';
   v.innerHTML = `<div class="ex-viewer-bar"><strong>${esc(examUpper(e.title))}</strong>
-    <button type="button" class="btn btn-ghost" data-v="tab">${shellIcon('eye')} Abrir en otra pestaña</button>
+    <button type="button" class="btn btn-ghost" data-v="download">${shellIcon('download')} Descargar</button>
     <button type="button" class="btn btn-primary" data-v="close" aria-label="Cerrar el visor">✕ Cerrar</button></div>
     <div class="ex-viewer-body"><div class="ex-prev-msg">${shellIcon('clock')}<strong>Cargando el PDF...</strong></div></div>`;
   v.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-v]');
     if(b && b.dataset.v === 'close') examCloseViewer();
-    else if(b && b.dataset.v === 'tab') examView(id);
+    else if(b && b.dataset.v === 'download') examDownload(id, b);
     else if(ev.target === v) examCloseViewer();
   });
   document.body.appendChild(v);
   try{
     const url = await examBlobUrl(e);
     const body = v.querySelector('.ex-viewer-body');
-    if(body) body.innerHTML = `<iframe class="ex-frame" src="${url}#navpanes=0&view=FitH" title="${esc(examUpper(e.title))}"></iframe>`;
+    if(body) body.innerHTML = `<iframe class="ex-frame" src="${url}#toolbar=0&navpanes=0&view=FitH" title="${esc(examUpper(e.title))}"></iframe>`;
   }catch(err){
     const body = v.querySelector('.ex-viewer-body');
     if(body) body.innerHTML = `<div class="ex-prev-msg">${shellIcon('flag')}<strong>No se pudo cargar el PDF</strong></div>`;
@@ -579,20 +580,29 @@ async function examLoadPreview(e){
   try{
     const url = await examBlobUrl(e);
     if(X.active !== e.id || X.prevId !== e.id) return;
-    box.innerHTML = `<iframe class="ex-frame" src="${url}#navpanes=0&view=FitH" title="Vista previa de ${esc(examUpper(e.title))}"></iframe>
+    box.innerHTML = `<iframe class="ex-frame" src="${url}#toolbar=0&navpanes=0&view=FitH" title="Vista previa de ${esc(examUpper(e.title))}"></iframe>
       <button type="button" class="ex-expand" data-exa="expand" data-id="${e.id}" title="Ver el PDF a pantalla grande" aria-label="Ampliar la vista previa">${ic('eye')} Ampliar</button>`;
   }catch(err){
     if(X.prevId !== e.id) return;
     box.innerHTML = `<div class="ex-prev-msg">${ic('flag')}<strong>No se pudo cargar el PDF</strong><button type="button" class="btn btn-ghost" data-exa="prev-retry" data-id="${e.id}">Reintentar</button></div>`;
   }
 }
-async function examView(id){
+/* Nombre del archivo al descargar: el mismo título que se ve en la app (en mayúsculas). */
+function examFileName(e){
+  const base = examUpper(e.title).replace(/["<>*?\u0000-\u001f]/g, '').replace(/[\\/:|]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120);
+  return (base || 'EXAMEN') + '.pdf';
+}
+async function examDownload(id, btn){
   const e = examById(id); if(!e) return;
-  const w = window.open('', '_blank');          // se abre ya, antes de esperar, para que el navegador no lo bloquee
+  const label = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Descargando...'; }
   try{
     const url = await examBlobUrl(e);
-    if(w) w.location.href = url; else window.open(url, '_blank');
-  }catch(err){ if(w) w.close(); cmToast('No se pudo abrir el PDF. ' + examErr(err)); }
+    const a = document.createElement('a');
+    a.href = url; a.download = examFileName(e); a.rel = 'noopener'; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(err){ cmToast('No se pudo descargar el PDF. ' + examErr(err)); }
+  finally{ if(btn && document.body.contains(btn)){ btn.disabled = false; btn.innerHTML = label; } }
 }
 
 /* ---------- pestaña ---------- */
@@ -840,8 +850,8 @@ async function examOnAction(action, el){
   const a = action.replace('committee-exam-', '');
   if(a === 'upload'){ await examUpload(); }
   else if(a === 'queue-clear'){ X.queue = []; examRender(); }
-  else if(a === 'view'){ await examView(id); }
   else if(a === 'expand'){ await examExpand(id); }
+  else if(a === 'download'){ await examDownload(id, el); }
   else if(a === 'prev-retry'){ const e = examById(id); if(e) examLoadPreview(e); }
   else if(a === 'pill'){ const e = examById(id); if(e) await examSetInApp([e.id], !e.in_app); }
   else if(a === 'set-done'){ await examSetInApp([id], true); }
