@@ -201,6 +201,7 @@ async function cmFetchMembers(){
 
 async function cmLoadAdminData(){
   COMMITTEE.error = null;
+  await cmLoadTabOrder();
   await cmLoadMessages();
   const results = await Promise.all([
     supabaseClient.from('committee_tests').select('*, committee_test_questions(count)').order('created_at', { ascending: false }),
@@ -1510,6 +1511,77 @@ function cmStatsTab(){
   </div>`;
 }
 
+/* ----- orden de las pestañas del Panel de Formación (cada administrador el suyo, guardado en su cuenta) ----- */
+function cmOrderedTabs(defs){
+  const order = Array.isArray(COMMITTEE.tabOrder) ? COMMITTEE.tabOrder : [];
+  const rank = (k) => { const i = order.indexOf(k); return i < 0 ? 1000 + defs.findIndex(d => d[0] === k) : i; };
+  return defs.slice().sort((a, b) => rank(a[0]) - rank(b[0]));
+}
+async function cmLoadTabOrder(){
+  if(COMMITTEE.tabOrderLoaded) return;
+  COMMITTEE.tabOrderLoaded = true;
+  try{
+    const raw = typeof storageGet === 'function' ? await storageGet('cm_tab_order') : null;
+    const arr = raw ? JSON.parse(raw) : null;
+    if(Array.isArray(arr) && arr.every(k => typeof k === 'string')){
+      COMMITTEE.tabOrder = arr;
+      // se abre en la primera pestaña de su orden, salvo que ya haya elegido otra
+      if(!COMMITTEE.tabTouched && arr.length) COMMITTEE.tab = arr[0];
+    }
+  }catch(e){}
+}
+function cmSaveTabOrder(keys){
+  COMMITTEE.tabOrder = keys;
+  try{ if(typeof storageSet === 'function') storageSet('cm_tab_order', JSON.stringify(keys)); }catch(e){}
+  render();
+}
+function cmTabSortHtml(tabs){
+  const ic = (n) => shellIcon(n);
+  return `<div class="cm-tabsort">
+    <div class="cm-tabsort-head"><strong>Ordenar pestañas</strong><span>Súbelas o bájalas con las flechas. También puedes arrastrar los botones de arriba.</span></div>
+    ${tabs.map(([k, label, icon], i) => `<div class="cm-tabsort-row">
+      <span class="cm-tabsort-ic">${ic(icon)}</span><b>${esc(label)}</b>
+      <button type="button" class="tx-icon" data-action="committee-tabsort-move" data-tab="${k}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="Subir ${esc(label)}">${ic('up')}</button>
+      <button type="button" class="tx-icon" data-action="committee-tabsort-move" data-tab="${k}" data-dir="1" ${i === tabs.length - 1 ? 'disabled' : ''} aria-label="Bajar ${esc(label)}">${ic('down')}</button>
+    </div>`).join('')}
+    <div class="cm-tabsort-foot">
+      <button type="button" class="btn btn-ghost" data-action="committee-tabsort-reset">Orden original</button>
+      <button type="button" class="btn btn-primary" data-action="committee-tabsort-toggle">Listo</button>
+    </div>
+  </div>`;
+}
+/* Arrastrar los botones de las pestañas para cambiar su orden (en el móvil se usa el panel de flechas). */
+function cmBindTabs(){
+  const nav = document.querySelector('.cm-tabs'); if(!nav) return;
+  let dragKey = null;
+  const clear = () => nav.querySelectorAll('.cm-tab').forEach(x => x.classList.remove('dragging', 'drop-before', 'drop-after'));
+  const after = (b, ev) => { const r = b.getBoundingClientRect(); return ev.clientX > r.left + r.width / 2; };
+  nav.addEventListener('dragstart', (ev) => {
+    const b = ev.target.closest && ev.target.closest('.cm-tab'); if(!b) return;
+    dragKey = b.dataset.tab;
+    ev.dataTransfer.setData('text/plain', dragKey); ev.dataTransfer.effectAllowed = 'move';
+    b.classList.add('dragging');
+  });
+  nav.addEventListener('dragover', (ev) => {
+    const b = ev.target.closest && ev.target.closest('.cm-tab');
+    if(!dragKey || !b || b.dataset.tab === dragKey) return;
+    ev.preventDefault();
+    nav.querySelectorAll('.cm-tab').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+    b.classList.add(after(b, ev) ? 'drop-after' : 'drop-before');
+  });
+  nav.addEventListener('drop', (ev) => {
+    const b = ev.target.closest && ev.target.closest('.cm-tab');
+    if(!dragKey || !b || b.dataset.tab === dragKey) return;
+    ev.preventDefault();
+    const keys = Array.from(nav.querySelectorAll('.cm-tab')).map(x => x.dataset.tab).filter(k => k !== dragKey);
+    let i = keys.indexOf(b.dataset.tab); if(after(b, ev)) i++;
+    keys.splice(i, 0, dragKey);
+    dragKey = null; clear();
+    cmSaveTabOrder(keys);
+  });
+  nav.addEventListener('dragend', () => { dragKey = null; clear(); });
+}
+
 /* ----- Panel de Formación ----- */
 function cmTrainingView(){
   const ic = (n) => shellIcon(n);
@@ -1522,7 +1594,8 @@ function cmTrainingView(){
   }
   const nTests = (COMMITTEE.tests || []).length;
   const nMembers = (COMMITTEE.members || []).length;
-  const tabs = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['attendance', 'Asistencia', 'calendar', null], ['live', 'Kahoot', 'zap', null], ['exams', 'Biblioteca', 'folder', null], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
+  const tabsDefault = [['tests', 'Tests', 'book', nTests], ['messages', 'Mensajes', 'message', (COMMITTEE.messages || []).length], ['members', 'Miembros', 'users', nMembers], ['attendance', 'Asistencia', 'calendar', null], ['live', 'Kahoot', 'zap', null], ['exams', 'Biblioteca', 'folder', null], ['ranking', 'Clasificación', 'trophy', null], ['stats', 'Puntos débiles', 'target', null], ['settings', 'Configuración', 'settings', null]];
+  const tabs = cmOrderedTabs(tabsDefault);
   let content;
   if(COMMITTEE.tests === null) content = `<div class="ac-empty">${ic('clock')}<strong>Cargando...</strong></div>`;
   else if(tab === 'members') content = cmMembersTab();
@@ -1549,8 +1622,10 @@ function cmTrainingView(){
   ${cmSetupWarning()}
   ${COMMITTEE.error && !st.setupMissing ? `<div class="ac-empty" style="margin-bottom:12px;">${ic('flag')}<strong>${esc(COMMITTEE.error)}</strong></div>` : ''}
   <nav class="cm-tabs" role="tablist" aria-label="Secciones del Panel de Formación">
-    ${tabs.map(([k, label, icon, n]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" data-action="committee-tab" data-tab="${k}" data-short="${({ tests: 'Tests', messages: 'Mensajes', members: 'Miembros', attendance: 'Asistencia', live: 'Kahoot', exams: 'Biblioteca', ranking: 'Ranking', stats: 'Débiles', settings: 'Ajustes' })[k] || label}" aria-label="${label}" title="${label}">${shellIcon(icon)}<span>${label}</span>${n !== null ? `<em>${n}</em>` : ''}</button>`).join('')}
+    ${tabs.map(([k, label, icon, n]) => `<button class="cm-tab ${tab === k ? 'active' : ''}" draggable="true" data-action="committee-tab" data-tab="${k}" data-short="${({ tests: 'Tests', messages: 'Mensajes', members: 'Miembros', attendance: 'Asistencia', live: 'Kahoot', exams: 'Biblioteca', ranking: 'Ranking', stats: 'Débiles', settings: 'Ajustes' })[k] || label}" aria-label="${label}" title="${label}">${shellIcon(icon)}<span>${label}</span>${n !== null ? `<em>${n}</em>` : ''}</button>`).join('')}
   </nav>
+  <div class="cm-tabsort-bar"><button type="button" class="cm-tabsort-btn ${COMMITTEE.tabSortOpen ? 'on' : ''}" data-action="committee-tabsort-toggle">${ic('up')}${ic('down')} Ordenar pestañas</button></div>
+  ${COMMITTEE.tabSortOpen ? cmTabSortHtml(tabs) : ''}
   <section class="cm-content">${content}</section>`;
 }
 
@@ -2152,7 +2227,17 @@ async function committeeOnAction(action, el){
     if(st.is_admin) cmLoadAdminData();
     if(st.is_member || !st.is_admin) cmLoadMyTests();
   }
-  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; STATE.view = 'committeeTraining'; render(); cmLoadAdminData(); }
+  else if(action === 'committee-tab'){ COMMITTEE.tab = el.dataset.tab; COMMITTEE.tabTouched = true; STATE.view = 'committeeTraining'; render(); cmLoadAdminData(); }
+  else if(action === 'committee-tabsort-toggle'){ COMMITTEE.tabSortOpen = !COMMITTEE.tabSortOpen; render(); }
+  else if(action === 'committee-tabsort-reset'){ cmSaveTabOrder([]); }
+  else if(action === 'committee-tabsort-move'){
+    const defs = Array.from(document.querySelectorAll('.cm-tabsort-row [data-tab]')).map(b => b.dataset.tab);
+    const keys = Array.from(new Set(defs));
+    const i = keys.indexOf(el.dataset.tab), j = i + parseInt(el.dataset.dir, 10);
+    if(i < 0 || j < 0 || j >= keys.length) return;
+    keys.splice(j, 0, keys.splice(i, 1)[0]);
+    cmSaveTabOrder(keys);
+  }
   else if(action === 'committee-test-filter'){ COMMITTEE.testFilter = el.dataset.filter; render(); }
   else if(action === 'committee-training'){
     if(!isDevUser()) return;
@@ -2582,6 +2667,7 @@ function committeeAfterRender(){
       if(el.hasAttribute('data-cm-rerender')) render();
     });
   });
+  cmBindTabs();
   cmBindMembersTable();
   cmBindRankTable();
   cmBindSettings();
