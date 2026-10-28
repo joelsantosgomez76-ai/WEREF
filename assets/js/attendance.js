@@ -13,13 +13,13 @@ COMMITTEE.att = {
   season: null,
   open: null,            // id de la clase abierta para pasar lista
   rollQ: '',
-  rollSortKey: 'surname',
+  rollSortKey: 'cat',
   rollSortDir: 'asc',
   rollFilter: 'all',     // all / here / absent
   rollCat: 'all',
   info: new Map(),       // 'sessionId|userId' -> {method, at}
   newDate: '',
-  sortKey: 'surname',
+  sortKey: 'cat',
   sortDir: 'asc',
   filters: { last: '', first: '', cat: 'all', low: false },
   mySessions: null,      // alumno: sus clases
@@ -560,7 +560,7 @@ async function attOnAction(action, el){
     A.season = attSeasonOf(r.data);
     STATE.toast = 'Clase creada: ' + attTitle(r.data); render();
   }
-  else if(action === 'committee-att-open'){ A.open = el.dataset.sid; A.rollQ = ''; A.rollFilter = 'all'; A.rollCat = 'all'; A.rollSortKey = 'surname'; A.rollSortDir = 'asc'; render(); window.scrollTo(0, 0); }
+  else if(action === 'committee-att-open'){ A.open = el.dataset.sid; A.rollQ = ''; A.rollFilter = 'all'; A.rollCat = 'all'; A.rollSortKey = 'cat'; A.rollSortDir = 'asc'; render(); window.scrollTo(0, 0); }
   else if(action === 'committee-att-close'){ A.open = null; render(); await cmLoadAttendance(); cmRefresh(); }
   else if(action === 'committee-att-delete'){
     const s = (A.sessions || []).find(x => x.id === el.dataset.sid); if(!s) return;
