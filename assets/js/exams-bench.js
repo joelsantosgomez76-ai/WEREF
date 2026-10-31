@@ -3,6 +3,38 @@
    mirando el examen, sin cambiar de pantalla. Guarda con la misma lógica que «Añadir pregunta»
    (persistNewQuestion, en app.js). Depende de exams.js, committee.js y app.js. */
 
+/* ---------- limpieza del texto copiado de un PDF ----------
+   Al copiar de un PDF suelen llegar: acentos como signo suelto ("´o" en lugar de "ó"), letras con el acento
+   «descompuesto», ligaduras ("ﬁ"), guiones de fin de línea, saltos de línea a mitad de frase y espacios raros.
+   Todo eso se arregla al pegar. Lo que el PDF no codifica bien (símbolos raros) no se puede adivinar: se avisa. */
+/* signo suelto → [signo combinado, letras con las que puede formar una letra real en español y catalán] */
+const EX_ACC = { '´': ['́', 'aeiouAEIOU'], '`': ['̀', 'aeiouAEIOU'], '¨': ['̈', 'aeiouAEIOU'], '˜': ['̃', 'nN'], '¸': ['̧', 'cC'] };
+function examJoinAccent(l, a){ return EX_ACC[a][1].indexOf(l) >= 0 ? (l + EX_ACC[a][0]).normalize('NFC') : null; }
+function examCleanText(raw, opts){
+  opts = opts || {};
+  let s = String(raw == null ? '' : raw);
+  // texto UTF-8 leído como Latin-1 ("Ã³" en lugar de "ó")
+  if(/[ÃÂ][\u0080-¿]/.test(s) && !/[^\u0000-ÿ]/.test(s)){
+    try{ s = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(s, c => c.charCodeAt(0))); }catch(e){}
+  }
+  s = s.replace(/\r\n?/g, '\n')
+    .replace(/ﬀ/g, 'ff').replace(/ﬁ/g, 'fi').replace(/ﬂ/g, 'fl').replace(/ﬃ/g, 'ffi').replace(/ﬄ/g, 'ffl').replace(/[ﬅﬆ]/g, 'st')
+    .replace(/[­​-‍⁠﻿]/g, '')
+    .replace(/[  -   　\t]/g, ' ');
+  // acento suelto + letra ("´o", "˜n") o letra + acento suelto ("o´")
+  s = s.replace(/ı/g, 'i');                                  // la "i" sin punto de los PDF hechos con LaTeX
+  s = s.replace(/([uU])¨/g, (m, l) => examJoinAccent(l, '¨'));  // "pingu¨ino": la diéresis es de la "u" anterior
+  s = s.replace(/([´`¨˜¸])\s?([A-Za-z])/g, (m, a, l) => examJoinAccent(l, a) || m);
+  s = s.replace(/([A-Za-z])([´`¨˜¸])/g, (m, l, a) => examJoinAccent(l, a) || m);
+  s = s.normalize('NFC');
+  // guion de fin de línea ("exposi-\nción") y saltos de línea a mitad de frase
+  s = s.replace(/([a-záéíóúüñ])-\s*\n\s*([a-záéíóúüñ])/g, '$1$2');
+  s = opts.multi ? s.replace(/\n{2,}/g, '\u0000').replace(/\s*\n\s*/g, ' ').replace(/\u0000/g, '\n\n') : s.replace(/\s*\n\s*/g, ' ');
+  return s.replace(/ {2,}/g, ' ').replace(/[ \t]+\n/g, '\n').trim();
+}
+/* Cuántos caracteres "raros" trae el texto (símbolos que el PDF no ha codificado bien). */
+function examBadChars(s){ return (String(s).match(/[�-\u0000-\u0008\u000B\u000C\u000E-\u001F]/g) || []).length; }
+
 function examBenchNew(id){
   return { id, scope: exm().benchScope || '', question: '', a: '', b: '', c: '', d: '', correct: 'a', explanation: '', hard: false, saved: 0, msg: '', msgKind: '', saving: false };
 }
@@ -105,10 +137,10 @@ function examBenchMsg(text, kind){
 async function examBenchSave(){
   const B = exm().bench; if(!B || B.saving) return;
   if(!B.scope){ examBenchMsg('Elige primero dónde va la pregunta (una regla, el Glosario...).', 'bad'); const s = document.getElementById('bench-scope'); if(s) s.focus(); return; }
-  const question = B.question.trim(), a = B.a.trim(), b = B.b.trim(), c = B.c.trim(), d = B.d.trim() || 'Ninguna respuesta es correcta.';
+  const question = examCleanText(B.question), a = examCleanText(B.a), b = examCleanText(B.b), c = examCleanText(B.c), d = examCleanText(B.d) || 'Ninguna respuesta es correcta.';
   if(!question || !a || !b || !c){ examBenchMsg('Rellena al menos la pregunta y las respuestas A, B y C.', 'bad'); return; }
   const domain = B.scope === 'glossary' ? 'glossary' : B.scope === 'fcf' ? 'fcf' : 'law';
-  const r = persistNewQuestion({ domain, rule: domain === 'law' ? parseInt(B.scope, 10) : null, question, options: [a, b, c, d], correct: B.correct, explanation: B.explanation.trim(), difficulty: B.hard ? 'hard' : 'normal' });
+  const r = persistNewQuestion({ domain, rule: domain === 'law' ? parseInt(B.scope, 10) : null, question, options: [a, b, c, d], correct: B.correct, explanation: examCleanText(B.explanation, { multi: true }), difficulty: B.hard ? 'hard' : 'normal' });
   if(!r.ok){ examBenchMsg(r.msg, 'bad'); return; }
   B.saving = true;
   const btn = document.getElementById('bench-save'); if(btn) btn.disabled = true;
@@ -142,6 +174,22 @@ function examBenchNextPending(){
 }
 function examBenchAfter(){
   const root = document.getElementById('ex-bench'); if(!root) return;
+  // al pegar en cualquier campo del formulario, el texto se limpia (acentos, ligaduras, saltos de línea...)
+  ['bench-question', 'bench-a', 'bench-b', 'bench-c', 'bench-d', 'bench-explanation'].forEach(id => {
+    const el = document.getElementById(id); if(!el) return;
+    el.addEventListener('paste', (ev) => {
+      const cd = ev.clipboardData || window.clipboardData; const raw = cd ? cd.getData('text') : '';
+      if(!raw) return;
+      ev.preventDefault();
+      const clean = examCleanText(raw, { multi: id === 'bench-explanation' });
+      if(!(document.execCommand && document.execCommand('insertText', false, clean))){
+        el.setRangeText(clean, el.selectionStart, el.selectionEnd, 'end');
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const bad = examBadChars(clean);
+      if(bad) examBenchMsg('El PDF no codifica bien ' + bad + (bad === 1 ? ' carácter' : ' caracteres') + ' de lo que has pegado (salen como símbolos raros). Revísalo y corrígelo a mano.', 'bad');
+    });
+  });
   root.addEventListener('keydown', (ev) => {
     if((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter'){ ev.preventDefault(); examBenchSave(); }
   });
