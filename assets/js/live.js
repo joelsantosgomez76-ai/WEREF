@@ -113,10 +113,46 @@ function liveTab(){
 }
 
 /* ---------- crear una sala ---------- */
-function liveNewDraft(){ return { title: '', seconds: '20', numsText: '', selected: [], numsReport: null, copyTest: '', editId: null }; }
+function liveNewDraft(){ return { title: '', seconds: '20', numsText: '', selected: [], numsReport: null, copyTest: '', editId: null, ruleSel: '', ruleCount: 'all', ruleHard: false, ruleReport: null }; }
+
+/* ---------- elegir preguntas por regla de la Base de datos ---------- */
+/* Preguntas que se pueden jugar (sin las que están en borrador) de una regla, del Glosario o del Reglament FCF. */
+function lvRuleQuestions(sel, hardOnly){
+  const m = /^r:(\d+)$/.exec(sel || '');
+  return allQuestionsAdmin().filter(q => {
+    if(q.draft) return false;
+    if(m ? !(q.domain === 'law' && q.rule === parseInt(m[1], 10)) : q.domain !== sel) return false;
+    return !hardOnly || q.difficulty === 'hard';
+  });
+}
+function lvRuleOptions(d){
+  const all = allQuestionsAdmin().filter(q => !q.draft);
+  const n = (f) => all.filter(f).length;
+  let h = '<option value="">Elige una regla…</option>';
+  for(let r = 1; r <= 17; r++){
+    const c = n(q => q.domain === 'law' && q.rule === r);
+    h += `<option value="r:${r}" ${d.ruleSel === 'r:' + r ? 'selected' : ''} ${c ? '' : 'disabled'}>Regla ${r} · ${esc(LAW_NAMES[r] || '')} (${c})</option>`;
+  }
+  const g = n(q => q.domain === 'glossary'), f = n(q => q.domain === 'fcf');
+  h += `<option value="glossary" ${d.ruleSel === 'glossary' ? 'selected' : ''} ${g ? '' : 'disabled'}>Glosario IFAB (${g})</option>`;
+  h += `<option value="fcf" ${d.ruleSel === 'fcf' ? 'selected' : ''} ${f ? '' : 'disabled'}>Reglament General FCF (${f})</option>`;
+  return h;
+}
+function lvRuleLabel(sel){
+  const m = /^r:(\d+)$/.exec(sel || '');
+  if(m) return 'Regla ' + m[1];
+  return sel === 'glossary' ? 'Glosario IFAB' : sel === 'fcf' ? 'Reglament General FCF' : '';
+}
+function lvRuleReportHtml(rep){
+  if(!rep) return '';
+  const ic = (n) => shellIcon(n);
+  if(!rep.available) return `<div class="cm-nums-rep warn">${ic('flag')}<span>No hay preguntas ${rep.hard ? 'difíciles ' : ''}en <b>${esc(rep.label)}</b>.</span></div>`;
+  return `${rep.added ? `<div class="cm-nums-rep ok">${ic('check')}<span>Añadidas <b>${rep.added}</b> ${rep.added === 1 ? 'pregunta' : 'preguntas'} de <b>${esc(rep.label)}</b>${rep.random ? ' elegidas al azar' : ''}.</span></div>` : ''}
+    ${rep.already ? `<div class="cm-nums-rep warn">${ic('flag')}<span>${rep.already} de <b>${esc(rep.label)}</b> ya ${rep.already === 1 ? 'estaba' : 'estaban'} en el juego${rep.added ? '' : ' y no hay más que añadir'}.</span></div>` : ''}`;
+}
 function liveItemsHtml(d){
   const ic = (n) => shellIcon(n);
-  if(!d.selected.length) return `<div class="st-note" style="margin-top:12px;">Todavía no hay preguntas. Escribe sus números arriba (los que ves con # en la Base de datos) o copia las de un test.</div>`;
+  if(!d.selected.length) return `<div class="st-note" style="margin-top:12px;">Todavía no hay preguntas. Elige una regla arriba, escribe los números de la Base de datos (los que ves con #) o copia las de un test.</div>`;
   return `<div class="lv-qlist">${d.selected.map((q, i) => `<div class="lv-qrow">
       <span class="lv-qn">${i + 1}</span>
       ${lvNum(q) ? `<span class="db-q-num">#${lvNum(q)}</span>` : ''}
@@ -146,7 +182,21 @@ function liveCreateForm(){
     <select id="lv-secs" data-cm-field="live.draft.seconds">${[10, 15, 20, 30, 45, 60, 90].map(s => `<option value="${s}" ${String(d.seconds) === String(s) ? 'selected' : ''}>${s} segundos</option>`).join('')}</select>
   </div>
   <div class="tc-card" style="margin-bottom:14px;">
-    <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Preguntas</h3><small>Con los números de la Base de datos, o copiando un test</small></div></div>
+    <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Preguntas</h3><small>Elige una regla de la Base de datos, escribe sus números o copia un test</small></div></div>
+    <div class="lv-rule">
+      <label for="lv-rule-sel" style="margin-top:0;">Por regla</label>
+      <div class="lv-rule-row">
+        <select id="lv-rule-sel" data-cm-field="live.draft.ruleSel" aria-label="Regla de la Base de datos">${lvRuleOptions(d)}</select>
+        <select id="lv-rule-count" data-cm-field="live.draft.ruleCount" aria-label="Cuántas preguntas">
+          <option value="all" ${d.ruleCount === 'all' ? 'selected' : ''}>Todas</option>
+          ${[5, 10, 15, 20, 25, 30, 40, 50].map(n => `<option value="${n}" ${String(d.ruleCount) === String(n) ? 'selected' : ''}>${n} al azar</option>`).join('')}
+        </select>
+        <label class="lv-rule-hard"><input type="checkbox" data-cm-field="live.draft.ruleHard" ${d.ruleHard ? 'checked' : ''}> Solo difíciles</label>
+        <button class="btn btn-primary" data-action="committee-live-add-rule">${ic('plus')} Añadir regla</button>
+      </div>
+      ${lvRuleReportHtml(d.ruleReport)}
+    </div>
+    <label for="lv-nums">O por números</label>
     <textarea id="lv-nums" rows="3" placeholder="Ej.: 12, 45, 87, 120-125, 301" autocomplete="off">${esc(d.numsText)}</textarea>
     <div id="lv-nums-preview" style="margin-top:8px;">${lvNumsPreview(d)}</div>
     <div class="lv-addrow">
@@ -601,6 +651,23 @@ async function liveOnAction(action, el){
     if(!lvNumsReady()){ cmToast('Todavía se están cargando los números de las preguntas. Inténtalo en unos segundos.'); return; }
     cmAddByNumbers(d);
     d.numsText = ''; render();
+  }
+  else if(action === 'committee-live-add-rule'){
+    const d = L.draft; if(!d) return;
+    if(!d.ruleSel){ cmToast('Elige primero una regla.'); return; }
+    const all = lvRuleQuestions(d.ruleSel, d.ruleHard);
+    const label = lvRuleLabel(d.ruleSel);
+    const inGame = new Set(d.selected.map(q => q.id));
+    const seen = new Set(d.selected.map(q => normalizeQuestionText(q.question)));
+    const fresh = all.filter(q => !inGame.has(q.id) && !seen.has(normalizeQuestionText(q.question)));
+    const want = d.ruleCount === 'all' ? fresh.length : Math.min(parseInt(d.ruleCount, 10) || 0, fresh.length);
+    const random = d.ruleCount !== 'all' && want < fresh.length;
+    let pick;
+    if(random) pick = shuffle(fresh.slice()).slice(0, want);
+    else pick = fresh.slice().sort((a, b) => (lvNum(a) || 1e9) - (lvNum(b) || 1e9));    // todas: en el orden de la Base de datos
+    pick.forEach(q => d.selected.push(q));
+    d.ruleReport = { label, hard: !!d.ruleHard, available: all.length, added: pick.length, already: all.length - fresh.length, random };
+    render();
   }
   else if(action === 'committee-live-copy'){
     const d = L.draft; if(!d || !d.copyTest){ cmToast('Elige primero un test.'); return; }
