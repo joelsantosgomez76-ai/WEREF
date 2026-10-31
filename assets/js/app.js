@@ -472,7 +472,7 @@ function questionsByNumber(){
   return out;
 }
 async function qnumSync(){
-  if(QNUM.busy || QNUM.failed || !isDevUser() || typeof supabaseClient === 'undefined') return;
+  if(QNUM.busy || QNUM.failed || QNUM.stalled || !isDevUser() || typeof supabaseClient === 'undefined') return;
   if(QNUM.ready && !allQuestionsAdmin().some(q => !QNUM.map[q.id])) return;
   QNUM.busy = true;
   let changed = false;
@@ -495,6 +495,8 @@ async function qnumSync(){
       (data || []).forEach(r => { QNUM.map[r.out_qid] = r.out_num; });
       changed = true;
     }
+    // si el servidor no ha dado número a alguna, no se vuelve a pedir en bucle (cada intento repintaba la pantalla)
+    if(missing.length && allQuestionsAdmin().some(q => !QNUM.map[q.id])) QNUM.stalled = true;
   }catch(e){
     QNUM.failed = true; changed = true;
   }
@@ -4553,25 +4555,31 @@ function databaseView(){
 
   return `
   <div class="dbx ${active ? 'panel-on' : ''}">
-    <div class="dbx-top">
-      <div class="dbx-title">
-        <small>Administración</small>
+    <button class="backbtn" data-action="home">&larr; Inicio</button>
+    <section class="lg-hero">
+      <div class="lg-hero-main">
+        <div class="home-eyebrow">Administración</div>
         <h1>Base de datos</h1>
-        <span><b>${all.length}</b> ${all.length === 1 ? 'pregunta' : 'preguntas'} · <b>${reviewedCount}</b> ${reviewedCount === 1 ? 'revisada' : 'revisadas'} · <b>${attentionCount}</b> ${attentionCount === 1 ? 'necesita' : 'necesitan'} atención</span>
+        <p>Revisa, edita y añade las preguntas de toda la plataforma. Los cambios que hagas los ven todos los usuarios.</p>
+        <div class="ac-hero-actions">
+          <button class="btn btn-yellow" data-action="add-from-db">${ic('plus')} Añadir pregunta</button>
+          <details class="db-more">
+            <summary class="btn btn-glass">${ic('more')} Más</summary>
+            <div class="db-more-menu">
+              <button class="db-more-item" data-action="export-excel">${ic('download')} Exportar a Excel</button>
+              <label class="db-more-item">${ic('fileplus')} Importar desde Excel
+                <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none;">
+              </label>
+            </div>
+          </details>
+        </div>
       </div>
-      <div class="dbx-top-actions">
-        <button class="btn btn-primary" data-action="add-from-db">${ic('plus')} Añadir pregunta</button>
-        <details class="db-more">
-          <summary class="btn btn-ghost">${ic('more')} Más</summary>
-          <div class="db-more-menu">
-            <button class="db-more-item" data-action="export-excel">${ic('download')} Exportar a Excel</button>
-            <label class="db-more-item">${ic('fileplus')} Importar desde Excel
-              <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none;">
-            </label>
-          </div>
-        </details>
+      <div class="lg-hero-stats">
+        <div class="lg-stat"><b>${all.length}</b><span>Preguntas</span></div>
+        <div class="lg-stat"><b>${reviewedCount}</b><span>Revisadas</span></div>
+        <div class="lg-stat"><b>${attentionCount}</b><span>Necesitan atención</span></div>
       </div>
-    </div>
+    </section>
 
     <div class="dbx-bar">
       <div class="ac-search dbx-search">
