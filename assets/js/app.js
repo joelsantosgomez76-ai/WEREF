@@ -251,6 +251,7 @@ let STATE = {
   lawId: null,
   editingId: null,
   dbActive: null,
+  dbFull: false,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
   storage: { progress:{}, failedStreaks:{}, userQuestions:[], saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
@@ -4348,6 +4349,14 @@ function dbMoveActive(delta){
   const row = document.querySelector('.dbx-row.active');
   if(row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
 }
+/* Al abrir una pregunta con el panel junto a la lista, sube la página lo justo para que se vea entero
+   (la barra de acciones del panel queda siempre dentro de la pantalla). */
+function dbEnsureVisible(){
+  const d = document.querySelector('.dbx-detail.open'), lay = document.querySelector('.dbx-layout');
+  if(!d || !lay || getComputedStyle(d).position !== 'sticky') return;
+  const need = lay.getBoundingClientRect().top + window.scrollY - 150;
+  if(window.scrollY < need) window.scrollTo(0, Math.max(0, need));
+}
 /* Atajos de la Base de datos: ↑↓ moverte, R revisada y siguiente, E editar, / buscar, Esc cerrar. */
 function dbKeydown(ev){
   if(STATE.view !== 'database' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
@@ -4358,6 +4367,7 @@ function dbKeydown(ev){
   if(k === 'Escape'){
     if(typing){ a.blur(); return; }
     if(STATE.editingId){ STATE.editingId = null; render(); }
+    else if(STATE.dbFull){ STATE.dbFull = false; render(); }
     else if(STATE.dbActive){ STATE.dbActive = null; render(); }
     return;
   }
@@ -4367,6 +4377,7 @@ function dbKeydown(ev){
   else if(k === 'ArrowUp' || k === 'k'){ ev.preventDefault(); dbMoveActive(-1); }
   else if((k === 'r' || k === 'R') && STATE.dbActive){ ev.preventDefault(); dbReviewNext(); }
   else if((k === 'e' || k === 'E') && STATE.dbActive){ ev.preventDefault(); STATE.editingId = STATE.dbActive; render(); }
+  else if((k === 'f' || k === 'F') && STATE.dbActive){ ev.preventDefault(); STATE.dbFull = !STATE.dbFull; render(); }
 }
 if(typeof window !== 'undefined' && !window.__dbKeys){ window.__dbKeys = true; window.addEventListener('keydown', dbKeydown); }
 /* Marca la pregunta abierta como revisada y pasa a la siguiente. */
@@ -4408,7 +4419,7 @@ function databaseView(){
   qnumSync();
   const dupIds = duplicateQuestionIds();
   const active = dbActiveQuestion(list);
-  if(!active && STATE.dbActive) STATE.dbActive = null;
+  if(!active){ STATE.dbActive = null; STATE.dbFull = false; }
 
   const chip = (cls, text) => `<span class="db-tag ${cls}">${text}</span>`;
   const rows = pageItems.map(q => {
@@ -4508,18 +4519,24 @@ function databaseView(){
           <button type="button" class="tx-icon" data-action="db-nav" data-dir="1" ${idx < 0 || idx >= list.length - 1 ? 'disabled' : ''} title="Pregunta siguiente (↓)" aria-label="Pregunta siguiente">${ic('down')}</button>
           <small>${idx + 1} de ${list.length}</small>
         </div>
-        <button type="button" class="tx-icon" data-action="db-close" title="Cerrar (Esc)" aria-label="Cerrar el detalle">✕</button>
-      </div>
-      <div class="dbx-d-meta"><span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || '…'}</span><span class="db-q-scope">${scopeLabel(q)}</span></div>`;
+        <div class="dbx-d-tools">
+          <button type="button" class="btn btn-ghost dbx-fullbtn" data-action="db-full" title="${STATE.dbFull ? 'Volver a ver la lista' : 'Oculta la lista para tener más espacio'} (F)">${STATE.dbFull ? 'Salir de pantalla completa' : 'Pantalla completa'}</button>
+          <button type="button" class="tx-icon" data-action="db-close" title="Cerrar (Esc)" aria-label="Cerrar el detalle">✕</button>
+        </div>
+      </div>`;
+    const meta = `<div class="dbx-d-meta"><span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || '…'}</span><span class="db-q-scope">${scopeLabel(q)}</span></div>`;
     if(STATE.editingId === q.id){
-      detail = `${head}${editFormHtml(q)}`;
+      detail = `${head}<div class="dbx-d-body">${meta}${editFormHtml(q)}</div>`;
     } else {
       detail = `${head}
-      ${tagsAll ? `<div class="db-tags" style="margin-bottom:10px;">${tagsAll}</div>` : ''}
+      <div class="dbx-d-body">
+      ${meta}
+      ${tagsAll ? `<div class="db-tags" style="margin-bottom:12px;">${tagsAll}</div>` : ''}
       <div class="dbx-d-q">${esc(q.question)}</div>
-      <div class="ac-q-opts">${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}</div>
-      ${q.explanation ? `<div class="ac-q-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : `<div class="dbx-d-noexpl">Esta pregunta no tiene explicación.</div>`}
+      <div class="dbx-opts">${q.options.map((o,i)=>`<div class="dbx-opt ${letters[i]===q.correct?'ok':''}"><u>${letters[i].toUpperCase()}</u><span>${esc(o)}</span>${letters[i]===q.correct ? `<em>${ic('check')} Correcta</em>` : ''}</div>`).join('')}</div>
+      ${q.explanation ? `<div class="dbx-d-expl"><strong>Explicación</strong>${esc(q.explanation)}</div>` : `<div class="dbx-d-noexpl">Esta pregunta no tiene explicación.</div>`}
       ${dates.length ? `<div class="dbx-d-dates">${dates.join(' · ')}</div>` : ''}
+      </div>
       <div class="dbx-d-actions">
         <button class="btn btn-primary" data-action="db-review-next" data-qid="${q.id}">${ic('check')} Revisada y siguiente <kbd>R</kbd></button>
         <button class="btn ${isReviewed?'btn-secondary':'btn-ghost'}" data-action="toggle-reviewed" data-qid="${q.id}">${ic('check')} ${isReviewed ? 'Revisada' : 'Marcar revisada'}</button>
@@ -4532,7 +4549,7 @@ function databaseView(){
   }
 
   return `
-  <div class="dbx">
+  <div class="dbx ${active ? 'panel-on' : ''}">
     <div class="dbx-top">
       <div class="dbx-title">
         <small>Administración</small>
@@ -4584,7 +4601,7 @@ function databaseView(){
       </div>
     </div>
 
-    <div class="dbx-layout ${active ? 'has-panel' : ''}">
+    <div class="dbx-layout ${active ? 'has-panel' : ''} ${active && STATE.dbFull ? 'full' : ''}">
       <nav class="dbx-rail" aria-label="Reglas">${rail}</nav>
       <div class="dbx-main">
         <div class="dbx-results-head">
@@ -5422,8 +5439,9 @@ function onAction(e){
   else if(action==='start-timeattack'){ startTimeAttackMode(); }
   else if(dbDateAction(action, el)){ /* filtro de fechas de Base de datos */ }
   else if(typeof action === 'string' && action.startsWith('install-') && typeof installOnAction === 'function'){ installOnAction(action); }
-  else if(action==='db-open'){ if(!isDevUser()) return; STATE.dbActive = el.dataset.qid; STATE.editingId = null; render(); }
-  else if(action==='db-close'){ STATE.dbActive = null; STATE.editingId = null; render(); }
+  else if(action==='db-open'){ if(!isDevUser()) return; STATE.dbActive = el.dataset.qid; STATE.editingId = null; render(); dbEnsureVisible(); }
+  else if(action==='db-close'){ STATE.dbActive = null; STATE.dbFull = false; STATE.editingId = null; render(); }
+  else if(action==='db-full'){ STATE.dbFull = !STATE.dbFull; render(); dbEnsureVisible(); }
   else if(action==='db-nav'){ if(!isDevUser()) return; dbMoveActive(parseInt(el.dataset.dir, 10) || 1); }
   else if(action==='db-review-next'){ if(!isDevUser()) return; dbReviewNext(); }
   else if(action==='db-set-status'){ STATE.dbFilter.status = el.dataset.status; STATE.dbFilter.page = 1; STATE.editingId = null; render(); }
