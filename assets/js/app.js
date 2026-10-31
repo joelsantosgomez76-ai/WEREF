@@ -252,6 +252,7 @@ let STATE = {
   editingId: null,
   dbActive: null,
   dbFull: false,
+  dbListMode: false,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
   storage: { progress:{}, failedStreaks:{}, userQuestions:[], saved:{}, edits:{}, reviewed:{}, needsFix:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
@@ -4361,7 +4362,7 @@ function dbMoveActive(delta){
   if(i < 0) i = delta > 0 ? -1 : list.length;
   const n = Math.max(0, Math.min(list.length - 1, i + delta));
   if(n === i) return;
-  STATE.dbActive = list[n].id; STATE.editingId = null;
+  STATE.dbActive = list[n].id; STATE.editingId = null; STATE.dbListMode = false;
   f.page = Math.floor(n / pageSize) + 1;
   render();
   const row = document.querySelector('.dbx-row.active');
@@ -4386,7 +4387,7 @@ function dbKeydown(ev){
     if(typing){ a.blur(); return; }
     if(STATE.editingId){ STATE.editingId = null; render(); }
     else if(STATE.dbFull){ STATE.dbFull = false; render(); }
-    else if(STATE.dbActive){ STATE.dbActive = null; render(); }
+    else if(STATE.dbActive){ STATE.dbActive = null; STATE.dbListMode = true; render(); }
     return;
   }
   if(typing) return;
@@ -4444,7 +4445,9 @@ function databaseView(){
   let active = dbActiveQuestion(list);
   // Estás revisando y cambias de regla, de estado o buscas: se abre la primera pregunta del nuevo filtro
   // (así sigues en el modo revisión en vez de volver a la lista). Si no hay ninguna, se cierra.
-  if(!active && STATE.dbActive && list.length){ active = list[0]; STATE.dbActive = active.id; STATE.editingId = null; }
+  // Al entrar en la Base de datos no se muestra el montón de preguntas: se abre directamente la primera del filtro actual.
+  // La lista solo aparece cuando la pides con «Volver a la lista».
+  if(!active && list.length && (STATE.dbActive || !STATE.dbListMode)){ active = list[0]; STATE.dbActive = active.id; STATE.editingId = null; }
   if(!active){ STATE.dbActive = null; STATE.dbFull = false; }
 
   const chip = (cls, text) => `<span class="db-tag ${cls}">${text}</span>`;
@@ -5344,7 +5347,7 @@ function onAction(e){
   }
   else if(action==='save-question'){ saveNewQuestion(); }
   else if(action==='stats'){ STATE.view='stats'; render(); }
-  else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.view='database'; loadQuestionReports(); render(); }
+  else if(action==='database'){ if(!isDevUser()) return; STATE.editingId=null; STATE.dbListMode=false; STATE.view='database'; loadQuestionReports(); render(); }
   else if(action==='db-view-law-questions'){
     if(!isDevUser()) return;
     { const rawL = el.dataset.law; STATE.dbFilter.law = (rawL === 'all' || String(STATE.dbFilter.law) === rawL) ? 'all' : String(rawL); }
@@ -5487,7 +5490,7 @@ function onAction(e){
     if(st === 'fix' && !(REV.ready && REV.fix)){ STATE.toast = 'Falta ejecutar el SQL question-needs-changes.sql en Supabase.'; render(); return; }
     setReviewState(el.dataset.qid, st); render();
   }
-  else if(action==='db-open'){ if(!isDevUser()) return; STATE.dbActive = el.dataset.qid; STATE.editingId = null; render(); dbEnsureVisible(); }
+  else if(action==='db-open'){ if(!isDevUser()) return; STATE.dbActive = el.dataset.qid; STATE.editingId = null; STATE.dbListMode = false; render(); dbEnsureVisible(); }
   else if(action==='db-close'){
     // al volver a la lista, queda a la vista la pregunta que estabas revisando
     const lastId = STATE.dbActive;
@@ -5496,7 +5499,7 @@ function onAction(e){
       const i = filteredDbList().findIndex(q => q.id === lastId);
       if(i >= 0) f.page = Math.floor(i / ps) + 1;
     }
-    STATE.dbActive = null; STATE.dbFull = false; STATE.editingId = null; render();
+    STATE.dbActive = null; STATE.dbFull = false; STATE.editingId = null; STATE.dbListMode = true; render();
     if(lastId){ const b = document.querySelector('.dbx-check[data-qid="' + lastId + '"]'); const r = b && b.closest('.dbx-row'); if(r && r.scrollIntoView) r.scrollIntoView({ block: 'center' }); }
   }
   else if(action==='db-full'){ STATE.dbFull = !STATE.dbFull; render(); dbEnsureVisible(); }
