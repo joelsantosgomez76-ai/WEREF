@@ -3491,20 +3491,6 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
 
 /* ---------- Base de datos · lista compacta + pregunta grande ---------- */
 .dbx{max-width:1560px; margin:0 auto;}
-.dbx-top{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:4px 0 14px;}
-.dbx-title{display:flex; flex-direction:column; gap:2px;}
-.dbx-title small{color:var(--accent); font:700 11px 'JetBrains Mono'; text-transform:uppercase; letter-spacing:.06em;}
-.dbx-title h1{margin:0; font-size:30px; line-height:1.1;}
-.dbx-title span{color:var(--muted); font-size:13.5px;}
-.dbx-title b{color:var(--ink);}
-.dbx-top-actions{display:flex; gap:10px; align-items:center; position:relative;}
-.dbx-top-actions .btn{display:inline-flex; align-items:center; gap:8px;}
-.dbx-top-actions .btn svg{width:16px; height:16px;}
-.dbx .db-more{display:block; flex-basis:auto;}
-.dbx .db-more-menu{position:absolute; right:0; left:auto; top:calc(100% + 8px); display:block; min-width:230px; margin:0; padding:6px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 16px 36px rgba(20,20,22,.18);}
-.dbx .db-more-item{width:100%; padding:11px 12px; border-radius:10px; background:none; color:var(--ink); border:none;}
-.dbx .db-more-item svg{color:var(--accent);}
-.dbx .db-more-item:hover{background:var(--chalk);}
 
 .dbx-bar{position:sticky; top:8px; z-index:30; display:grid; gap:10px; padding:10px 12px; margin-bottom:14px; background:rgba(255,255,255,.95); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:16px; box-shadow:0 6px 18px rgba(20,20,22,.07);}
 .dbx-search{margin:0;}
@@ -3609,7 +3595,6 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
   .dbx-rail{display:none;}
   .dbx-mlaw{display:block; flex:1 1 100%;}
   .dbx-hint{display:none;}
-  .dbx-title h1{font-size:26px;}
   .dbx-open{grid-template-columns:48px minmax(0,1fr); gap:4px 8px; padding-top:12px; padding-bottom:12px;}
   .dbx-open .dbx-scope{grid-column:1; grid-row:2; justify-self:start;}
   .dbx-open .dbx-tags{grid-column:2; grid-row:2; justify-content:flex-start;}
