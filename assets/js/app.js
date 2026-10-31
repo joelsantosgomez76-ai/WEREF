@@ -250,6 +250,7 @@ let STATE = {
   view: 'home',
   lawId: null,
   editingId: null,
+  dbActive: null,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
   storage: { progress:{}, failedStreaks:{}, userQuestions:[], saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
@@ -283,7 +284,7 @@ let STATE = {
   confirmDeleteMyDocId: null,
   confirmDeleteMyDocFolderId: null,
   trainCfg: { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [], onlyFailed: false, scopeOverride: null, feedbackMode: 'exam' },
-  dbFilter: { search: '', law: 'all', difficulty: 'all', status: 'all', pageSize: 25, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', advOpen: null, page: 1 },
+  dbFilter: { search: '', law: 'all', difficulty: 'all', status: 'all', pageSize: 50, myOnly: false, reviewStatus: 'all', reportedOnly: false, duplicatesOnly: false, dateField: 'created', dateFrom: '', dateTo: '', advOpen: null, page: 1 },
   reportedIds: {},
   reports: {},
   reportsLoaded: false,
@@ -4320,10 +4321,80 @@ function dbDateAction(action, el){
   return true;
 }
 
+/* ---------- Base de datos: lista compacta + panel de detalle ---------- */
+function dbScopeShort(q){
+  if(q.domain === 'glossary') return 'Glosario';
+  if(q.domain === 'fcf') return 'FCF';
+  return 'R' + q.rule;
+}
+/* Pregunta abierta en el panel (solo si sigue dentro del filtro actual). */
+function dbActiveQuestion(list){
+  const id = STATE.dbActive;
+  return id ? (list || filteredDbList()).find(q => q.id === id) || null : null;
+}
+/* Mueve la pregunta abierta arriba o abajo; cambia de página si hace falta. */
+function dbMoveActive(delta){
+  const f = STATE.dbFilter;
+  const list = filteredDbList();
+  if(!list.length) return;
+  const pageSize = [25, 50, 100].includes(f.pageSize) ? f.pageSize : 50;
+  let i = list.findIndex(q => q.id === STATE.dbActive);
+  if(i < 0) i = delta > 0 ? -1 : list.length;
+  const n = Math.max(0, Math.min(list.length - 1, i + delta));
+  if(n === i) return;
+  STATE.dbActive = list[n].id; STATE.editingId = null;
+  f.page = Math.floor(n / pageSize) + 1;
+  render();
+  const row = document.querySelector('.dbx-row.active');
+  if(row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+}
+/* Atajos de la Base de datos: ↑↓ moverte, R revisada y siguiente, E editar, / buscar, Esc cerrar. */
+function dbKeydown(ev){
+  if(STATE.view !== 'database' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  if(document.querySelector('.modal-backdrop, #confirm-modal')) return;
+  const a = document.activeElement;
+  const typing = !!(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable));
+  const k = ev.key;
+  if(k === 'Escape'){
+    if(typing){ a.blur(); return; }
+    if(STATE.editingId){ STATE.editingId = null; render(); }
+    else if(STATE.dbActive){ STATE.dbActive = null; render(); }
+    return;
+  }
+  if(typing) return;
+  if(k === '/'){ const s = document.getElementById('db-search'); if(s){ ev.preventDefault(); s.focus(); s.select(); } }
+  else if(k === 'ArrowDown' || k === 'j'){ ev.preventDefault(); dbMoveActive(1); }
+  else if(k === 'ArrowUp' || k === 'k'){ ev.preventDefault(); dbMoveActive(-1); }
+  else if((k === 'r' || k === 'R') && STATE.dbActive){ ev.preventDefault(); dbReviewNext(); }
+  else if((k === 'e' || k === 'E') && STATE.dbActive){ ev.preventDefault(); STATE.editingId = STATE.dbActive; render(); }
+}
+if(typeof window !== 'undefined' && !window.__dbKeys){ window.__dbKeys = true; window.addEventListener('keydown', dbKeydown); }
+/* Marca la pregunta abierta como revisada y pasa a la siguiente. */
+function dbReviewNext(){
+  const id = STATE.dbActive; if(!id) return;
+  const f = STATE.dbFilter;
+  const pageSize = [25, 50, 100].includes(f.pageSize) ? f.pageSize : 50;
+  const i = filteredDbList().findIndex(q => q.id === id);
+  setReviewed(id, true);
+  const after = filteredDbList();
+  const still = after.findIndex(q => q.id === id);
+  // con el filtro «Sin revisar» la que acaba de revisarse desaparece y la siguiente ocupa su sitio
+  const target = still >= 0 ? still + 1 : i;
+  if(target >= 0 && target < after.length){
+    STATE.dbActive = after[target].id; STATE.editingId = null;
+    f.page = Math.floor(target / pageSize) + 1;
+  } else if(still < 0){
+    STATE.dbActive = null;
+  }
+  render();
+  const row = document.querySelector('.dbx-row.active');
+  if(row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+}
+
 function databaseView(){
   const ic = (n) => shellIcon(n);
   const f = STATE.dbFilter;
-  const pageSize = [25, 50, 100].includes(f.pageSize) ? f.pageSize : 25;
+  const pageSize = [25, 50, 100].includes(f.pageSize) ? f.pageSize : 50;
   const list = filteredDbList();
   const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
   if(f.page > totalPages) f.page = totalPages;
@@ -4336,58 +4407,35 @@ function databaseView(){
   all.forEach((q,i) => { numberMap[q.id] = questionNumber(q, i+1); });
   qnumSync();
   const dupIds = duplicateQuestionIds();
-
-  const lawOptions = `<option value="all">Todas (todo el banco)</option>` +
-    `<optgroup label="Reglas IFAB">` +
-    Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${f.law==String(i)?'selected':''}>R${i} — ${esc(LAW_NAMES[i])}</option>`).join('') +
-    `<option value="glossary" ${f.law==='glossary'?'selected':''}>Preguntas Glosario</option>` +
-    `<option value="hard" ${f.law==='hard'?'selected':''}>Sala VAR (difíciles)</option>` +
-    `</optgroup>`;
+  const active = dbActiveQuestion(list);
+  if(!active && STATE.dbActive) STATE.dbActive = null;
 
   const chip = (cls, text) => `<span class="db-tag ${cls}">${text}</span>`;
-  let rows = pageItems.map(q => {
-    if(STATE.editingId === q.id) return editFormHtml(q);
+  const rows = pageItems.map(q => {
     const isReviewed = !!STATE.storage.reviewed[q.id];
     const reportCount = STATE.reports[q.id] || 0;
     const tags = [
-      q.draft ? chip('draft', 'Borrador · fuera del juego') : '',
+      q.draft ? chip('draft', 'Borrador') : '',
       q.difficulty==='hard' ? chip('hard', 'Difícil') : '',
       q.source==='user' ? chip('mine', 'Añadida') : '',
-      isReviewed ? chip('ok', 'Revisada') : '',
       reportCount>0 ? chip('bad', 'Reportada x' + reportCount) : '',
       dupIds.has(q.id) ? chip('dup', 'Duplicada') : ''
     ].join('');
-    const dates = [];
-    if(q.createdAt) dates.push(`Creada ${new Date(q.createdAt).toLocaleDateString('es-ES')}`);
-    if(q.updatedAt) dates.push(`Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}`);
-    { const rv = STATE.storage.reviewed[q.id]; if(typeof rv === 'number' && rv > 1e11) dates.push(`Revisada ${new Date(rv).toLocaleDateString('es-ES')}`); }
-    return `<article class="ac-q db-q ${q.draft ? 'is-draft' : (reportCount>0 ? 'reported' : (isReviewed ? 'reviewed' : ''))}">
-      <div class="db-q-head">
-        <span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || "…"}</span>
-        <span class="db-q-scope">${scopeLabel(q)}</span>
-        <div class="db-tags">${tags}</div>
-        ${dates.length ? `<span class="db-q-dates">${dates.join(' · ')}</span>` : ''}
-      </div>
-      <div class="ac-q-text" style="margin-bottom:12px;">${esc(q.question)}</div>
-      <div class="ac-q-opts">${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}</div>
-      ${q.explanation ? `<div class="ac-q-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-      <div class="ac-q-actions">
-        <button class="btn ${isReviewed?'btn-secondary':'btn-primary'}" data-action="toggle-reviewed" data-qid="${q.id}">${ic('check')} ${isReviewed ? 'Revisada' : 'Marcar como revisada'}</button>
-        <button class="btn btn-ghost" data-action="edit-question" data-qid="${q.id}">${ic('pencil')} Editar</button>
-        ${sharedActive() ? `<button class="btn ${q.draft ? 'btn-primary' : 'btn-ghost'}" data-action="toggle-draft" data-qid="${q.id}" title="${q.draft ? 'Vuelve a estar disponible para todos' : 'Se quita del juego hasta que la corrijas'}">${ic(q.draft ? 'play' : 'lock')} ${q.draft ? 'Volver a publicar' : 'Quitar del juego'}</button>` : ''}
-        <button class="btn btn-ghost btn-danger-soft" data-action="delete-question" data-qid="${q.id}">${ic('trash')} Eliminar</button>
-        ${reportCount>0 ? `<button class="btn btn-ghost" data-action="dismiss-reports" data-qid="${q.id}">${ic('flag')} Descartar reportes</button>` : ''}
-      </div>
-    </article>`;
+    return `<div class="dbx-row ${active && active.id === q.id ? 'active' : ''} ${isReviewed ? 'reviewed' : ''} ${reportCount>0 ? 'reported' : ''} ${q.draft ? 'is-draft' : ''}">
+      <button class="dbx-check ${isReviewed ? 'on' : ''}" data-action="toggle-reviewed" data-qid="${q.id}" aria-pressed="${isReviewed ? 'true' : 'false'}" title="${isReviewed ? 'Revisada · pulsa para quitar la marca' : 'Marcar como revisada'}" aria-label="${isReviewed ? 'Quitar la marca de revisada' : 'Marcar como revisada'}">${ic('check')}</button>
+      <button class="dbx-open" data-action="db-open" data-qid="${q.id}">
+        <span class="dbx-num">#${numberMap[q.id] || '…'}</span>
+        <span class="dbx-text"><strong>${esc(q.question)}</strong></span>
+        <span class="dbx-scope">${esc(dbScopeShort(q))}</span>
+        <span class="dbx-tags">${tags}</span>
+      </button>
+    </div>`;
   }).join('');
 
+  // Contadores cruzados: los de estado respetan la regla elegida y los de regla respetan el estado elegido.
   const reviewedCount = all.filter(q => STATE.storage.reviewed[q.id]).length;
-  const reportedCount = Object.keys(STATE.reports).length;
   const attentionCount = all.filter(q => (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
-  const pendingCount = all.length - reviewedCount;
   const draftCount = all.filter(q => q.draft).length;
-  // Contadores cruzados: los de estado respetan la regla elegida y los de regla respetan el estado elegido,
-  // así "sin revisar" + R5 enseña de un vistazo cuántas pendientes hay en cada regla.
   const noStatus = filteredDbList({ skipStatus: true });
   const noLaw = filteredDbList({ skipLaw: true });
   const sAll = noStatus.length;
@@ -4397,44 +4445,104 @@ function databaseView(){
   const sDraft = noStatus.filter(q => q.draft).length;
   const lawsCount = {};
   for(let i = 1; i <= 17; i++) lawsCount[i] = 0;
-  let glossaryCnt = 0, assistantsCnt = 0, fcfCnt = 0;
+  let glossaryCnt = 0, fcfCnt = 0, hardCnt = 0;
   noLaw.forEach(q => {
     if(q.domain === 'glossary') glossaryCnt++;
-    else if(q.domain === 'assistants') assistantsCnt++;
     else if(q.domain === 'fcf') fcfCnt++;
     else if(q.rule) lawsCount[q.rule] = (lawsCount[q.rule] || 0) + 1;
+    if(q.difficulty === 'hard') hardCnt++;
   });
   const countsFiltered = f.status !== 'all' || f.difficulty !== 'all' || f.myOnly || f.reportedOnly || f.duplicatesOnly || (f.search && f.search.trim()) || f.dateFrom || f.dateTo;
   const statusNow = f.status || 'all';
-
   const LOW_COUNT_THRESHOLD = 30;
-  const lawCounts = lawsCount, glossaryCount = glossaryCnt, assistantsCount = assistantsCnt, fcfCount = fcfCnt;
-  const lawChip = (law, label, n, extra) => {
-    const low = !countsFiltered && n < LOW_COUNT_THRESHOLD && !extra;
-    return `<button class="db-lawchip ${String(f.law)===String(law) ? 'active' : ''} ${low ? 'low' : ''}" data-action="db-view-law-questions" data-law="${law}"><b>${label}</b><span>${n}</span></button>`;
+
+  const railItem = (law, label, n, opts) => {
+    opts = opts || {};
+    const low = !countsFiltered && !opts.noLow && n < LOW_COUNT_THRESHOLD;
+    return `<button class="dbx-rn ${String(f.law)===String(law) ? 'on' : ''} ${low ? 'low' : ''}" data-action="db-view-law-questions" data-law="${law}" title="${esc(opts.title || label)}"><b>${esc(label)}</b>${opts.sub ? `<span>${esc(opts.sub)}</span>` : ''}<em>${n}</em></button>`;
   };
-  const lawCountChipsHtml = `<button class="db-lawchip all ${String(f.law)==='all' ? 'active' : ''}" data-action="db-view-law-questions" data-law="all"><b>Todas</b><span>${noLaw.length}</span></button>`
-    + Array.from({length:17},(_,i)=>i+1).map(i => lawChip(i, 'R' + i, lawCounts[i] || 0)).join('')
-    + lawChip('glossary', 'Glosario', glossaryCount)
-    + lawChip('fcf', 'Reglament FCF', fcfCount, true);
+  const shortName = (n) => String(LAW_NAMES[n] || '').replace(/^(El|La|Los|Las)\s+/i, '');
+  const rail = `<div class="dbx-rsec">Reglas${countsFiltered ? '' : ` <small>· en rojo, menos de ${LOW_COUNT_THRESHOLD}</small>`}</div>`
+    + `<button class="dbx-rn all ${String(f.law)==='all' ? 'on' : ''}" data-action="db-view-law-questions" data-law="all"><b>Todo el banco</b><em>${noLaw.length}</em></button>`
+    + Array.from({length:17},(_,i)=>i+1).map(i => railItem(i, 'R' + i, lawsCount[i] || 0, { sub: shortName(i), title: 'Regla ' + i + ' · ' + LAW_NAMES[i] })).join('')
+    + `<div class="dbx-rsec">Otros</div>`
+    + railItem('glossary', 'Glosario', glossaryCnt)
+    + railItem('fcf', 'Reglament FCF', fcfCnt, { noLow: true })
+    + railItem('hard', 'Sala VAR (difíciles)', hardCnt, { noLow: true });
+
+  const lawSelect = `<select id="db-law" class="dbx-mlaw" aria-label="Regla">` +
+    `<option value="all" ${f.law==='all'?'selected':''}>Todo el banco (${noLaw.length})</option>` +
+    Array.from({length:17},(_,i)=>i+1).map(i=>`<option value="${i}" ${String(f.law)===String(i)?'selected':''}>R${i} — ${esc(LAW_NAMES[i])} (${lawsCount[i] || 0})</option>`).join('') +
+    `<option value="glossary" ${f.law==='glossary'?'selected':''}>Glosario (${glossaryCnt})</option>` +
+    `<option value="fcf" ${f.law==='fcf'?'selected':''}>Reglament FCF (${fcfCnt})</option>` +
+    `<option value="hard" ${f.law==='hard'?'selected':''}>Sala VAR · difíciles (${hardCnt})</option></select>`;
 
   const statusChip = (key, label, n) => `<button class="db-status ${key} ${statusNow === key ? 'active' : ''}" data-action="db-set-status" data-status="${key}">${label}<em>${n}</em></button>`;
-  // Abierto/cerrado lo decide quien usa la página (se recuerda aunque la vista se repinte); si no ha tocado nada, se abre solo cuando hay un filtro de fecha activo.
-  const advOpen = f.advOpen !== null && f.advOpen !== undefined ? !!f.advOpen : !!(f.dateFrom || f.dateTo || (f.dateField && f.dateField !== 'created'));
+  const advOpen = f.advOpen === true;      // el filtro de fechas es un desplegable: solo se abre cuando lo pulsas
+  const datesOn = !!(f.dateFrom || f.dateTo);
   const from = list.length ? startIdx + 1 : 0;
   const to = Math.min(startIdx + pageSize, list.length);
 
+  // ----- panel de detalle -----
+  let detail = '';
+  if(active){
+    const q = active;
+    const isReviewed = !!STATE.storage.reviewed[q.id];
+    const reportCount = STATE.reports[q.id] || 0;
+    const idx = list.findIndex(x => x.id === q.id);
+    const dates = [];
+    if(q.createdAt) dates.push(`Creada ${new Date(q.createdAt).toLocaleDateString('es-ES')}`);
+    if(q.updatedAt) dates.push(`Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}`);
+    { const rv = STATE.storage.reviewed[q.id]; if(typeof rv === 'number' && rv > 1e11) dates.push(`Revisada ${new Date(rv).toLocaleDateString('es-ES')}`); }
+    const tagsAll = [
+      q.draft ? chip('draft', 'Borrador · fuera del juego') : '',
+      q.difficulty==='hard' ? chip('hard', 'Difícil') : '',
+      q.source==='user' ? chip('mine', 'Añadida') : '',
+      isReviewed ? chip('ok', 'Revisada') : '',
+      reportCount>0 ? chip('bad', 'Reportada x' + reportCount) : '',
+      dupIds.has(q.id) ? chip('dup', 'Duplicada') : ''
+    ].join('');
+    const head = `<div class="dbx-d-top">
+        <div class="dbx-d-nav">
+          <button type="button" class="tx-icon" data-action="db-nav" data-dir="-1" ${idx <= 0 ? 'disabled' : ''} title="Pregunta anterior (↑)" aria-label="Pregunta anterior">${ic('up')}</button>
+          <button type="button" class="tx-icon" data-action="db-nav" data-dir="1" ${idx < 0 || idx >= list.length - 1 ? 'disabled' : ''} title="Pregunta siguiente (↓)" aria-label="Pregunta siguiente">${ic('down')}</button>
+          <small>${idx + 1} de ${list.length}</small>
+        </div>
+        <button type="button" class="tx-icon" data-action="db-close" title="Cerrar (Esc)" aria-label="Cerrar el detalle">✕</button>
+      </div>
+      <div class="dbx-d-meta"><span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || '…'}</span><span class="db-q-scope">${scopeLabel(q)}</span></div>`;
+    if(STATE.editingId === q.id){
+      detail = `${head}${editFormHtml(q)}`;
+    } else {
+      detail = `${head}
+      ${tagsAll ? `<div class="db-tags" style="margin-bottom:10px;">${tagsAll}</div>` : ''}
+      <div class="dbx-d-q">${esc(q.question)}</div>
+      <div class="ac-q-opts">${q.options.map((o,i)=>`<div class="option ${letters[i]===q.correct?'reveal-correct':''}" style="cursor:default; padding:9px 12px;"><span class="letter">${letters[i]})</span>${esc(o)}</div>`).join('')}</div>
+      ${q.explanation ? `<div class="ac-q-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : `<div class="dbx-d-noexpl">Esta pregunta no tiene explicación.</div>`}
+      ${dates.length ? `<div class="dbx-d-dates">${dates.join(' · ')}</div>` : ''}
+      <div class="dbx-d-actions">
+        <button class="btn btn-primary" data-action="db-review-next" data-qid="${q.id}">${ic('check')} Revisada y siguiente <kbd>R</kbd></button>
+        <button class="btn ${isReviewed?'btn-secondary':'btn-ghost'}" data-action="toggle-reviewed" data-qid="${q.id}">${ic('check')} ${isReviewed ? 'Revisada' : 'Marcar revisada'}</button>
+        <button class="btn btn-ghost" data-action="edit-question" data-qid="${q.id}">${ic('pencil')} Editar <kbd>E</kbd></button>
+        ${sharedActive() ? `<button class="btn ${q.draft ? 'btn-primary' : 'btn-ghost'}" data-action="toggle-draft" data-qid="${q.id}" title="${q.draft ? 'Vuelve a estar disponible para todos' : 'Se quita del juego hasta que la corrijas'}">${ic(q.draft ? 'play' : 'lock')} ${q.draft ? 'Volver a publicar' : 'Quitar del juego'}</button>` : ''}
+        ${reportCount>0 ? `<button class="btn btn-ghost" data-action="dismiss-reports" data-qid="${q.id}">${ic('flag')} Descartar reportes</button>` : ''}
+        <button class="btn btn-ghost btn-danger-soft" data-action="delete-question" data-qid="${q.id}">${ic('trash')} Eliminar</button>
+      </div>`;
+    }
+  }
+
   return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <section class="lg-hero">
-    <div class="lg-hero-main">
-      <div class="home-eyebrow">Administración</div>
-      <h1>Base de datos</h1>
-      <p>Revisa, edita y añade las preguntas de toda la plataforma. Los cambios que hagas los ven todos los usuarios.</p>
-      <div class="ac-hero-actions">
-        <button class="btn btn-yellow" data-action="add-from-db">${ic('plus')} Añadir pregunta</button>
+  <div class="dbx">
+    <div class="dbx-top">
+      <div class="dbx-title">
+        <small>Administración</small>
+        <h1>Base de datos</h1>
+        <span><b>${all.length}</b> ${all.length === 1 ? 'pregunta' : 'preguntas'} · <b>${reviewedCount}</b> ${reviewedCount === 1 ? 'revisada' : 'revisadas'} · <b>${attentionCount}</b> ${attentionCount === 1 ? 'necesita' : 'necesitan'} atención</span>
+      </div>
+      <div class="dbx-top-actions">
+        <button class="btn btn-primary" data-action="add-from-db">${ic('plus')} Añadir pregunta</button>
         <details class="db-more">
-          <summary class="btn btn-glass">${ic('more')} Más</summary>
+          <summary class="btn btn-ghost">${ic('more')} Más</summary>
           <div class="db-more-menu">
             <button class="db-more-item" data-action="export-excel">${ic('download')} Exportar a Excel</button>
             <label class="db-more-item">${ic('fileplus')} Importar desde Excel
@@ -4444,67 +4552,61 @@ function databaseView(){
         </details>
       </div>
     </div>
-    <div class="lg-hero-stats">
-      <div class="lg-stat"><b>${all.length}</b><span>Preguntas</span></div>
-      <div class="lg-stat"><b>${reviewedCount}</b><span>Revisadas</span></div>
-      <div class="lg-stat"><b>${attentionCount}</b><span>Necesitan atención</span></div>
-    </div>
-  </section>
 
-  <div class="tc-card" style="margin-bottom:16px;">
-    <div class="tc-card-head"><span class="tc-step">${ic('book')}</span><div><h3>Preguntas por regla</h3><small>${countsFiltered ? 'Las cantidades siguen los filtros activos (estado, dificultad…). Pulsa una regla para verla; otra vez para quitar el filtro' : 'Pulsa una para filtrar, y otra vez para quitar el filtro · en rojo, menos de ' + LOW_COUNT_THRESHOLD}</small></div></div>
-    <div class="db-lawchips">${lawCountChipsHtml}</div>
-  </div>
-
-  <div class="tc-card" style="margin-bottom:16px;">
-    <div class="tc-card-head"><span class="tc-step">${ic('search')}</span><div><h3>Buscar y filtrar</h3><small>${list.length} ${list.length === 1 ? 'pregunta coincide' : 'preguntas coinciden'} con el filtro</small></div></div>
-    <div class="ac-search" style="margin-bottom:14px;">
-      ${ic('search')}
-      <input type="text" id="db-search" placeholder="Busca por palabra, o por número con # (por ejemplo #120)..." value="${esc(f.search)}" maxlength="100" aria-label="Buscar texto">
-    </div>
-    <div class="db-filter-row">
+    <div class="dbx-bar">
+      <div class="ac-search dbx-search">
+        ${ic('search')}
+        <input type="text" id="db-search" placeholder="Buscar por palabra o por número (#120)…" value="${esc(f.search)}" maxlength="100" aria-label="Buscar texto">
+      </div>
       <div class="db-status-group" role="group" aria-label="Estado">
         ${statusChip('all', 'Todas', sAll)}
-        ${statusChip('attention', 'Necesitan atención', sAttention)}
+        ${statusChip('attention', 'Atención', sAttention)}
         ${statusChip('pending', 'Sin revisar', sPending)}
         ${statusChip('reviewed', 'Revisadas', sReviewed)}
-        ${sharedActive() || draftCount ? statusChip('draft', 'En borrador', sDraft) : ''}
+        ${sharedActive() || draftCount ? statusChip('draft', 'Borrador', sDraft) : ''}
       </div>
-      <div class="db-diff">
-        <label for="db-difficulty">Dificultad</label>
-        <select id="db-difficulty">
-          <option value="all" ${f.difficulty==='all'?'selected':''}>Todas</option>
+      <div class="dbx-bar2">
+        ${lawSelect}
+        <select id="db-difficulty" aria-label="Dificultad">
+          <option value="all" ${f.difficulty==='all'?'selected':''}>Toda dificultad</option>
           <option value="normal" ${f.difficulty==='normal'?'selected':''}>Normal</option>
           <option value="hard" ${f.difficulty==='hard'?'selected':''}>Difícil</option>
         </select>
+        <details class="db-adv" ${advOpen ? 'open' : ''}>
+          <summary>Fechas${datesOn ? ' <i class="dbx-dot" title="Hay un filtro de fechas activo"></i>' : ''}</summary>
+          <div class="db-adv-body">
+            ${dbDateFilterHtml(f)}
+            ${(f.dateFrom || f.dateTo) ? (f.dateField === 'reviewed'
+              ? `<div class="st-note" style="margin-top:4px;">La fecha de revisión se guarda desde que se añadió esta función: las preguntas que ya estaban marcadas como revisadas antes no tienen fecha y no aparecerán en este filtro.</div>`
+              : `<div class="st-note" style="margin-top:4px;">La fecha solo se registra desde que se añadió esta función: las preguntas antiguas que nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>`) : ''}
+          </div>
+        </details>
       </div>
     </div>
-    <details class="db-adv" ${advOpen ? 'open' : ''}>
-      <summary>Filtros avanzados · fechas</summary>
-      ${dbDateFilterHtml(f)}
-      ${(f.dateFrom || f.dateTo) ? (f.dateField === 'reviewed'
-        ? `<div class="st-note" style="margin-top:4px;">La fecha de revisión se guarda desde que se añadió esta función: las preguntas que ya estaban marcadas como revisadas antes no tienen fecha y no aparecerán en este filtro. Si quieres que tengan fecha, desmárcalas y vuelve a marcarlas.</div>`
-        : `<div class="st-note" style="margin-top:4px;">La fecha solo se registra desde que se añadió esta función: las preguntas antiguas que nunca se han vuelto a editar no tienen fecha y no aparecerán en este filtro.</div>`) : ''}
-    </details>
+
+    <div class="dbx-layout ${active ? 'has-panel' : ''}">
+      <nav class="dbx-rail" aria-label="Reglas">${rail}</nav>
+      <div class="dbx-main">
+        <div class="dbx-results-head">
+          <span>${list.length ? `<b>${from}–${to}</b> de <b>${list.length}</b>` : 'Sin resultados'}</span>
+          <span class="dbx-hint"><kbd>↑</kbd><kbd>↓</kbd> moverte · <kbd>R</kbd> revisada y siguiente · <kbd>E</kbd> editar · <kbd>/</kbd> buscar</span>
+          <label class="db-pagesize">Por página
+            <select id="db-page-size">
+              ${[25, 50, 100].map(n => `<option value="${n}" ${pageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        ${rows ? `<div class="dbx-list">${rows}</div>` : `<div class="ac-empty">${ic('search')}<strong>Ninguna pregunta coincide con este filtro</strong><span>Prueba a quitar algún filtro.</span></div>`}
+        ${list.length>pageSize ? `
+        <div class="ad-pager">
+          <button class="btn btn-ghost" data-action="db-prev-page" ${f.page<=1?'disabled':''}>&larr; Anterior</button>
+          <span>Página ${f.page} / ${totalPages}</span>
+          <button class="btn btn-ghost" data-action="db-next-page" ${f.page>=totalPages?'disabled':''}>Siguiente &rarr;</button>
+        </div>` : ''}
+      </div>
+      <aside class="dbx-detail ${active ? 'open' : ''}" aria-label="Detalle de la pregunta">${detail}</aside>
+    </div>
   </div>
-
-  <div class="db-results-head">
-    <span>${list.length ? `Mostrando <b>${from}–${to}</b> de <b>${list.length}</b>` : 'Sin resultados'}</span>
-    <label class="db-pagesize">Por página
-      <select id="db-page-size">
-        ${[25, 50, 100].map(n => `<option value="${n}" ${pageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
-      </select>
-    </label>
-  </div>
-
-  ${rows ? `<div class="ac-qlist">${rows}</div>` : `<div class="ac-empty">${ic('search')}<strong>Ninguna pregunta coincide con este filtro</strong><span>Prueba a quitar algún filtro.</span></div>`}
-
-  ${list.length>pageSize ? `
-  <div class="ad-pager">
-    <button class="btn btn-ghost" data-action="db-prev-page" ${f.page<=1?'disabled':''}>&larr; Anterior</button>
-    <span>Página ${f.page} / ${totalPages}</span>
-    <button class="btn btn-ghost" data-action="db-next-page" ${f.page>=totalPages?'disabled':''}>Siguiente &rarr;</button>
-  </div>` : ''}
   `;
 }
 
@@ -5320,6 +5422,10 @@ function onAction(e){
   else if(action==='start-timeattack'){ startTimeAttackMode(); }
   else if(dbDateAction(action, el)){ /* filtro de fechas de Base de datos */ }
   else if(typeof action === 'string' && action.startsWith('install-') && typeof installOnAction === 'function'){ installOnAction(action); }
+  else if(action==='db-open'){ if(!isDevUser()) return; STATE.dbActive = el.dataset.qid; STATE.editingId = null; render(); }
+  else if(action==='db-close'){ STATE.dbActive = null; STATE.editingId = null; render(); }
+  else if(action==='db-nav'){ if(!isDevUser()) return; dbMoveActive(parseInt(el.dataset.dir, 10) || 1); }
+  else if(action==='db-review-next'){ if(!isDevUser()) return; dbReviewNext(); }
   else if(action==='db-set-status'){ STATE.dbFilter.status = el.dataset.status; STATE.dbFilter.page = 1; STATE.editingId = null; render(); }
   else if(action==='db-prev-page'){ STATE.dbFilter.page = Math.max(1, STATE.dbFilter.page-1); render(); }
   else if(action==='db-next-page'){ STATE.dbFilter.page = STATE.dbFilter.page+1; render(); }
