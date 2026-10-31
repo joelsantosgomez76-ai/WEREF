@@ -3292,6 +3292,13 @@ img, svg, video{max-width:100%;}
 .ex-tx{border:none; background:none; width:26px; height:30px; cursor:pointer; color:var(--muted); flex:none; display:inline-flex; align-items:center; justify-content:center; padding:0;}
 .ex-tx svg{width:14px; height:14px; transition:transform .15s;}
 .ex-tx span.open svg{transform:rotate(90deg);}
+.ex-tren{opacity:0; transition:opacity .12s;}
+.ex-tren svg{width:13px; height:13px;}
+.ex-tn-row:hover .ex-tren, .ex-tn-row:focus-within .ex-tren, .ex-tren.on{opacity:1;}
+.ex-tren:hover{color:var(--ink);}
+@media (hover:none){ .ex-tren{opacity:.6;} }
+.ex-tn-row.ex-ren{gap:4px; padding:2px 0;}
+.ex-ren input{flex:1; min-width:0; height:30px; border:1.5px solid var(--ink); border-radius:8px; padding:0 8px; font:600 13px 'Work Sans'; color:var(--ink); background:#fff;}
 .ex-dot{width:9px; height:9px; border-radius:50%; background:var(--c); flex:none;}
 .ex-dragging .ex-tn:not(.on):hover{outline:2px dashed var(--line); outline-offset:-2px;}
 

@@ -38,6 +38,7 @@ COMMITTEE.exams = {
   newSeason: '',
   newCat: '',
   edit: null,            // { id, title, date, cat, season } edición dentro del panel
+  renSeason: null,       // id de la temporada que se está renombrando en el árbol
   busy: '',              // texto de progreso mientras se sube
   queue: [],             // cola de subida [{ name, state: wait/up/ok/err, msg }]
   bench: null,           // mesa de trabajo «Pasar a la app» (ver exams-bench.js)
@@ -326,10 +327,16 @@ function examTreeHtml(){
   seasons.forEach(s => {
     const open = X.treeOpen.has(s.id) || X.season === s.id;
     const sOn = X.season === s.id && X.cat === 'all';
+    const renaming = X.renSeason === s.id;
     h += `<div class="ex-tgroup">
-      <div class="ex-tn-row">
+      <div class="ex-tn-row ${renaming ? 'ex-ren' : ''}">
         <button type="button" class="ex-tx" data-exa="t-toggle" data-id="${esc(s.id)}" aria-label="${open ? 'Plegar' : 'Desplegar'} ${esc(s.name)}" aria-expanded="${open ? 'true' : 'false'}"><span class="${open ? 'open' : ''}">${ic('chevron')}</span></button>
-        <button type="button" class="ex-tn ${sOn ? 'on' : ''}" data-exa="t-season" data-id="${esc(s.id)}" data-drop-season="${esc(s.id)}"><span>${esc(s.name)}</span><em>${examCount({ season: s.id, cat: 'all' })}</em></button>
+        ${renaming
+          ? `<input type="text" id="ex-ren-in" data-ex-ren="${esc(s.id)}" value="${esc(s.name)}" maxlength="40" autocomplete="off" aria-label="Nuevo nombre de la temporada">
+        <button type="button" class="ex-tx ex-tren on" data-exa="season-ren-ok" data-id="${esc(s.id)}" title="Guardar el nombre (Intro)" aria-label="Guardar el nombre">${ic('check')}</button>
+        <button type="button" class="ex-tx ex-tren on" data-exa="season-ren-cancel" title="Cancelar (Esc)" aria-label="Cancelar">✕</button>`
+          : `<button type="button" class="ex-tn ${sOn ? 'on' : ''}" data-exa="t-season" data-id="${esc(s.id)}" data-drop-season="${esc(s.id)}"><span>${esc(s.name)}</span><em>${examCount({ season: s.id, cat: 'all' })}</em></button>
+        <button type="button" class="ex-tx ex-tren" data-exa="season-ren" data-id="${esc(s.id)}" title="Cambiar el nombre de la temporada" aria-label="Cambiar el nombre de ${esc(s.name)}">${ic('pencil')}</button>`}
       </div>`;
     if(open){
       cats.forEach(c => {
@@ -870,8 +877,26 @@ async function examOnAction(action, el){
   else if(a === 't-status'){ X.status = el.dataset.s; X.limit = EXAM_PAGE; examRefresh(); }
   else if(a === 't-season'){
     X.season = id; X.cat = 'all'; X.limit = EXAM_PAGE;
-    if(id !== 'all') X.treeOpen.add(id);
+    if(id !== 'all'){ X.treeOpen.add(id); X.sortKey = 'cat'; X.sortDir = 'asc'; }
     examRefresh();
+  }
+  else if(a === 'season-ren'){
+    X.renSeason = id; examRefresh();
+    const t = document.getElementById('ex-ren-in'); if(t){ t.focus(); t.select(); }
+  }
+  else if(a === 'season-ren-cancel'){ X.renSeason = null; examRefresh(); }
+  else if(a === 'season-ren-ok'){
+    const s = (X.seasons || []).find(x => x.id === id), t = document.getElementById('ex-ren-in');
+    if(!s || !t) return;
+    const name = t.value.trim().replace(/\s+/g, ' ');
+    if(!name){ cmToast('Escribe el nombre de la temporada.'); t.focus(); return; }
+    if(name === s.name){ X.renSeason = null; examRefresh(); return; }
+    if((X.seasons || []).some(x => x.id !== s.id && cmPlain(x.name) === cmPlain(name))){ cmToast('Ya existe una temporada con ese nombre.'); t.focus(); return; }
+    const r = await examWrite(supabaseClient.from('exam_seasons').update({ name }).eq('id', s.id));
+    if(r.error){ cmToast(/duplicate|23505/i.test((r.error.message || '') + (r.error.code || '')) ? 'Ya existe una temporada con ese nombre.' : examErr(r.error)); return; }
+    X.renSeason = null;
+    await examLoad();
+    STATE.toast = 'Temporada renombrada a ' + name + '.'; examRender();
   }
   else if(a === 't-cat'){ X.season = id; X.cat = el.dataset.cat; X.treeOpen.add(id); X.limit = EXAM_PAGE; examRefresh(); }
   else if(a === 't-toggle'){
@@ -1071,6 +1096,11 @@ function examAfterRender(){
     }
   });
   lib.addEventListener('keydown', (ev) => {
+    if(ev.target.dataset && ev.target.dataset.exRen){
+      if(ev.key === 'Enter'){ ev.preventDefault(); examOnAction('committee-exam-season-ren-ok', { dataset: { id: ev.target.dataset.exRen } }); }
+      else if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); X.renSeason = null; examRefresh(); }
+      return;
+    }
     if(ev.key === 'Enter' && ev.target.dataset && ev.target.dataset.exViewname !== undefined){ ev.preventDefault(); examOnAction('committee-exam-view-save', ev.target); }
   });
   const q = document.getElementById('ex-q');
