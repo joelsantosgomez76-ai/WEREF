@@ -3615,3 +3615,20 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
   .dbx-rail{top:136px; max-height:calc(100vh - 150px);}
   .dbx-layout.has-panel .dbx-detail.open{top:136px; height:calc(100vh - 150px);}
 }
+
+/* Base de datos · estado de revisión (Sin revisar / Revisada / Necesita cambios) */
+.dbx-state{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:14px;}
+.dbx-st{display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:10px 8px; border:1.5px solid var(--line); border-radius:12px; background:#fff; font:600 13px 'Work Sans'; color:var(--muted); cursor:pointer; text-align:center;}
+.dbx-st svg{width:16px; height:16px; flex:none;}
+.dbx-st:hover:not(:disabled){border-color:var(--ink); color:var(--ink);}
+.dbx-st.on{background:var(--ink); border-color:var(--ink); color:#fff;}
+.dbx-st.ok.on{background:var(--green-ok); border-color:var(--green-ok); color:#fff;}
+.dbx-st.fix.on{background:var(--yellow); border-color:var(--yellow); color:var(--ink);}
+.dbx-st:disabled{opacity:.5; cursor:not-allowed;}
+.dbx-st kbd{font-size:10px; padding:0 4px; margin-left:2px; opacity:.7; border:1px solid currentColor; border-radius:4px; background:transparent; color:inherit;}
+.dbx-row.needsfix{box-shadow:inset 3px 0 0 var(--yellow);}
+.dbx-row.active{box-shadow:inset 3px 0 0 var(--ink);}
+.dbx-check.fix{color:#D58A00;}
+@media (max-width:760px){
+  .dbx-state{grid-template-columns:1fr;}
+}

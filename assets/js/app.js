@@ -254,7 +254,7 @@ let STATE = {
   dbFull: false,
   cameFromDb: false,
   quiz: null, // {qids, idx, mode, law, answers:{qid:letter}, instantFeedback, timeSec, remainingSec}
-  storage: { progress:{}, failedStreaks:{}, userQuestions:[], saved:{}, edits:{}, reviewed:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
+  storage: { progress:{}, failedStreaks:{}, userQuestions:[], saved:{}, edits:{}, reviewed:{}, needsFix:{}, deleted:{}, glossaryQuestions:[], testHistory:[], maxStreak:0, unlockedBadges:{}, dailyGoal:20, crownLevels:{}, heartsRecord:0, suddenDeathRecord:0, timeAttackRecord:0, myBank:[], myBankCategories:[], myDocsFolders:[], myDocs:[] },
   toast: null,
   reviewDetailIdx: null,
   savedBrowseIdx: 0,
@@ -611,10 +611,12 @@ async function adminFetchAll(table, cols){
 /* Lee las revisiones compartidas. Lo que esta cuenta tenía revisado solo para ella se pasa al compartido (una vez). */
 async function loadReviews(){
   if(!sharedActive()) return;
-  const r = await adminFetchAll('question_reviews', 'qid,reviewed_at');
+  let r = await adminFetchAll('question_reviews', 'qid,reviewed_at,needs_changes');
+  REV.fix = !r.error;                                // false mientras falte el SQL de «Necesita cambios»
+  if(r.error) r = await adminFetchAll('question_reviews', 'qid,reviewed_at');
   if(r.error){ REV.ready = false; return; }          // el SQL aún no está ejecutado: se sigue como antes
-  const remote = {}, known = new Set();
-  r.data.forEach(x => { known.add(x.qid); if(x.reviewed_at != null) remote[x.qid] = Number(x.reviewed_at); });
+  const remote = {}, fix = {}, known = new Set();
+  r.data.forEach(x => { known.add(x.qid); if(x.reviewed_at != null) remote[x.qid] = Number(x.reviewed_at); if(x.needs_changes) fix[x.qid] = true; });
   const local = STATE.storage.reviewed || {};
   const now = Date.now();
   const push = Object.keys(local).filter(id => !known.has(id)).map(id => ({
@@ -626,21 +628,32 @@ async function loadReviews(){
   }
   push.forEach(x => { remote[x.qid] = x.reviewed_at; });
   STATE.storage.reviewed = remote;
+  STATE.storage.needsFix = fix;
   REV.ready = true;
   if(Object.keys(local).length) await storageSet('reviewed', '{}');     // ya no se guarda en la cuenta personal
 }
 
-/* Marca o desmarca una pregunta como revisada para todos. */
-function setReviewed(qid, on){
+/* Estado de revisión de una pregunta, igual para todos: 'none' (sin revisar), 'reviewed' (revisada) o 'fix' (necesita cambios). */
+function dbReviewState(qid){
+  if(STATE.storage.reviewed[qid]) return 'reviewed';
+  return (STATE.storage.needsFix || {})[qid] ? 'fix' : 'none';
+}
+function setReviewState(qid, state){
   const ts = Date.now();
-  if(on) STATE.storage.reviewed[qid] = ts; else delete STATE.storage.reviewed[qid];
+  STATE.storage.needsFix = STATE.storage.needsFix || {};
+  if(state === 'reviewed') STATE.storage.reviewed[qid] = ts; else delete STATE.storage.reviewed[qid];
+  if(state === 'fix' && REV.ready && REV.fix) STATE.storage.needsFix[qid] = true; else delete STATE.storage.needsFix[qid];
   if(REV.ready){
-    supabaseClient.from('question_reviews').upsert({ qid, reviewed_at: on ? ts : null, updated_at: ts }, { onConflict: 'qid' })
+    const row = { qid, reviewed_at: state === 'reviewed' ? ts : null, updated_at: ts };
+    if(REV.fix) row.needs_changes = (state === 'fix');          // la columna solo existe si se ha ejecutado el SQL
+    supabaseClient.from('question_reviews').upsert(row, { onConflict: 'qid' })
       .then(r => { if(r && r.error){ STATE.toast = 'No se pudo guardar la revisión. Inténtalo de nuevo.'; adminSyncPoll(); } });
   } else {
     saveReviewed();
   }
 }
+/* Marca o desmarca una pregunta como revisada para todos. */
+function setReviewed(qid, on){ setReviewState(qid, on ? 'reviewed' : 'none'); }
 
 /* Repinta la Base de datos con lo nuevo, sin pisar lo que se está escribiendo. */
 function adminSyncRender(){
@@ -663,10 +676,12 @@ function adminSyncShared(p){
 }
 function adminSyncReview(p){
   try{
-    if(p.eventType === 'DELETE'){ const q = p.old && p.old.qid; if(q) delete STATE.storage.reviewed[q]; }
+    STATE.storage.needsFix = STATE.storage.needsFix || {};
+    if(p.eventType === 'DELETE'){ const q = p.old && p.old.qid; if(q){ delete STATE.storage.reviewed[q]; delete STATE.storage.needsFix[q]; } }
     else if(p.new && p.new.qid){
       if(p.new.reviewed_at != null) STATE.storage.reviewed[p.new.qid] = Number(p.new.reviewed_at);
       else delete STATE.storage.reviewed[p.new.qid];
+      if(p.new.needs_changes) STATE.storage.needsFix[p.new.qid] = true; else delete STATE.storage.needsFix[p.new.qid];
     } else return;
     adminSyncRender();
   }catch(e){}
@@ -696,13 +711,14 @@ async function adminSyncPoll(){
     }
     loadQuestionReports(true);
     if(REV.ready){
-      const rv = await adminFetchAll('question_reviews', 'qid,reviewed_at');
+      const rv = await adminFetchAll('question_reviews', REV.fix ? 'qid,reviewed_at,needs_changes' : 'qid,reviewed_at');
       if(!rv.error){
-        const next = {};
-        rv.data.forEach(x => { if(x.reviewed_at != null) next[x.qid] = Number(x.reviewed_at); });
-        const cur = STATE.storage.reviewed || {};
-        const a = Object.keys(next), b = Object.keys(cur);
+        const next = {}, nextFix = {};
+        rv.data.forEach(x => { if(x.reviewed_at != null) next[x.qid] = Number(x.reviewed_at); if(x.needs_changes) nextFix[x.qid] = true; });
+        const cur = STATE.storage.reviewed || {}, curFix = STATE.storage.needsFix || {};
+        const a = Object.keys(next), b = Object.keys(cur), c = Object.keys(nextFix), d = Object.keys(curFix);
         if(a.length !== b.length || a.some(k => cur[k] !== next[k])){ STATE.storage.reviewed = next; changed = true; }
+        if(c.length !== d.length || c.some(k => !curFix[k])){ STATE.storage.needsFix = nextFix; changed = true; }
       }
     }
   }catch(e){}
@@ -814,7 +830,7 @@ function allQuestionsAdmin(){
       return out.domain === 'assistants' ? Object.assign({}, out, { domain: 'law', rule: 6 }) : out;
     });
 }
-/* Lo que ve la web: sin las preguntas del Reglament General FCF ni las retiradas del juego (borrador). */
+/* Lo que ve la web: sin las preguntas del Reglament General FCF ni las retiradas del juego. */
 function allQuestions(){ return allQuestionsAdmin().filter(q => q.domain !== 'fcf' && !q.draft); }
 function questionsForLaw(law){
   if(law === 'hard') return allQuestions().filter(q => q.difficulty === 'hard');
@@ -4125,13 +4141,13 @@ function saveQuestionEdit(qid){
       // La pregunta estaba retirada del juego: se ofrece volver a publicarla ya corregida.
       setTimeout(async () => {
         const ok = await appConfirm({
-          title: '¿Volver a publicar la pregunta?',
-          message: 'Estaba quitada del juego. Si ya está corregida, vuelve a estar disponible para todos los usuarios.',
-          confirmText: 'Publicar de nuevo', cancelText: 'Dejarla en borrador', icon: 'play'
+          title: '¿Volver a poner la pregunta en juego?',
+          message: 'Estaba retirada del juego. Si ya está corregida, vuelve a estar disponible para todos los usuarios.',
+          confirmText: 'Volver a ponerla en juego', cancelText: 'Dejarla retirada', icon: 'play'
         });
         if(!ok) return;
         const ex = SHARED.rows[qid];
-        if(ex){ sharedSave([Object.assign({}, ex, { draft: false })]); STATE.toast = 'Pregunta publicada de nuevo.'; render(); }
+        if(ex){ sharedSave([Object.assign({}, ex, { draft: false })]); STATE.toast = 'Pregunta puesta en juego de nuevo.'; render(); }
       }, 60);
     }
     if(STATE.storage.edits[qid]){ delete STATE.storage.edits[qid]; saveEdits(); }
@@ -4158,7 +4174,7 @@ function filteredDbList(opts){
   else if(f.difficulty === 'normal') list = list.filter(q => q.difficulty !== 'hard');
   if(f.myOnly) list = list.filter(q => q.source === 'user');
   if(opts.skipStatus){ /* sin filtrar por estado (para los contadores) */ }
-  else if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => (STATE.reports[q.id]||0) > 0 || dups.has(q.id)); }
+  else if(f.status === 'attention'){ const dups = duplicateQuestionIds(); list = list.filter(q => (STATE.reports[q.id]||0) > 0 || dups.has(q.id) || dbReviewState(q.id) === 'fix'); }
   else if(f.status === 'draft') list = list.filter(q => !!q.draft);
   else if(f.status === 'pending') list = list.filter(q => !STATE.storage.reviewed[q.id]);
   else if(f.status === 'reviewed') list = list.filter(q => !!STATE.storage.reviewed[q.id]);
@@ -4379,6 +4395,11 @@ function dbKeydown(ev){
   else if(k === 'ArrowUp' || k === 'k'){ ev.preventDefault(); dbMoveActive(-1); }
   else if((k === 'r' || k === 'R') && STATE.dbActive){ ev.preventDefault(); dbReviewNext(); }
   else if((k === 'e' || k === 'E') && STATE.dbActive){ ev.preventDefault(); STATE.editingId = STATE.dbActive; render(); }
+  else if((k === 'c' || k === 'C') && STATE.dbActive){
+    ev.preventDefault();
+    if(!(REV.ready && REV.fix)){ STATE.toast = 'Falta ejecutar el SQL question-needs-changes.sql en Supabase.'; render(); return; }
+    setReviewState(STATE.dbActive, dbReviewState(STATE.dbActive) === 'fix' ? 'none' : 'fix'); render();
+  }
   else if((k === 'f' || k === 'F') && STATE.dbActive){ ev.preventDefault(); STATE.dbFull = !STATE.dbFull; render(); }
 }
 if(typeof window !== 'undefined' && !window.__dbKeys){ window.__dbKeys = true; window.addEventListener('keydown', dbKeydown); }
@@ -4429,16 +4450,18 @@ function databaseView(){
   const chip = (cls, text) => `<span class="db-tag ${cls}">${text}</span>`;
   const rows = pageItems.map(q => {
     const isReviewed = !!STATE.storage.reviewed[q.id];
+    const needsFix = !isReviewed && !!(STATE.storage.needsFix || {})[q.id];
     const reportCount = STATE.reports[q.id] || 0;
     const tags = [
-      q.draft ? chip('draft', 'Borrador') : '',
+      q.draft ? chip('draft', 'Retirada') : '',
+      needsFix ? chip('flag', 'Necesita cambios') : '',
       q.difficulty==='hard' ? chip('hard', 'Difícil') : '',
       q.source==='user' ? chip('mine', 'Añadida') : '',
       reportCount>0 ? chip('bad', 'Reportada x' + reportCount) : '',
       dupIds.has(q.id) ? chip('dup', 'Duplicada') : ''
     ].join('');
-    return `<div class="dbx-row ${active && active.id === q.id ? 'active' : ''} ${isReviewed ? 'reviewed' : ''} ${reportCount>0 ? 'reported' : ''} ${q.draft ? 'is-draft' : ''}">
-      <button class="dbx-check ${isReviewed ? 'on' : ''}" data-action="toggle-reviewed" data-qid="${q.id}" aria-pressed="${isReviewed ? 'true' : 'false'}" title="${isReviewed ? 'Revisada · pulsa para quitar la marca' : 'Marcar como revisada'}" aria-label="${isReviewed ? 'Quitar la marca de revisada' : 'Marcar como revisada'}">${ic('check')}</button>
+    return `<div class="dbx-row ${active && active.id === q.id ? 'active' : ''} ${isReviewed ? 'reviewed' : ''} ${needsFix ? 'needsfix' : ''} ${reportCount>0 ? 'reported' : ''} ${q.draft ? 'is-draft' : ''}">
+      <button class="dbx-check ${isReviewed ? 'on' : ''} ${needsFix ? 'fix' : ''}" data-action="toggle-reviewed" data-qid="${q.id}" aria-pressed="${isReviewed ? 'true' : 'false'}" title="${isReviewed ? 'Revisada · pulsa para quitar la marca' : (needsFix ? 'Necesita cambios · pulsa para marcarla como revisada' : 'Marcar como revisada')}" aria-label="${isReviewed ? 'Quitar la marca de revisada' : 'Marcar como revisada'}">${ic(needsFix ? 'flag' : 'check')}</button>
       <button class="dbx-open" data-action="db-open" data-qid="${q.id}">
         <span class="dbx-num">#${numberMap[q.id] || '…'}</span>
         <span class="dbx-text"><strong>${esc(q.question)}</strong></span>
@@ -4450,14 +4473,14 @@ function databaseView(){
 
   // Contadores cruzados: los de estado respetan la regla elegida y los de regla respetan el estado elegido.
   const reviewedCount = all.filter(q => STATE.storage.reviewed[q.id]).length;
-  const attentionCount = all.filter(q => (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
+  const attentionCount = all.filter(q => (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id) || dbReviewState(q.id) === 'fix').length;
   const draftCount = all.filter(q => q.draft).length;
   const noStatus = filteredDbList({ skipStatus: true });
   const noLaw = filteredDbList({ skipLaw: true });
   const sAll = noStatus.length;
   const sReviewed = noStatus.filter(q => STATE.storage.reviewed[q.id]).length;
   const sPending = sAll - sReviewed;
-  const sAttention = noStatus.filter(q => (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id)).length;
+  const sAttention = noStatus.filter(q => (STATE.reports[q.id] || 0) > 0 || dupIds.has(q.id) || dbReviewState(q.id) === 'fix').length;
   const sDraft = noStatus.filter(q => q.draft).length;
   const lawsCount = {};
   for(let i = 1; i <= 17; i++) lawsCount[i] = 0;
@@ -4511,13 +4534,21 @@ function databaseView(){
     if(q.updatedAt) dates.push(`Editada ${new Date(q.updatedAt).toLocaleDateString('es-ES')}`);
     { const rv = STATE.storage.reviewed[q.id]; if(typeof rv === 'number' && rv > 1e11) dates.push(`Revisada ${new Date(rv).toLocaleDateString('es-ES')}`); }
     const tagsAll = [
-      q.draft ? chip('draft', 'Borrador · fuera del juego') : '',
+      q.draft ? chip('draft', 'Retirada del juego') : '',
       q.difficulty==='hard' ? chip('hard', 'Difícil') : '',
       q.source==='user' ? chip('mine', 'Añadida') : '',
-      isReviewed ? chip('ok', 'Revisada') : '',
       reportCount>0 ? chip('bad', 'Reportada x' + reportCount) : '',
       dupIds.has(q.id) ? chip('dup', 'Duplicada') : ''
     ].join('');
+    // Estado de revisión: un solo control con tres opciones (en lugar de dos botones parecidos)
+    const stNow = dbReviewState(q.id);
+    const fixOk = REV.ready && REV.fix;
+    const stBtn = (key, label, cls, icon, extra) => `<button type="button" class="dbx-st ${cls} ${stNow === key ? 'on' : ''}" data-action="db-set-state" data-qid="${q.id}" data-state="${key}" aria-pressed="${stNow === key ? 'true' : 'false'}" ${extra || ''}>${icon ? ic(icon) + ' ' : ''}${label}</button>`;
+    const stateCtl = `<div class="dbx-state" role="group" aria-label="Estado de revisión">
+        ${stBtn('none', 'Sin revisar', '', '')}
+        ${stBtn('reviewed', 'Revisada', 'ok', 'check')}
+        ${stBtn('fix', 'Necesita cambios <kbd>C</kbd>', 'fix', 'flag', fixOk ? '' : 'disabled title="Falta ejecutar el SQL question-needs-changes.sql en Supabase"')}
+      </div>`;
     const head = `<div class="dbx-d-top">
         <div class="dbx-d-nav">
           <button type="button" class="tx-icon" data-action="db-nav" data-dir="-1" ${idx <= 0 ? 'disabled' : ''} title="Pregunta anterior (↑)" aria-label="Pregunta anterior">${ic('up')}</button>
@@ -4536,6 +4567,7 @@ function databaseView(){
       detail = `${head}
       <div class="dbx-d-body">
       ${meta}
+      ${stateCtl}
       ${tagsAll ? `<div class="db-tags" style="margin-bottom:12px;">${tagsAll}</div>` : ''}
       <div class="dbx-d-q">${esc(q.question)}</div>
       <div class="dbx-opts">${q.options.map((o,i)=>`<div class="dbx-opt ${letters[i]===q.correct?'ok':''}"><u>${letters[i].toUpperCase()}</u><span>${esc(o)}</span>${letters[i]===q.correct ? `<em>${ic('check')} Correcta</em>` : ''}</div>`).join('')}</div>
@@ -4544,9 +4576,8 @@ function databaseView(){
       </div>
       <div class="dbx-d-actions">
         <button class="btn btn-primary" data-action="db-review-next" data-qid="${q.id}">${ic('check')} Revisada y siguiente <kbd>R</kbd></button>
-        <button class="btn ${isReviewed?'btn-secondary':'btn-ghost'}" data-action="toggle-reviewed" data-qid="${q.id}">${ic('check')} ${isReviewed ? 'Revisada' : 'Marcar revisada'}</button>
         <button class="btn btn-ghost" data-action="edit-question" data-qid="${q.id}">${ic('pencil')} Editar <kbd>E</kbd></button>
-        ${sharedActive() ? `<button class="btn ${q.draft ? 'btn-primary' : 'btn-ghost'}" data-action="toggle-draft" data-qid="${q.id}" title="${q.draft ? 'Vuelve a estar disponible para todos' : 'Se quita del juego hasta que la corrijas'}">${ic(q.draft ? 'play' : 'lock')} ${q.draft ? 'Volver a publicar' : 'Quitar del juego'}</button>` : ''}
+        ${sharedActive() ? `<button class="btn ${q.draft ? 'btn-primary' : 'btn-ghost'}" data-action="toggle-draft" data-qid="${q.id}" title="${q.draft ? 'Vuelve a estar disponible para todos los usuarios' : 'Se retira del juego hasta que la corrijas'}">${ic(q.draft ? 'play' : 'lock')} ${q.draft ? 'Volver a poner en juego' : 'Retirar del juego'}</button>` : ''}
         ${reportCount>0 ? `<button class="btn btn-ghost" data-action="dismiss-reports" data-qid="${q.id}">${ic('flag')} Descartar reportes</button>` : ''}
         <button class="btn btn-ghost btn-danger-soft" data-action="delete-question" data-qid="${q.id}">${ic('trash')} Eliminar</button>
       </div>`;
@@ -4591,7 +4622,7 @@ function databaseView(){
         ${statusChip('attention', 'Atención', sAttention)}
         ${statusChip('pending', 'Sin revisar', sPending)}
         ${statusChip('reviewed', 'Revisadas', sReviewed)}
-        ${sharedActive() || draftCount ? statusChip('draft', 'Borrador', sDraft) : ''}
+        ${sharedActive() || draftCount ? statusChip('draft', 'Retiradas', sDraft) : ''}
       </div>
       <div class="dbx-bar2">
         ${lawSelect}
@@ -4617,7 +4648,7 @@ function databaseView(){
       <div class="dbx-main">
         <div class="dbx-results-head">
           <span>${list.length ? `<b>${from}–${to}</b> de <b>${list.length}</b>` : 'Sin resultados'}</span>
-          <span class="dbx-hint"><kbd>↑</kbd><kbd>↓</kbd> moverte · <kbd>R</kbd> revisada y siguiente · <kbd>E</kbd> editar · <kbd>/</kbd> buscar</span>
+          <span class="dbx-hint"><kbd>↑</kbd><kbd>↓</kbd> moverte · <kbd>R</kbd> revisada y siguiente · <kbd>C</kbd> necesita cambios · <kbd>E</kbd> editar · <kbd>/</kbd> buscar</span>
           <label class="db-pagesize">Por página
             <select id="db-page-size">
               ${[25, 50, 100].map(n => `<option value="${n}" ${pageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
@@ -5052,7 +5083,7 @@ async function exportExcel(){
     'Correcta (a/b/c/d)': q.correct,
     'Explicación': q.explanation||'',
     'Difícil (SI/NO)': q.difficulty==='hard' ? 'SI' : 'NO',
-    'En borrador (SI/NO)': q.draft ? 'SI' : 'NO'
+    'Retirada del juego (SI/NO)': q.draft ? 'SI' : 'NO'
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{wch:8},{wch:10},{wch:10},{wch:50},{wch:28},{wch:28},{wch:28},{wch:28},{wch:10},{wch:40},{wch:10}];
@@ -5450,6 +5481,12 @@ function onAction(e){
   else if(action==='start-timeattack'){ startTimeAttackMode(); }
   else if(dbDateAction(action, el)){ /* filtro de fechas de Base de datos */ }
   else if(typeof action === 'string' && action.startsWith('install-') && typeof installOnAction === 'function'){ installOnAction(action); }
+  else if(action==='db-set-state'){
+    if(!isDevUser()) return;
+    const st = el.dataset.state;
+    if(st === 'fix' && !(REV.ready && REV.fix)){ STATE.toast = 'Falta ejecutar el SQL question-needs-changes.sql en Supabase.'; render(); return; }
+    setReviewState(el.dataset.qid, st); render();
+  }
   else if(action==='db-open'){ if(!isDevUser()) return; STATE.dbActive = el.dataset.qid; STATE.editingId = null; render(); dbEnsureVisible(); }
   else if(action==='db-close'){
     // al volver a la lista, queda a la vista la pregunta que estabas revisando
@@ -5518,8 +5555,8 @@ function onAction(e){
           difficulty: cur.difficulty || 'normal', deleted: false, draft: makeDraft, created_at: null, updated_at: null };
     sharedSave([row]);
     STATE.toast = makeDraft
-      ? 'Pregunta quitada del juego. Sigue en la base de datos como borrador hasta que la vuelvas a publicar.'
-      : 'Pregunta publicada de nuevo.';
+      ? 'Pregunta retirada del juego. Sigue en la Base de datos hasta que la vuelvas a poner en juego.'
+      : 'Pregunta puesta en juego de nuevo.';
     render();
   }
   else if(action==='cancel-delete'){

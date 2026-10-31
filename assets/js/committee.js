@@ -1838,7 +1838,7 @@ function cmNumsPreviewHtml(b){
         <span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">${esc(cmRuleLabel(q))}</span>
         ${q.difficulty === 'hard' ? '<span class="cm-chip soft" style="padding:1px 8px; font-size:11px;">Difícil</span>' : ''}
         ${it.state === 'already' ? '<span class="cm-pv-state warn">Ya está en el test</span>' : ''}
-        ${it.state === 'draft' ? '<span class="cm-pv-state bad">En borrador: no se añadirá</span>' : ''}
+        ${it.state === 'draft' ? '<span class="cm-pv-state bad">Retirada del juego: no se añadirá</span>' : ''}
       </div>
       <div class="cm-pv-q">${esc(q.question)}</div>
       ${cmQuestionDetail(q)}
@@ -1856,7 +1856,7 @@ function cmNumsReportHtml(rep){
   const rows = [];
   if(rep.added) rows.push(`<div class="cm-nums-rep ok">${cmIc('check')}<span>Añadidas <b>${rep.added}</b> ${rep.added === 1 ? 'pregunta' : 'preguntas'} al test.</span></div>`);
   if(rep.already.length) rows.push(`<div class="cm-nums-rep warn">${cmIc('flag')}<span>Ya estaban en el test: <b>${rep.already.join(', ')}</b>.</span></div>`);
-  if(rep.draft && rep.draft.length) rows.push(`<div class="cm-nums-rep warn">${cmIc('flag')}<span>En borrador (fuera del juego), no se añaden: <b>${rep.draft.join(', ')}</b>.</span></div>`);
+  if(rep.draft && rep.draft.length) rows.push(`<div class="cm-nums-rep warn">${cmIc('flag')}<span>Retirada del juego, no se añaden: <b>${rep.draft.join(', ')}</b>.</span></div>`);
   if(rep.missing.length) rows.push(`<div class="cm-nums-rep bad">${cmIc('flag')}<span>No existen (o se eliminaron): <b>${rep.missing.join(', ')}</b>.</span></div>`);
   return rows.join('');
 }

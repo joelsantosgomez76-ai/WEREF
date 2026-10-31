@@ -116,7 +116,7 @@ function liveTab(){
 function liveNewDraft(){ return { title: '', seconds: '20', numsText: '', selected: [], numsReport: null, copyTest: '', editId: null, ruleSel: '', ruleCount: 'all', ruleHard: false, ruleReport: null }; }
 
 /* ---------- elegir preguntas por regla de la Base de datos ---------- */
-/* Preguntas que se pueden jugar (sin las que están en borrador) de una regla, del Glosario o del Reglament FCF. */
+/* Preguntas que se pueden jugar (sin las retiradas del juego) de una regla, del Glosario o del Reglament FCF. */
 function lvRuleQuestions(sel, hardOnly){
   const m = /^r:(\d+)$/.exec(sel || '');
   return allQuestionsAdmin().filter(q => {
@@ -170,7 +170,7 @@ function liveCreateForm(){
   const repHtml = rep ? `${rep.added ? `<div class="cm-nums-rep ok">${ic('check')}<span>Añadidas <b>${rep.added}</b> ${rep.added === 1 ? 'pregunta' : 'preguntas'}.</span></div>` : ''}
       ${rep.already.length ? `<div class="cm-nums-rep warn">${ic('flag')}<span>Ya estaban: <b>${rep.already.join(', ')}</b>.</span></div>` : ''}
       ${rep.missing.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>No existen: <b>${rep.missing.join(', ')}</b>.</span></div>` : ''}
-      ${rep.draft.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>En borrador (fuera del juego): <b>${rep.draft.join(', ')}</b>.</span></div>` : ''}` : '';
+      ${rep.draft.length ? `<div class="cm-nums-rep bad">${ic('flag')}<span>Retirada del juego: <b>${rep.draft.join(', ')}</b>.</span></div>` : ''}` : '';
   const tests = (COMMITTEE.tests || []).filter(t => t.question_count);
   return `
   <button class="backbtn" data-action="committee-live-cancel">&larr; Volver a Kahoot</button>
