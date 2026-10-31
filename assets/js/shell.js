@@ -83,7 +83,7 @@ function shellNavItems(){
   const academiaTotal = Object.keys(STATE.storage.saved || {}).length;
   const main = [
     { id: 'home', label: 'Inicio', icon: 'home', action: 'home' },
-    { id: 'reglas', label: 'Reglas de Juego', icon: 'book', action: 'train-config' },
+    { id: 'reglas', label: 'Test Rápidos', icon: 'book', action: 'train-config' },
     { id: 'league', label: 'WEREF League', icon: 'trophy', action: 'dailyChallenge' },
     { id: 'academia', label: 'Mi Academia', icon: 'folder', action: 'academia', badge: academiaTotal || 0 },
     { id: 'stats', label: 'Estadísticas', icon: 'chart', action: 'stats' },
@@ -130,7 +130,7 @@ function shellFor(view, html){
   </aside>`;
   const bottomItems = [
     { id: 'home', label: 'Inicio', icon: 'home', action: 'home' },
-    { id: 'reglas', label: 'Reglas', icon: 'book', action: 'train-config' },
+    { id: 'reglas', label: 'Tests', icon: 'book', action: 'train-config' },
     { id: 'league', label: 'League', icon: 'trophy', action: 'dailyChallenge' },
     { id: 'academia', label: 'Academia', icon: 'folder', action: 'academia' },
     { id: 'more', label: 'Más', icon: 'more', action: 'menu' }
