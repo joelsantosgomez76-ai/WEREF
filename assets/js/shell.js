@@ -68,7 +68,7 @@ function shellSection(view){
   if(v === 'academia' || v === 'savedBrowse' || v.startsWith('myBank') || v.startsWith('myDocs')) return 'academia';
   if(['stats', 'recentPerformance', 'streakCalendar'].includes(v)) return 'stats';
   if(v === 'achievements') return 'logros';
-  if(['committeeTraining', 'committeeAdmin', 'committeeBuilder', 'committeePreview', 'committeeTestDetail', 'committeeLiveHost', 'committeeLiveDetail'].includes(v)) return 'formacion';
+  if(['committeeTraining', 'committeeExamBench', 'committeeAdmin', 'committeeBuilder', 'committeePreview', 'committeeTestDetail', 'committeeLiveHost', 'committeeLiveDetail'].includes(v)) return 'formacion';
   if(v.startsWith('committee')) return 'comite';
   if(v === 'database') return 'db';
   if(v === 'suggestionsAdmin') return 'sug';
@@ -139,7 +139,7 @@ function shellFor(view, html){
   const bottomActive = moreIds.includes(active) ? 'more' : active;
   const bottom = `<nav class="shell-bottom" aria-label="Navegación">${bottomItems.map(it =>
     `<button class="${bottomActive === it.id ? 'active' : ''}" data-action="${it.action}">${shellIcon(it.icon)}<span>${it.label}</span></button>`).join('')}</nav>`;
-  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin', 'profile', 'profileEdit', 'adminDashboard', 'database', 'committee', 'committeeAdmin', 'committeeBuilder', 'committeeTestDetail', 'committeeResult', 'committeeTraining', 'add'];
+  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin', 'profile', 'profileEdit', 'adminDashboard', 'database', 'committee', 'committeeAdmin', 'committeeBuilder', 'committeeTestDetail', 'committeeResult', 'committeeTraining', 'committeeExamBench', 'add'];
   const wide = WIDE_VIEWS.includes(String(view)) || String(view) === 'law';
   return `<div class="shell">${side}<main class="shell-main"><div class="shell-content ${wide ? 'wide' : ''}">${html}</div></main></div>${bottom}`;
 }

@@ -4723,6 +4723,33 @@ function editFormHtml(q){
   </article>`;
 }
 
+/* Guarda una pregunta nueva en el banco compartido (o en la cuenta si no está instalado) sin cambiar de pantalla.
+   f = { domain, rule, question, options[4], correct, explanation, difficulty }.
+   Devuelve { ok:false, msg } o { ok:true, id, saving } (saving = promesa de la escritura en el servidor). */
+function persistNewQuestion(f){
+  const dedupeKey = questionDedupeKey({ question: f.question, options: f.options });
+  if(allQuestionsAdmin().some(q => questionDedupeKey(q) === dedupeKey)){
+    return { ok: false, msg: 'Ya existe una pregunta con este mismo enunciado y estas mismas opciones en la base de datos.' };
+  }
+  const domain = f.domain;
+  if(sharedActive()){
+    const prefix = domain === 'glossary' ? 'G' : domain === 'assistants' ? 'S' : domain === 'fcf' ? 'F' : 'U';
+    const id = prefix + Math.random().toString(36).slice(2,9);
+    const saving = sharedSave([sharedRowFor(id, domain, { rule: f.rule, question: f.question, options: f.options, correct: f.correct, explanation: f.explanation, difficulty: f.difficulty }, Date.now())]);
+    return { ok: true, id, saving };
+  }
+  if(domain === 'glossary'){
+    const q = { domain:'glossary', rule:null, num: 'U'+(STATE.storage.glossaryQuestions.length+1), question: f.question, options: f.options, correct: f.correct, explanation: f.explanation, difficulty: f.difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() };
+    STATE.storage.glossaryQuestions.push(q);
+    saveGlossaryQuestions();
+    return { ok: true, id: q.id, saving: Promise.resolve(true) };
+  }
+  const q = { domain:'law', rule: f.rule, num: 'U'+(STATE.storage.userQuestions.length+1), question: f.question, options: f.options, correct: f.correct, explanation: f.explanation, difficulty: f.difficulty, id:'U'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() };
+  STATE.storage.userQuestions.push(q);
+  saveUserQuestions();
+  return { ok: true, id: q.id, saving: Promise.resolve(true) };
+}
+
 function saveNewQuestion(){
   const lawSelEl = document.getElementById('f-law');
   const lawSelVal = lawSelEl.value;
@@ -4738,34 +4765,21 @@ function saveNewQuestion(){
   const difficulty = document.getElementById('f-hard').checked ? 'hard' : 'normal';
   if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
 
-  const dedupeKey = questionDedupeKey({ question, options: [a,b,c,d] });
-  if(allQuestionsAdmin().some(q => questionDedupeKey(q) === dedupeKey)){
-    STATE.toast = 'Ya existe una pregunta con este mismo enunciado y estas mismas opciones en la base de datos.';
-    render();
-    return;
-  }
+  const saved = persistNewQuestion({ domain, rule: selectedNum, question, options: [a,b,c,d], correct, explanation, difficulty });
+  if(!saved.ok){ STATE.toast = saved.msg; render(); return; }
 
   if(sharedActive()){
     // Banco compartido: la pregunta la ven todos los usuarios.
-    const prefix = domain === 'glossary' ? 'G' : domain === 'assistants' ? 'S' : domain === 'fcf' ? 'F' : 'U';
-    const id = prefix + Math.random().toString(36).slice(2,9);
-    sharedSave([sharedRowFor(id, domain, { rule:selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty }, Date.now())]);
     if(domain==='glossary'){ STATE.toast='Pregunta guardada en el Glosario para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId='glossary'; STATE.view='law'; } }
     else if(domain==='assistants'){ STATE.toast='Pregunta guardada en Árbitros Asistentes para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId='assistants'; STATE.view='law'; } }
     else if(domain==='fcf'){ STATE.toast='Pregunta guardada en Reglament General FCF. Solo se ve en la Base de datos y en los tests del comité.'; STATE.cameFromDb = true; }
     else { STATE.toast='Pregunta guardada en la Regla '+selectedNum+' para todos los usuarios.'; if(!STATE.cameFromDb){ STATE.lawId=selectedNum; STATE.view='law'; } }
     if(STATE.cameFromDb){ STATE.view='database'; }
   } else if(domain==='glossary'){
-    const q = { domain:'glossary', rule:null, num: 'U'+(STATE.storage.glossaryQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'G'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() };
-    STATE.storage.glossaryQuestions.push(q);
-    saveGlossaryQuestions();
     STATE.toast='Pregunta guardada en el Glosario.';
     if(STATE.cameFromDb){ STATE.view='database'; }
     else { STATE.lawId = 'glossary'; STATE.view='law'; }
   } else {
-    const q = { domain:'law', rule: selectedNum, num: 'U'+(STATE.storage.userQuestions.length+1), question, options:[a,b,c,d], correct, explanation, difficulty, id:'U'+Math.random().toString(36).slice(2,9), source:'user', createdAt: Date.now() };
-    STATE.storage.userQuestions.push(q);
-    saveUserQuestions();
     STATE.toast='Pregunta guardada en la Regla '+selectedNum+'.';
     if(STATE.cameFromDb){ STATE.view='database'; }
     else { STATE.lawId = selectedNum; STATE.view='law'; }
