@@ -116,7 +116,7 @@ function shellFor(view, html){
   const side = `
   <aside class="shell-side">
     <div class="shell-brand"><span class="mark">${LOGO_MARK}</span><span>WEREF</span></div>
-    <nav class="shell-nav" aria-label="Navegación principal">${main.map(it => shellLink(it, active)).join('')}</nav>
+    <nav class="shell-nav" aria-label="Navegación principal">${main.filter(it => !['stats', 'logros'].includes(it.id)).map(it => shellLink(it, active)).join('')}</nav>
     ${admin.length ? `<div class="shell-sep">Administración</div><nav class="shell-nav">${admin.map(it => shellLink(it, active)).join('')}</nav>` : ''}
     <div class="shell-spacer"></div>
     <button class="shell-user" data-action="achievements" title="Ver rango e insignias">
