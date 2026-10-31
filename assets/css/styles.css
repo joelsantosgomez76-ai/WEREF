@@ -3511,7 +3511,6 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
 .dbx-bar2{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
 .dbx-bar2 select{margin:0; width:auto; min-width:150px;}
 .dbx-mlaw{display:none;}
-.dbx.panel-on .dbx-mlaw{display:block;}
 .dbx-bar2 .db-adv{margin:0; padding:0; border:none; position:relative;}
 .dbx-bar2 .db-adv > summary{padding:8px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff;}
 .dbx-bar2 .db-adv[open] > summary{border-color:var(--ink); color:var(--ink);}
@@ -3557,14 +3556,7 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
 .dbx-tags{display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;}
 .dbx-tags .db-tag{font-size:10.5px; padding:2px 7px;}
 
-/* pregunta abierta: las reglas se pliegan, la lista se estrecha y la pregunta ocupa casi todo */
-.dbx-layout.has-panel .dbx-rail{display:none;}
-.dbx-layout.has-panel .dbx-hint{display:none;}
-.dbx-layout.has-panel .dbx-open{grid-template-columns:54px minmax(0,1fr); padding-top:9px; padding-bottom:9px;}
-.dbx-layout.has-panel .dbx-scope, .dbx-layout.has-panel .dbx-tags{display:none;}
-.dbx-layout.has-panel .dbx-text strong{font-size:13px;}
-
-/* detalle: cajón a la derecha en pantallas pequeñas; fijo junto a la lista cuando hay sitio */
+/* detalle: cajón a la derecha en pantallas pequeñas; fijo junto a las reglas cuando hay sitio */
 .dbx-detail{display:none;}
 .dbx-detail.open{display:flex; flex-direction:column; position:fixed; z-index:1200; top:0; right:0; bottom:0; width:min(760px,100vw); background:#fff; border-left:1px solid var(--line); box-shadow:-14px 0 44px rgba(0,0,0,.2); animation:exSlide .18s ease-out;}
 .dbx-d-top{flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 18px; border-bottom:1px solid var(--line);}
@@ -3596,13 +3588,12 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
 .dbx-detail .fq-form{max-width:none;}
 
 @media (min-width:1100px){
-  .dbx-layout.has-panel{grid-template-columns:minmax(260px,320px) minmax(0,1fr);}
-  .dbx-layout.has-panel .dbx-main{order:1;}
-  .dbx-layout.has-panel .dbx-detail.open{order:2; position:sticky; top:150px; z-index:auto; width:auto; height:calc(100vh - 166px); border:1px solid var(--line); border-radius:14px; box-shadow:none; animation:none; overflow:hidden;}
-  .dbx-layout.has-panel .dbx-results-head{flex-wrap:wrap;}
-  .dbx-layout.has-panel .db-pagesize{display:none;}
+  /* revisando una pregunta: las reglas a la izquierda para cambiar rápido y la pregunta ocupando el resto (sin lista) */
+  .dbx-layout.has-panel{grid-template-columns:230px minmax(0,1fr);}
+  .dbx-layout.has-panel .dbx-main{display:none;}
+  .dbx-layout.has-panel .dbx-detail.open{position:sticky; top:150px; z-index:auto; width:auto; height:calc(100vh - 166px); border:1px solid var(--line); border-radius:14px; box-shadow:none; animation:none; overflow:hidden;}
   .dbx-layout.full{grid-template-columns:minmax(0,1fr);}
-  .dbx-layout.full .dbx-main{display:none;}
+  .dbx-layout.full .dbx-rail{display:none;}
   .dbx-layout.full .dbx-detail.open{width:100%; max-width:1060px; margin:0 auto;}
   .dbx-layout.full .dbx-d-body{padding:28px 40px 36px;}
   .dbx-layout.full .dbx-d-q{font-size:24px;}
@@ -3612,8 +3603,6 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
   .dbx-layout{grid-template-columns:190px minmax(0,1fr);}
   .dbx-open{grid-template-columns:56px minmax(0,1fr) 48px;}
   .dbx-open .dbx-tags{grid-column:2 / -1; justify-content:flex-start;}
-  .dbx-layout.has-panel{grid-template-columns:minmax(0,1fr);}
-  .dbx-layout.has-panel .dbx-open{grid-template-columns:54px minmax(0,1fr);}
 }
 @media (max-width:760px){
   .dbx-layout{grid-template-columns:minmax(0,1fr);}
@@ -3624,8 +3613,6 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
   .dbx-open{grid-template-columns:48px minmax(0,1fr); gap:4px 8px; padding-top:12px; padding-bottom:12px;}
   .dbx-open .dbx-scope{grid-column:1; grid-row:2; justify-self:start;}
   .dbx-open .dbx-tags{grid-column:2; grid-row:2; justify-content:flex-start;}
-  .dbx-layout.has-panel .dbx-scope, .dbx-layout.has-panel .dbx-tags{display:inline-flex;}
-  .dbx-layout.has-panel .dbx-open{grid-template-columns:48px minmax(0,1fr);}
   .dbx-detail.open{width:100vw; border-left:none;}
   .dbx-fullbtn{display:none;}
   .dbx-d-body{padding:16px 16px 24px;}
@@ -3634,4 +3621,12 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
   .dbx-d-actions .btn-danger-soft{margin-left:0;}
   .dbx-bar{top:4px;}
   .dbx-bar2 select{flex:1 1 140px;}
+}
+.dbx-backbtn{padding:7px 12px; font-size:12.5px; white-space:nowrap;}
+@media (min-width:1100px){
+  .dbx-bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 12px;}
+  .dbx-search{flex:1 1 300px; min-width:240px;}
+  .dbx-bar2{flex:0 0 auto;}
+  .dbx-rail{top:136px; max-height:calc(100vh - 150px);}
+  .dbx-layout.has-panel .dbx-detail.open{top:136px; height:calc(100vh - 150px);}
 }

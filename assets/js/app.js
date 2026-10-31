@@ -4354,7 +4354,7 @@ function dbMoveActive(delta){
 function dbEnsureVisible(){
   const d = document.querySelector('.dbx-detail.open'), lay = document.querySelector('.dbx-layout');
   if(!d || !lay || getComputedStyle(d).position !== 'sticky') return;
-  const need = lay.getBoundingClientRect().top + window.scrollY - 150;
+  const need = lay.getBoundingClientRect().top + window.scrollY - 136;
   if(window.scrollY < need) window.scrollTo(0, Math.max(0, need));
 }
 /* Atajos de la Base de datos: ↑↓ moverte, R revisada y siguiente, E editar, / buscar, Esc cerrar. */
@@ -4418,7 +4418,10 @@ function databaseView(){
   all.forEach((q,i) => { numberMap[q.id] = questionNumber(q, i+1); });
   qnumSync();
   const dupIds = duplicateQuestionIds();
-  const active = dbActiveQuestion(list);
+  let active = dbActiveQuestion(list);
+  // Estás revisando y cambias de regla, de estado o buscas: se abre la primera pregunta del nuevo filtro
+  // (así sigues en el modo revisión en vez de volver a la lista). Si no hay ninguna, se cierra.
+  if(!active && STATE.dbActive && list.length){ active = list[0]; STATE.dbActive = active.id; STATE.editingId = null; }
   if(!active){ STATE.dbActive = null; STATE.dbFull = false; }
 
   const chip = (cls, text) => `<span class="db-tag ${cls}">${text}</span>`;
@@ -4521,7 +4524,7 @@ function databaseView(){
         </div>
         <div class="dbx-d-tools">
           <button type="button" class="btn btn-ghost dbx-fullbtn" data-action="db-full" title="${STATE.dbFull ? 'Volver a ver la lista' : 'Oculta la lista para tener más espacio'} (F)">${STATE.dbFull ? 'Salir de pantalla completa' : 'Pantalla completa'}</button>
-          <button type="button" class="tx-icon" data-action="db-close" title="Cerrar (Esc)" aria-label="Cerrar el detalle">✕</button>
+          <button type="button" class="btn btn-ghost dbx-backbtn" data-action="db-close" title="Cerrar la pregunta y ver la lista (Esc)">&larr; Volver a la lista</button>
         </div>
       </div>`;
     const meta = `<div class="dbx-d-meta"><span class="db-q-num" title="Número único y permanente de la pregunta">#${numberMap[q.id] || '…'}</span><span class="db-q-scope">${scopeLabel(q)}</span></div>`;
@@ -5440,7 +5443,17 @@ function onAction(e){
   else if(dbDateAction(action, el)){ /* filtro de fechas de Base de datos */ }
   else if(typeof action === 'string' && action.startsWith('install-') && typeof installOnAction === 'function'){ installOnAction(action); }
   else if(action==='db-open'){ if(!isDevUser()) return; STATE.dbActive = el.dataset.qid; STATE.editingId = null; render(); dbEnsureVisible(); }
-  else if(action==='db-close'){ STATE.dbActive = null; STATE.dbFull = false; STATE.editingId = null; render(); }
+  else if(action==='db-close'){
+    // al volver a la lista, queda a la vista la pregunta que estabas revisando
+    const lastId = STATE.dbActive;
+    if(lastId){
+      const f = STATE.dbFilter, ps = [25, 50, 100].includes(f.pageSize) ? f.pageSize : 50;
+      const i = filteredDbList().findIndex(q => q.id === lastId);
+      if(i >= 0) f.page = Math.floor(i / ps) + 1;
+    }
+    STATE.dbActive = null; STATE.dbFull = false; STATE.editingId = null; render();
+    if(lastId){ const b = document.querySelector('.dbx-check[data-qid="' + lastId + '"]'); const r = b && b.closest('.dbx-row'); if(r && r.scrollIntoView) r.scrollIntoView({ block: 'center' }); }
+  }
   else if(action==='db-full'){ STATE.dbFull = !STATE.dbFull; render(); dbEnsureVisible(); }
   else if(action==='db-nav'){ if(!isDevUser()) return; dbMoveActive(parseInt(el.dataset.dir, 10) || 1); }
   else if(action==='db-review-next'){ if(!isDevUser()) return; dbReviewNext(); }
@@ -5459,6 +5472,12 @@ function onAction(e){
   else if(action==='confirm-delete'){
     const qid = STATE.confirmDeleteId;
     if(qid){
+      if(STATE.dbActive === qid){
+        // revisando: al eliminar la abierta, se pasa a la siguiente (o a la anterior si era la última)
+        const l = filteredDbList(), i = l.findIndex(q => q.id === qid);
+        const nxt = l[i + 1] || l[i - 1];
+        STATE.dbActive = nxt ? nxt.id : null;
+      }
       if(sharedActive() && (baseIdSet().has(qid) || SHARED.rows[qid])){
         // Banco compartido: se elimina para todos los usuarios.
         if(baseIdSet().has(qid)){
