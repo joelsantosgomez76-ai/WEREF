@@ -3457,3 +3457,34 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
 .at-hero-btns .btn-ghost:hover{background:rgba(255,255,255,.22);}
 .at-hero-btns svg, .at-dl svg{width:16px; height:16px; flex:none;}
 .at-dl{display:inline-flex; align-items:center; gap:6px; padding:8px 12px; font-size:13px;}
+
+/* ---------- Biblioteca · mesa de trabajo «Pasar a la app» ---------- */
+.bench{max-width:1560px; margin:0 auto;}
+.bench-head{display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin:6px 0 14px; padding:14px 16px; background:#fff; border:1px solid var(--line); border-radius:14px;}
+.bench-title{display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 1 320px;}
+.bench-title small{color:var(--accent); font:700 11px 'JetBrains Mono'; text-transform:uppercase; letter-spacing:.06em;}
+.bench-title strong{font-size:17px; line-height:1.25; overflow-wrap:anywhere;}
+.bench-title span{color:var(--muted); font-size:13px;}
+.bench-state{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.bench-state .btn{display:inline-flex; align-items:center; gap:7px;}
+.bench-state .btn svg, .bench-actions .btn svg{width:16px; height:16px; flex:none;}
+.bench-grid{display:grid; grid-template-columns:minmax(0,1.25fr) minmax(380px,.75fr); gap:14px; align-items:start;}
+.bench-pdf{position:sticky; top:12px; height:calc(100vh - 170px); min-height:480px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--chalk);}
+.bench-pdf .ex-prev-msg .btn{display:inline-flex; align-items:center; gap:7px;}
+.bench-side{min-width:0;}
+.bench-form textarea, .bench-form select{width:100%;}
+.bench-form .fq-answers{margin-top:2px;}
+.bench-msg{min-height:20px; margin-top:12px; font-size:13px; font-weight:600;}
+.bench-msg.ok{color:var(--green-ok);}
+.bench-msg.bad{color:var(--red);}
+.bench-actions{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+.bench-actions small{color:var(--muted);}
+.bench-actions .btn{display:inline-flex; align-items:center; gap:8px;}
+@media (max-width:1100px){
+  .bench-grid{grid-template-columns:minmax(0,1fr);}
+  .bench-pdf{position:static; height:68vh; min-height:360px;}
+}
+@media (max-width:760px){
+  .bench-pdf{height:auto; min-height:0;}
+  .bench-pdf .ex-prev-msg{padding:22px 16px;}
+}

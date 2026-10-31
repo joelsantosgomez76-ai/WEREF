@@ -253,6 +253,7 @@ function committeeView(v){
   if(v === 'committeeBuilder') return cmBuilderView();
   if(v === 'committeePreview') return cmPreviewView();
   if(v === 'committeeTestDetail') return cmTestDetailView();
+  if(v === 'committeeExamBench') return typeof examBenchView === 'function' ? examBenchView() : '';
   if(v === 'committeeLiveHost') return liveHostView();
   if(v === 'committeeLivePlay') return livePlayView();
   if(v === 'committeeLiveDetail') return liveDetailView();

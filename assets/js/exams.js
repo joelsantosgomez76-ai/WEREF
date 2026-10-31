@@ -40,6 +40,8 @@ COMMITTEE.exams = {
   edit: null,            // { id, title, date, cat, season } edición dentro del panel
   busy: '',              // texto de progreso mientras se sube
   queue: [],             // cola de subida [{ name, state: wait/up/ok/err, msg }]
+  bench: null,           // mesa de trabajo «Pasar a la app» (ver exams-bench.js)
+  benchScope: '',        // último ámbito elegido en la mesa de trabajo
   pendingFiles: null,    // PDF soltados en la página que esperan temporada y categoría
   inflight: 0,           // escrituras en curso (para no pisarlas al sincronizar)
   rt: { started: false, ok: false, timer: null, ren: null, kb: false }
@@ -470,7 +472,8 @@ function examPanelBodyHtml(e){
       <textarea id="ex-notes" data-ex-notes rows="3" maxlength="2000" placeholder="Por ejemplo: revisar la pregunta 12">${esc(e.notes || '')}</textarea>
     </div>` : `<div class="st-note">Para añadir notas y ver quién subió cada examen falta ejecutar el SQL <b>exams-library.sql</b> en Supabase.</div>`}
     <div class="ex-d-actions">
-      <button type="button" class="btn btn-primary" data-exa="expand" data-id="${e.id}">${ic('eye')} Ver PDF</button>
+      ${typeof examBenchOpen === 'function' ? `<button type="button" class="btn btn-primary" data-exa="bench-open" data-id="${e.id}">${ic('plus')} Pasar a la app</button>` : ''}
+      <button type="button" class="btn btn-ghost" data-exa="expand" data-id="${e.id}">${ic('eye')} Ver PDF</button>
       <button type="button" class="btn btn-ghost" data-exa="download" data-id="${e.id}">${ic('download')} Descargar</button>
       <button type="button" class="btn btn-ghost" data-exa="edit" data-id="${e.id}">${ic('pencil')} Editar</button>
       <button type="button" class="btn btn-ghost danger" data-exa="delete" data-id="${e.id}">${ic('trash')} Eliminar</button>
@@ -850,6 +853,14 @@ async function examOnAction(action, el){
   const a = action.replace('committee-exam-', '');
   if(a === 'upload'){ await examUpload(); }
   else if(a === 'queue-clear'){ X.queue = []; examRender(); }
+  else if(a === 'bench-open'){ examBenchOpen(id); }
+  else if(a === 'bench-close'){ examBenchClose(); }
+  else if(a === 'bench-save'){ await examBenchSave(); }
+  else if(a === 'bench-done' || a === 'bench-undo'){
+    const B = X.bench; if(!B) return;
+    await examSetInApp([B.id], a === 'bench-done'); examBenchStateRefresh();
+  }
+  else if(a === 'bench-next'){ examBenchNextPending(); }
   else if(a === 'expand'){ await examExpand(id); }
   else if(a === 'download'){ await examDownload(id, el); }
   else if(a === 'prev-retry'){ const e = examById(id); if(e) examLoadPreview(e); }
@@ -1010,6 +1021,7 @@ function examKeydown(ev){
 }
 function examAfterRender(){
   const X = exm();
+  if(document.getElementById('ex-bench')){ if(typeof examBenchAfter === 'function') examBenchAfter(); return; }
   const lib = document.getElementById('ex-lib');
   if(!lib) return;
   if(!X.rt.kb){ X.rt.kb = true; document.addEventListener('keydown', examKeydown); }
