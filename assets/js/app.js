@@ -4548,8 +4548,8 @@ function databaseView(){
     const fixOk = REV.ready && REV.fix;
     const stBtn = (key, label, cls, icon, extra) => `<button type="button" class="dbx-st ${cls} ${stNow === key ? 'on' : ''}" data-action="db-set-state" data-qid="${q.id}" data-state="${key}" aria-pressed="${stNow === key ? 'true' : 'false'}" ${extra || ''}>${icon ? ic(icon) + ' ' : ''}${label}</button>`;
     const stateCtl = `<div class="dbx-state" role="group" aria-label="Estado de revisión">
-        ${stBtn('none', 'Sin revisar', '', '')}
         ${stBtn('reviewed', 'Revisada', 'ok', 'check')}
+        ${stBtn('none', 'Sin revisar', '', '')}
         ${stBtn('fix', 'Necesita cambios <kbd>C</kbd>', 'fix', 'flag', fixOk ? '' : 'disabled title="Falta ejecutar el SQL question-needs-changes.sql en Supabase"')}
       </div>`;
     const head = `<div class="dbx-d-top">
