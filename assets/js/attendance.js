@@ -192,6 +192,8 @@ function attClassRow(s){
     <div class="at-actions">
       <button class="btn btn-primary" data-action="committee-att-open" data-sid="${s.id}">${ic('check')} Pasar lista</button>
       ${today ? `<button class="btn btn-yellow" data-action="committee-att-qr" data-sid="${s.id}">${ic('qr')} QR</button>` : ''}
+      <button class="btn btn-ghost at-dl" data-action="committee-att-xlsx" data-sid="${s.id}" title="Descargar la asistencia de esta clase en Excel">${ic('download')} Excel</button>
+      <button class="btn btn-ghost at-dl" data-action="committee-att-pdf" data-sid="${s.id}" title="Descargar la asistencia de esta clase en PDF">${ic('download')} PDF</button>
       <button class="tx-icon danger" data-action="committee-att-delete" data-sid="${s.id}" title="Eliminar clase" aria-label="Eliminar clase">${ic('trash')}</button>
     </div>
   </div>`;
@@ -350,6 +352,114 @@ function attOpenMemberCal(uid){
   document.addEventListener('keydown', onKey, true);
 }
 
+/* ---------- descargar la asistencia de una clase (Excel o PDF) ---------- */
+/* Lista de la clase: los árbitros que ya eran miembros ese día (o que constan como presentes), por categoría y apellidos. */
+function attClassSheet(sid){
+  const A = att();
+  const s = (A.sessions || []).find(x => x.id === sid); if(!s) return null;
+  const list = (COMMITTEE.members || [])
+    .filter(m => s.class_date >= attAddedDay(m) || A.set.has(sid + '|' + m.user_id))
+    .map(m => { const key = sid + '|' + m.user_id; return { m, p: cmNameParts(m), cat: cmCatById(m.category_id), on: A.set.has(key), info: A.info.get(key) || null }; });
+  list.sort((a, b) => {
+    const ra = cmCatRank(a.m.category_id), rb = cmCatRank(b.m.category_id);
+    if((ra === null) !== (rb === null)) return ra === null ? 1 : -1;
+    if(ra !== rb && ra !== null) return ra - rb;
+    return cmCollate(cmSurnameName(a.m), cmSurnameName(b.m));
+  });
+  const rows = list.map((e, i) => ({
+    n: i + 1, last: e.p.last || e.p.first || e.m.email || '', first: e.p.last ? (e.p.first || '') : '',
+    cat: e.cat ? e.cat.name : '', on: e.on, state: e.on ? 'Presente' : 'Falta',
+    time: e.on && e.info && e.info.at ? attFmtTime(e.info.at) : '', how: e.on && e.info ? (e.info.method === 'qr' ? 'QR' : 'Manual') : ''
+  }));
+  const here = rows.filter(r => r.on).length;
+  return { s, rows, here, total: rows.length, pct: rows.length ? Math.round(here / rows.length * 100) : 0, season: cmSeasonLabel(attSeasonOf(s)) };
+}
+function attFileBase(s){ return 'Asistencia - ' + attTitle(s).replace(/\//g, '-'); }
+
+let JSPDF_LOADING = null;
+/* La librería de PDF solo se descarga al pedir un PDF (igual que la de Excel). */
+function ensureJsPDF(){
+  const ready = () => !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable);
+  if(ready()) return Promise.resolve(true);
+  if(JSPDF_LOADING) return JSPDF_LOADING;
+  const load = (src, integrity) => new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.integrity = integrity; s.crossOrigin = 'anonymous';
+    s.onload = () => resolve(); s.onerror = () => reject(new Error('load'));
+    document.head.appendChild(s);
+  });
+  JSPDF_LOADING = load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk')
+    .then(() => load('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js', 'sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3'))
+    .then(() => ready())
+    .catch(() => { JSPDF_LOADING = null; return false; });
+  return JSPDF_LOADING;
+}
+function attBuildPdf(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(17);
+  doc.text('Asistencia · ' + attTitle(d.s), 40, 50);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(110);
+  doc.text('CTA BAGES · Temporada ' + d.season, 40, 68);
+  doc.setFontSize(11); doc.setTextColor(30);
+  doc.text('Han venido: ' + d.here + '     No han venido: ' + (d.total - d.here) + '     Asistencia: ' + d.pct + '%', 40, 92);
+  doc.autoTable({
+    startY: 108, margin: { left: 40, right: 40, bottom: 44 },
+    head: [['#', 'Apellidos y nombre', 'Categoría', 'Asistencia', 'Registro']],
+    body: d.rows.map(r => [r.n, r.last + (r.first ? ', ' + r.first : ''), r.cat || '—', r.state, r.on ? (r.time + (r.how ? ' · ' + r.how : '')) : '—']),
+    styles: { font: 'helvetica', fontSize: 9.5, cellPadding: 5, textColor: [30, 30, 30] },
+    headStyles: { fillColor: [17, 17, 17], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [250, 248, 244] },
+    columnStyles: { 0: { cellWidth: 28, halign: 'right' }, 3: { cellWidth: 72, halign: 'center' }, 4: { cellWidth: 86 } },
+    didParseCell: (h) => {
+      if(h.section === 'body' && h.column.index === 3){
+        h.cell.styles.fontStyle = 'bold';
+        h.cell.styles.textColor = h.cell.raw === 'Presente' ? [30, 143, 94] : [214, 40, 40];
+      }
+    }
+  });
+  const pages = doc.getNumberOfPages();
+  const today = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  doc.setFontSize(8.5); doc.setTextColor(140);
+  for(let i = 1; i <= pages; i++){
+    doc.setPage(i);
+    doc.text('Generado el ' + today, 40, H - 24);
+    doc.text('Página ' + i + ' de ' + pages, W - 40, H - 24, { align: 'right' });
+  }
+  return doc;
+}
+async function attDownloadPdf(sid){
+  const d = attClassSheet(sid); if(!d) return;
+  if(!d.total){ cmToast('Esta clase no tiene árbitros que listar.'); return; }
+  if(!(await ensureJsPDF())){ cmToast('No se pudo cargar la librería de PDF. Revisa tu conexión a internet.'); return; }
+  attBuildPdf(d).save(attFileBase(d.s) + '.pdf');
+}
+async function attDownloadXlsx(sid){
+  const d = attClassSheet(sid); if(!d) return;
+  if(!d.total){ cmToast('Esta clase no tiene árbitros que listar.'); return; }
+  if(!(await ensureXLSX())){ cmToast('No se pudo cargar la librería de Excel. Revisa tu conexión a internet.'); return; }
+  const aoa = [
+    ['Asistencia · ' + attTitle(d.s)], ['CTA BAGES · Temporada ' + d.season], [],
+    ['#', 'Apellidos', 'Nombre', 'Categoría', 'Asistencia', 'Hora', 'Cómo'],
+    ...d.rows.map(r => [r.n, r.last, r.first, r.cat, r.state, r.time, r.how]),
+    [], ['Han venido', d.here], ['No han venido', d.total - d.here], ['Asistencia', d.pct + '%']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 22 }, { wch: 20 }, { wch: 12 }, { wch: 8 }, { wch: 10 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
+  XLSX.writeFile(wb, attFileBase(d.s) + '.xlsx');
+}
+/* Pone "Preparando..." en el botón mientras se descarga la librería y se genera el archivo. */
+async function attWithBusy(btn, fn){
+  const label = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Preparando...'; }
+  try{ await fn(); }
+  catch(e){ cmToast('No se pudo generar el archivo.'); }
+  finally{ if(btn && document.body.contains(btn)){ btn.disabled = false; btn.innerHTML = label; } }
+}
+
 /* ---------- pasar lista ---------- */
 function attRollMembers(){
   const A = att(), sid = A.open;
@@ -417,7 +527,9 @@ function attRollView(){
     (COMMITTEE.categories || []).map(c => `<option value="${esc(c.id)}" ${A.rollCat === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const hero = cmHero('Asistencia · Pasar lista', esc(attTitle(s)),
     'Toca a cada árbitro que esté en clase. Quien no esté marcado cuenta como falta. Se guarda al momento.',
-    today ? `<button class="btn btn-yellow" data-action="committee-att-qr" data-sid="${s.id}">${ic('qr')} Mostrar QR</button>` : '',
+    `<div class="at-hero-btns">${today ? `<button class="btn btn-yellow" data-action="committee-att-qr" data-sid="${s.id}">${ic('qr')} Mostrar QR</button>` : ''}
+      <button class="btn btn-ghost" data-action="committee-att-xlsx" data-sid="${s.id}">${ic('download')} Excel</button>
+      <button class="btn btn-ghost" data-action="committee-att-pdf" data-sid="${s.id}">${ic('download')} PDF</button></div>`,
     `<div class="lg-hero-stats cm-hero-stats">
       <div class="lg-stat"><b id="at-st-here">${here}</b><span>Han venido</span></div>
       <div class="lg-stat"><b id="at-st-abs">${absent}</b><span>No han venido</span></div>
@@ -572,6 +684,8 @@ async function attOnAction(action, el){
     STATE.toast = 'Clase eliminada.'; render();
   }
   else if(action === 'committee-att-qr'){ attOpenQr(el.dataset.sid); }
+  else if(action === 'committee-att-xlsx'){ await attWithBusy(el, () => attDownloadXlsx(el.dataset.sid)); }
+  else if(action === 'committee-att-pdf'){ await attWithBusy(el, () => attDownloadPdf(el.dataset.sid)); }
   else if(action === 'committee-att-rsort'){
     const k = el.dataset.key;
     if(A.rollSortKey === k) A.rollSortDir = A.rollSortDir === 'asc' ? 'desc' : 'asc';
