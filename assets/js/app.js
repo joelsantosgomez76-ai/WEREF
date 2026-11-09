@@ -315,9 +315,20 @@ function shuffle(arr){
 // letra "correct" recalculada para seguir apuntando a la respuesta correcta.
 // No modifica la pregunta original (el banco/Base de datos debe conservar su
 // orden real) — cada intento de test genera su propio orden.
+/* Respuestas que dependen del orden: "Las respuestas A y B son correctas" nombra letras, y
+   "Ninguna de las anteriores / Todas las respuestas" solo tiene sentido en su sitio. */
+const OPT_LETTER_REF = /\b(opci[oó]n(es)?|respuestas?|apartados?)\s+(de respuesta\s+)?["“(]?[a-d]\b|\b[a-d]\)\s*(y|e|,|o)\s*[a-d]\)/i;
+const OPT_META = /^\s*(ninguna|ninguno|todas|todos|ambas|las dos|las tres)\b.{0,50}\b(respuestas?|opciones?|anteriores|correct[ao]s?|incorrect[ao]s?|ciert[ao]s?|v[aá]lid[ao]s?)\b|\b(ninguno|ninguna) de (los|las) (objetos|casos|supuestos|otras?)/i;
+function optionAnchored(text){ const t = String(text || ''); return t.length < 90 && OPT_META.test(t); }
+function questionKeepsOrder(q){ return (q.options || []).some(t => OPT_LETTER_REF.test(String(t || ''))); }
 function shuffledQuestionCopy(q){
   const letters = ['a','b','c','d'];
-  const order = shuffle(Array.from({length:q.options.length}, (_,i)=>i));
+  if(questionKeepsOrder(q)) return Object.assign({}, q);   // sus opciones se citan entre sí: se quedan como están
+  const idx = Array.from({length:q.options.length}, (_,i)=>i);
+  const free = idx.filter(i => !optionAnchored(q.options[i]));
+  const mixed = shuffle(free.slice());
+  const order = idx.slice();
+  free.forEach((pos, k) => { order[pos] = mixed[k]; });
   const newOptions = order.map(i => q.options[i]);
   const origCorrectIdx = letters.indexOf(q.correct);
   const newCorrect = letters[order.indexOf(origCorrectIdx)];

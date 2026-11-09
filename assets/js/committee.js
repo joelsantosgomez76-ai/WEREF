@@ -800,9 +800,7 @@ function cmShuffleWith(arr, rnd){
   return a;
 }
 /* "Ninguna respuesta es correcta" y "Todas las anteriores" se quedan en su sitio (al final). */
-function cmAnchoredOption(text){
-  return /^\s*(ninguna|ninguno|todas|todos)\b[^.]{0,40}\b(respuesta|anterior|correct)/i.test(String(text || ''));
-}
+function cmAnchoredOption(text){ return optionAnchored(text); }
 /* Devuelve una copia de las preguntas en orden distinto, con `perm` = índice original de cada opción mostrada.
    Las respuestas se siguen guardando con la letra ORIGINAL (data-letter), así que la corrección no cambia. */
 function cmShuffleQuestions(questions, seed){
@@ -810,7 +808,7 @@ function cmShuffleQuestions(questions, seed){
   const ordered = cmShuffleWith(questions, rnd);
   return ordered.map(q => {
     const idx = q.options.map((_, i) => i);
-    const free = idx.filter(i => !cmAnchoredOption(q.options[i]));
+    const free = questionKeepsOrder(q) ? [] : idx.filter(i => !cmAnchoredOption(q.options[i]));
     const mixed = cmShuffleWith(free, rnd);
     const perm = idx.slice();
     free.forEach((pos, k) => { perm[pos] = mixed[k]; });
