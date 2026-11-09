@@ -317,7 +317,7 @@ function shuffle(arr){
 // orden real) — cada intento de test genera su propio orden.
 /* Respuestas que dependen del orden: "Las respuestas A y B son correctas" nombra letras, y
    "Ninguna de las anteriores / Todas las respuestas" solo tiene sentido en su sitio. */
-const OPT_LETTER_REF = /\b(opci[oó]n(es)?|respuestas?|apartados?)\s+(de respuesta\s+)?["“(]?[a-d]\b|\b[a-d]\)\s*(y|e|,|o)\s*[a-d]\)/i;
+const OPT_LETTER_REF = /\b(opci[oó]n(es)?|respuestas?|apartados?)\s+(de respuesta\s+)?["“(]?[a-d]\b|\b[a-d]\)\s*(y|e|,|o)\s*[a-d]\)|(^|[\s(])(la\s+|las\s+)?["“]?[a-d]\)?\s*(,|y|e|o)\s*(la\s+)?["“]?[a-d]\)?\s+(son|es|est[aá]n|pueden|ser[ií]an|cierta|correcta|v[aá]lida)|^\s*(las\s+)?(dos|tres)\s+(primeras|[uú]ltimas|anteriores)|^\s*(la\s+)?primera\s+(y|e)\s+(la\s+)?(segunda|tercera|cuarta|[uú]ltima)\b|^\s*ambas\b.{0,30}(correct|cierta|v[aá]lid)|\bs[oó]lo?\s+(la|las)\s+[a-d]\b|\b(son correctas|es correcta)\s+(la|las)\s+[a-d]\b/i;
 const OPT_META = /^\s*(ninguna|ninguno|todas|todos|ambas|las dos|las tres)\b.{0,50}\b(respuestas?|opciones?|anteriores|correct[ao]s?|incorrect[ao]s?|ciert[ao]s?|v[aá]lid[ao]s?)\b|\b(ninguno|ninguna) de (los|las) (objetos|casos|supuestos|otras?)/i;
 function optionAnchored(text){ const t = String(text || ''); return t.length < 90 && OPT_META.test(t); }
 function questionKeepsOrder(q){ return (q.options || []).some(t => OPT_LETTER_REF.test(String(t || ''))); }
