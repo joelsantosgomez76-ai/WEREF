@@ -240,8 +240,34 @@ const LAW_ICONS = {
   17: SVG_OPEN+'<path d="M4 20V4"/><path d="M4 20h14"/><path d="M4 4.5l6 2.8-2.1 4.2z" fill="currentColor" stroke="none"/></svg>'
 };
 
-const BASE_QUESTIONS = BASE_QUESTIONS_RAW;
-BASE_QUESTIONS.forEach(q => { q.id = 'R'+q.rule+'-'+q.num; q.source = 'base'; q.domain = 'law'; if(!q.difficulty) q.difficulty = 'normal'; });
+/* El banco base ya no viaja con la web: se descarga del almacén privado de Supabase al iniciar sesión (loadBaseBank). */
+const BASE_QUESTIONS = [];
+const BANK = { ready: false, source: '' };
+function loadScriptOnce(src){
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = () => resolve(true); s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+async function loadBaseBank(){
+  if(BANK.ready) return true;
+  let list = null;
+  try{
+    const { data, error } = await supabaseClient.storage.from('bank').download('base-questions.json');
+    if(!error && data){ const l = JSON.parse(await data.text()); if(Array.isArray(l) && l.length) { list = l; BANK.source = 'privado'; } }
+  }catch(e){}
+  if(!list){
+    // Respaldo provisional mientras el archivo privado no está subido.
+    if(typeof BASE_QUESTIONS_RAW === 'undefined') await loadScriptOnce('assets/js/questions-data.js');
+    if(typeof BASE_QUESTIONS_RAW !== 'undefined'){ list = BASE_QUESTIONS_RAW; BANK.source = 'publico'; }
+  }
+  if(!list) return false;
+  list.forEach(q => { q.id = 'R'+q.rule+'-'+q.num; q.source = 'base'; q.domain = 'law'; if(!q.difficulty) q.difficulty = 'normal'; BASE_QUESTIONS.push(q); });
+  BASE_ID_SET = null; BANK.ready = true;
+  console.info('Banco de preguntas: ' + BANK.source + ' (' + BASE_QUESTIONS.length + ')');
+  return true;
+}
 
 const ASSISTANT_QUESTIONS = (typeof ASSISTANT_QUESTIONS_RAW !== 'undefined') ? ASSISTANT_QUESTIONS_RAW : [];
 ASSISTANT_QUESTIONS.forEach(q => { q.id = 'A-'+q.num; q.source = 'base'; q.domain = 'law'; q.rule = 6; if(!q.difficulty) q.difficulty = 'normal'; });
@@ -862,6 +888,7 @@ async function storageSet(key, value){
 
 async function loadStorage(){
   await loadUserRole();
+  if(!(await loadBaseBank())) STATE.toast = 'No se pudo cargar el banco de preguntas. Recarga la página.';
   await loadSharedQuestions();
   try{ const v = await storageGet('progress'); STATE.storage.progress = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.progress = {}; }
   let failedStreaksWasNew = false;
