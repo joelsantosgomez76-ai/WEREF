@@ -243,13 +243,6 @@ const LAW_ICONS = {
 /* El banco base ya no viaja con la web: se descarga del almacén privado de Supabase al iniciar sesión (loadBaseBank). */
 const BASE_QUESTIONS = [];
 const BANK = { ready: false, source: '' };
-function loadScriptOnce(src){
-  return new Promise((resolve) => {
-    const s = document.createElement('script');
-    s.src = src; s.onload = () => resolve(true); s.onerror = () => resolve(false);
-    document.head.appendChild(s);
-  });
-}
 async function loadBaseBank(){
   if(BANK.ready) return true;
   let list = null;
@@ -257,51 +250,20 @@ async function loadBaseBank(){
     const { data, error } = await supabaseClient.storage.from('bank').download('base-questions.json');
     if(!error && data){ const l = JSON.parse(await data.text()); if(Array.isArray(l) && l.length) { list = l; BANK.source = 'privado'; } }
   }catch(e){}
-  if(!list){
-    // Respaldo provisional mientras el archivo privado no está subido.
-    if(typeof BASE_QUESTIONS_RAW === 'undefined') await loadScriptOnce('assets/js/questions-data.js');
-    if(typeof BASE_QUESTIONS_RAW !== 'undefined'){ list = BASE_QUESTIONS_RAW; BANK.source = 'publico'; }
-  }
   if(!list) return false;
   list.forEach(q => { q.id = 'R'+q.rule+'-'+q.num; q.source = 'base'; q.domain = 'law'; if(!q.difficulty) q.difficulty = 'normal'; BASE_QUESTIONS.push(q); });
   BASE_ID_SET = null; BANK.ready = true;
   console.info('Banco de preguntas: ' + BANK.source + ' (' + BASE_QUESTIONS.length + ')');
   return true;
 }
-/* Solo el maestro: sube a Supabase el banco que la app ya tiene cargado, sin pasar archivos a mano. */
-async function uploadBankToPrivate(){
-  if(!isMaster() || BANK.busy) return;
-  if(BANK.source !== 'publico'){ STATE.toast = 'El banco ya se lee del almacén privado.'; render(); return; }
-  BANK.busy = true; BANK.msg = ''; render();
-  try{
-    const clean = BASE_QUESTIONS.map(q => { const c = Object.assign({}, q); delete c.id; delete c.source; delete c.domain; return c; });
-    const blob = new Blob([JSON.stringify(clean)], { type: 'application/json' });
-    const up = await supabaseClient.storage.from('bank').upload('base-questions.json', blob, { upsert: true, contentType: 'application/json' });
-    if(up.error) throw up.error;
-    const back = await supabaseClient.storage.from('bank').download('base-questions.json');
-    if(back.error) throw back.error;
-    const n = JSON.parse(await back.data.text()).length;
-    if(n !== clean.length) throw new Error('El archivo subido tiene ' + n + ' preguntas y debería tener ' + clean.length + '.');
-    BANK.msg = 'ok';
-  }catch(e){
-    const m = String((e && e.message) || e);
-    BANK.msg = 'error:' + (/bucket not found|not found/i.test(m) ? 'Falta ejecutar el SQL del banco privado en Supabase (bank-private.sql).' : /row-level|policy|unauthorized|403/i.test(m) ? 'Supabase no te deja escribir: revisa que el SQL se ejecutó en el proyecto de WEREF.' : m);
-  }
-  BANK.busy = false; render();
-}
 function bankCardHtml(){
   const ic = (n) => shellIcon(n);
-  const priv = BANK.source === 'privado';
-  const msg = BANK.msg || '';
+  const ok = BANK.ready && BANK.source === 'privado';
   return `<div class="tc-card" style="margin-bottom:16px;">
-    <div class="tc-card-head"><span class="tc-step">${ic('lock')}</span><div><h3>Banco de preguntas</h3><small>${priv ? 'Protegido: se lee de un almacén privado que solo abre con sesión iniciada.' : 'Todavía se lee de un archivo público de la web. Súbelo al almacén privado.'}</small></div></div>
-    ${priv ? `<div class="st-note">${ic('check')} Banco privado en uso (${BASE_QUESTIONS.length} preguntas).</div>` : `
-      ${msg === 'ok' ? `<div class="st-note">${ic('check')} Subido y comprobado (${BASE_QUESTIONS.length} preguntas). Recarga la página (Ctrl+Shift+R) y esta tarjeta debe decir «Protegido».</div>` : ''}
-      ${msg.startsWith('error:') ? `<div class="st-note" style="color:var(--red);">${esc(msg.slice(6))}</div>` : ''}
-      <button class="btn btn-primary" data-action="bank-upload" ${BANK.busy ? 'disabled' : ''}>${BANK.busy ? 'Subiendo...' : 'Subir el banco al almacén privado'}</button>`}
+    <div class="tc-card-head"><span class="tc-step">${ic('lock')}</span><div><h3>Banco de preguntas</h3><small>${ok ? 'Protegido: se lee de un almacén privado que solo abre con sesión iniciada.' : 'No se pudo cargar el banco de preguntas.'}</small></div></div>
+    <div class="st-note">${ok ? `${ic('check')} Banco privado en uso (${BASE_QUESTIONS.length} preguntas).` : 'Recarga la página. Si sigue igual, revisa que base-questions.json está en Storage > bank.'}</div>
   </div>`;
 }
-
 const ASSISTANT_QUESTIONS = (typeof ASSISTANT_QUESTIONS_RAW !== 'undefined') ? ASSISTANT_QUESTIONS_RAW : [];
 ASSISTANT_QUESTIONS.forEach(q => { q.id = 'A-'+q.num; q.source = 'base'; q.domain = 'law'; q.rule = 6; if(!q.difficulty) q.difficulty = 'normal'; });
 
@@ -5649,7 +5611,6 @@ function onAction(e){
   else if(action==='admin-users-prev-page'){ if(!isMaster() || STATE.adminUsersPage<=1) return; loadAdminStats(STATE.adminUsersPage-1); }
   else if(action==='admin-users-next-page'){ if(!isMaster() || !STATE.adminStats || STATE.adminUsersPage>=STATE.adminStats.usersTotalPages) return; loadAdminStats(STATE.adminUsersPage+1); }
   else if(action==='admin-dashboard-retry'){ if(!isMaster()) return; loadAdminStats(); }
-  else if(action==='bank-upload'){ uploadBankToPrivate(); }
   else if(action==='admin-delete-user'){ if(!isMaster()) return; STATE.confirmDeleteUserId = el.dataset.uid; render(); }
   else if(action==='admin-cancel-delete-user'){ STATE.confirmDeleteUserId = null; render(); }
   else if(action==='admin-confirm-delete-user'){ if(!isMaster()) return; deleteAdminUser(STATE.confirmDeleteUserId); }

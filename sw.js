@@ -7,7 +7,7 @@
    - Fuentes y librerías con versión fija (Google Fonts, unpkg, cdnjs): copia guardada y se refresca por detrás.
    - Supabase, hCaptcha y todo lo demás: no se toca, pasa directo a internet. */
 
-const CACHE = 'weref-v1';
+const CACHE = 'weref-v2';
 const MAX_ENTRIES = 150;
 const CDN_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com', 'cdnjs.cloudflare.com'];
 
