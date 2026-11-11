@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<meta name="robots" content="{{ROBOTS}}">
+<link rel="canonical" href="{{CANONICAL}}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta property="og:url" content="{{CANONICAL}}">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="WEREF">
+<meta property="og:image" content="https://we-ref.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{TITLE}}">
+<meta name="twitter:description" content="{{DESCRIPTION}}">
+<meta name="twitter:image" content="https://we-ref.com/assets/og-image.png">
+{{JSONLD}}
+<link rel="icon" type="image/png" sizes="48x48" href="/assets/favicon-48.png?v=3">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon-192.png?v=3">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png?v=2">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#16181D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/landing.css?v=0">
+</head>
+<body class="pg">
+
+<nav class="landing-nav">
+  <a class="landing-brand" href="/" aria-label="WEREF, ir al inicio">
+    <span class="mark"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="10" width="18" height="26" rx="4" fill="#16181D" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/>
+      <rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/>
+    </svg></span>
+    WEREF
+  </a>
+  <div class="landing-nav-actions">
+    <a class="btn btn-ghost" href="/#acceso">Iniciar sesión</a>
+    <a class="btn btn-primary" href="/#registro">Regístrate</a>
+  </div>
+</nav>
+
+<main class="pg-main">
+  <nav class="pg-crumbs" aria-label="Migas de pan">{{BREADCRUMBS}}</nav>
+  <article class="pg-article">
+    <header class="pg-head">
+      <p class="pg-kicker">{{KICKER}}</p>
+      <h1>{{H1}}</h1>
+    </header>
+    {{CONTENT}}
+  </article>
+  {{CTA}}
+  {{PAGER}}
+  <p class="pg-note">Fuente: Reglas de Juego de la IFAB. Consulta el texto oficial en <a href="https://www.theifab.com/laws/latest/" target="_blank" rel="noopener">theifab.com</a>.<br>Contenido no oficial, basado en las Reglas de Juego de la IFAB. Comprueba siempre la edición vigente y el reglamento de tu competición.</p>
+</main>
+
+<footer class="landing-footer">
+  <p><a href="/reglas-de-juego/" style="color:var(--muted);">Reglas de Juego</a> · <a href="/contacto.html" style="color:var(--muted);">Contacto</a> · <a href="/politica-privacidad.html" style="color:var(--muted);">Política de Privacidad</a> · <a href="/terminos-de-uso.html" style="color:var(--muted);">Términos de Uso</a></p>
+  WEREF · Formación Arbitral — Contenido no oficial, basado en las Reglas de Juego IFAB.
+</footer>
+
+</body>
+</html>

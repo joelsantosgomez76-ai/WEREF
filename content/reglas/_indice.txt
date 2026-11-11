@@ -1,0 +1,17 @@
+1|regla-1-terreno-de-juego|El terreno de juego|Medidas, líneas, áreas y porterías del campo.
+2|regla-2-balon|El balón|Medidas, materiales y qué hacer si el balón se daña.
+3|regla-3-jugadores|Los jugadores|Número de jugadores, suplentes y procedimiento de sustitución.
+4|regla-4-equipamiento|El equipamiento de los jugadores|Equipación obligatoria, seguridad y mensajes en la ropa.
+5|regla-5-arbitro|El árbitro|Autoridad, funciones y decisiones del árbitro.
+6|regla-6-otros-miembros-equipo-arbitral|Los otros miembros del equipo arbitral|Asistentes, cuarto árbitro y VAR.
+7|regla-7-duracion-del-partido|La duración del partido|Los dos tiempos, el descanso y el tiempo añadido.
+8|regla-8-inicio-y-reanudacion|El inicio y la reanudación del juego|Saque inicial y balón a tierra.
+9|regla-9-balon-en-juego-y-fuera-de-juego|El balón en juego y fuera de juego|Cuándo está el balón en juego y cuándo sale.
+10|regla-10-determinar-el-resultado|Determinar el resultado de un partido|El gol, el ganador y los tiros desde el punto penal.
+11|regla-11-fuera-de-juego|El fuera de juego|Posición de fuera de juego e infracción.
+12|regla-12-faltas-e-incorrecciones|Faltas e incorrecciones|Faltas, conducta antideportiva y sanciones disciplinarias.
+13|regla-13-tiros-libres|Los tiros libres|Tiros libres directos e indirectos y la barrera.
+14|regla-14-tiro-penal|El tiro penal|Procedimiento y ejecución del tiro penal.
+15|regla-15-saque-de-banda|El saque de banda|Cómo se ejecuta el saque de banda.
+16|regla-16-saque-de-meta|El saque de meta|Cómo se ejecuta el saque de meta.
+17|regla-17-saque-de-esquina|El saque de esquina|Cómo se ejecuta el saque de esquina.
