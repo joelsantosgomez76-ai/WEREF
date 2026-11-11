@@ -3639,3 +3639,14 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
 @media (max-width:760px){
   .dbx-state{grid-template-columns:1fr;}
 }
+
+/* Landing · preguntas frecuentes */
+.landing-faq{max-width:820px;}
+.faq-list{display:flex; flex-direction:column; gap:10px;}
+.faq-item{background:#fff; border:1px solid var(--line); border-radius:14px; padding:0 18px;}
+.faq-item summary{cursor:pointer; list-style:none; padding:16px 28px 16px 0; font:600 16px 'Work Sans'; color:var(--ink); position:relative;}
+.faq-item summary::-webkit-details-marker{display:none;}
+.faq-item summary::after{content:'+'; position:absolute; right:2px; top:50%; transform:translateY(-50%); font:500 22px 'Work Sans'; color:var(--muted);}
+.faq-item[open] summary::after{content:'\2212';}
+.faq-item p{margin:0 0 16px; font:400 15px/1.6 'Work Sans'; color:var(--muted);}
+.faq-item summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:8px;}
