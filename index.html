@@ -102,7 +102,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/landing.css?v=2">
+<link rel="stylesheet" href="assets/css/landing.css?v=5">
 <script>
   // hCaptcha solo se descarga cuando hace falta (al abrir el formulario o en la primera interacción),
   // para que la portada cargue más rápido.
@@ -150,6 +150,8 @@
 <!-- 1. HERO -->
 <header class="landing-hero">
   <div class="lh-glow" aria-hidden="true"></div>
+  <div class="lh-inner">
+  <div class="lh-copy">
   <div class="lh-badge"><span class="lh-dot"></span> Gratis · Basado en el reglamento oficial IFAB</div>
   <h1>La app gratuita para preparar <br>el examen de <span class="accent">árbitro de fútbol</span></h1>
   <p class="lead">Entrena las 17 Reglas de Juego con más de 2.000 preguntas, estadísticas inteligentes, modos competitivos y una academia personal.</p>
@@ -165,6 +167,7 @@
     <div class="landing-stat"><div class="num" id="stat-rules" data-target="17">0</div><div class="lbl">Reglas IFAB</div></div>
     <div class="landing-stat"><div class="num" id="stat-free" data-target="100" data-suffix="%">0</div><div class="lbl">Gratis</div></div>
   </div>
+  </div>
 
   <div class="landing-hero-mockup" aria-hidden="true">
     <div class="mk">
@@ -173,11 +176,9 @@
         <aside class="mk-side">
           <div class="mk-brand"><b></b>WEREF</div>
           <div class="mk-nav on">Inicio</div>
-          <div class="mk-nav">Reglas de Juego</div>
+          <div class="mk-nav">Test Rápidos</div>
           <div class="mk-nav">WEREF League</div>
           <div class="mk-nav">Mi Academia</div>
-          <div class="mk-nav">Estadísticas</div>
-          <div class="mk-nav">Rango e insignias</div>
         </aside>
         <div class="mk-main">
           <div class="mk-hero">
@@ -209,53 +210,10 @@
       </div>
     </div>
   </div>
+  </div>
 </header>
 
-<!-- 2. QUÉ ENCONTRARÁS DENTRO -->
-<section class="landing-section saas-features" id="features">
-  <h2>Todo lo que necesitas para mejorar como <span class="saas-highlight">árbitro</span></h2>
-  <p class="saas-features-sub">Entrena, compite y analiza tu progreso desde un único lugar.</p>
-  <div class="saas-grid">
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span></span>
-      <h3>Reglas de Juego</h3>
-      <p>Entrena las 17 reglas con cientos de preguntas.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></svg></span></span>
-      <h3>WEREF League</h3>
-      <p>Compite contra otros árbitros y sube en la clasificación.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span></span>
-      <h3>Estadísticas</h3>
-      <p>Descubre tus puntos débiles y mejora cada día.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></span>
-      <h3>Mi Academia</h3>
-      <p>Guarda documentos y crea tus propios test.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5"/><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"/><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"/><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"/><path d="M18 18a4 4 0 0 0 2-7.464"/><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"/><path d="M6 18a4 4 0 0 1-2-7.464"/><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"/></svg></span></span>
-      <h3>Sala de Repaso</h3>
-      <p>Repasa tus fallos y aprende de ellos.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg></span></span>
-      <h3>Sincronización</h3>
-      <p>Tu progreso siempre contigo, en cualquier dispositivo.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-  </div>
-</section>
-
-<!-- 3. MINI-TEST ANÓNIMO -->
+<!-- 2. MINI-TEST ANÓNIMO -->
 <section class="landing-quiz-section" id="quiz">
   <div class="landing-quiz-card">
 
@@ -306,66 +264,59 @@
   </div>
 </section>
 
-<!-- 7-9. PANEL PERSONAL: MI ACADEMIA / WEREF LEAGUE / ESTADÍSTICAS -->
-<section class="landing-section">
-  <h2>Todo tu progreso, en un solo lugar</h2>
-  <div class="dash-grid">
-
-    <button type="button" class="dash-card" data-action="open-register">
-      <span class="dash-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span>
-      <h3>Mi Academia</h3>
-      <p class="dash-desc">Tu espacio privado: guarda documentos, crea tus propias preguntas y genera tests a medida.</p>
-      <div class="dash-list">
-        <div class="dash-list-row">
-          <span class="dash-list-label"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg> Documentos</span>
-          <span class="dash-list-count">3</span>
-        </div>
-        <div class="dash-list-row">
-          <span class="dash-list-label"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Mis propios test</span>
-          <span class="dash-list-count">12</span>
-        </div>
-        <div class="dash-list-row">
-          <span class="dash-list-label"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg> Guardadas</span>
-          <span class="dash-list-count">7</span>
-        </div>
-      </div>
-      <span class="dash-card-link">Entrar <span aria-hidden="true">→</span></span>
+<!-- 3. QUÉ ENCONTRARÁS DENTRO -->
+<section class="landing-section saas-features" id="features">
+  <h2>Todo lo que necesitas para mejorar como <span class="saas-highlight">árbitro</span></h2>
+  <p class="saas-features-sub">Entrena, compite y analiza tu progreso desde un único lugar.</p>
+  <div class="saas-grid">
+    <button type="button" class="saas-card" data-action="open-register">
+      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span></span>
+      <h3>Reglas de Juego</h3>
+      <p>Entrena las 17 reglas con cientos de preguntas.</p>
+      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
     </button>
-
-    <button type="button" class="dash-card" data-action="open-register">
-      <span class="dash-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></svg></span>
+    <button type="button" class="saas-card" data-action="open-register">
+      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></svg></span></span>
       <h3>WEREF League</h3>
-      <p class="dash-desc">Compite contra árbitros de todo el mundo y sube de posición cada semana.</p>
-      <div class="dash-rank">
-        <span class="dash-rank-num">#12</span>
-        <span class="dash-rank-pts">640 pts</span>
-      </div>
-      <div class="dash-progress"><div class="dash-progress-fill" style="width:64%;"></div></div>
-      <div class="dash-progress-label">250 pts para el Top 3</div>
-      <span class="dash-card-link">Ver clasificación <span aria-hidden="true">→</span></span>
+      <p>Compite contra otros árbitros y sube en la clasificación.</p>
+      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
     </button>
-
-    <button type="button" class="dash-card" data-action="open-register">
-      <span class="dash-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+    <button type="button" class="saas-card" data-action="open-register">
+      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span></span>
       <h3>Estadísticas</h3>
-      <p class="dash-desc">Descubre qué reglas dominas, dónde fallas más y cómo evoluciona tu nivel.</p>
-      <div class="dash-chart">
-        <div class="dash-chart-bar" style="height:35%; background:var(--red);"></div>
-        <div class="dash-chart-bar" style="height:60%; background:var(--yellow);"></div>
-        <div class="dash-chart-bar" style="height:95%; background:var(--green-ok);"></div>
-        <div class="dash-chart-bar" style="height:50%; background:var(--yellow);"></div>
-        <div class="dash-chart-bar" style="height:80%; background:var(--green-ok);"></div>
-        <div class="dash-chart-bar" style="height:30%; background:var(--red);"></div>
-        <div class="dash-chart-bar" style="height:70%; background:var(--yellow);"></div>
-      </div>
-      <div class="dash-progress"><div class="dash-progress-fill" style="width:68%;"></div></div>
-      <div class="dash-progress-label">68% del temario completado</div>
-      <span class="dash-card-link">Ver estadísticas <span aria-hidden="true">→</span></span>
+      <p>Descubre tus puntos débiles y mejora cada día.</p>
+      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
     </button>
-
+    <button type="button" class="saas-card" data-action="open-register">
+      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></span>
+      <h3>Mi Academia</h3>
+      <p>Guarda documentos y crea tus propios test.</p>
+      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+    </button>
+    <button type="button" class="saas-card" data-action="open-register">
+      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5"/><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"/><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"/><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"/><path d="M18 18a4 4 0 0 0 2-7.464"/><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"/><path d="M6 18a4 4 0 0 1-2-7.464"/><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"/></svg></span></span>
+      <h3>Sala de Repaso</h3>
+      <p>Repasa tus fallos y aprende de ellos.</p>
+      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+    </button>
+    <button type="button" class="saas-card" data-action="open-register">
+      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg></span></span>
+      <h3>Sincronización</h3>
+      <p>Tu progreso siempre contigo, en cualquier dispositivo.</p>
+      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+    </button>
   </div>
 </section>
 
+<!-- 4. ASI FUNCIONA -->
+<section class="landing-section landing-how" id="como-funciona">
+  <h2>Así funciona</h2>
+  <ol class="how-grid">
+    <li class="how-step"><span class="how-num" aria-hidden="true">1</span><h3>Prueba un test sin registrarte</h3><p>Responde 5 preguntas en un minuto y mide tu nivel sin crear cuenta.</p></li>
+    <li class="how-step"><span class="how-num" aria-hidden="true">2</span><h3>Crea tu cuenta gratis</h3><p>Guarda tu progreso y accede a tus estadísticas, a la liga y a Mi Academia.</p></li>
+    <li class="how-step"><span class="how-num" aria-hidden="true">3</span><h3>Entrena cada día</h3><p>Practica las 17 Reglas de Juego, repasa tus fallos y sube en la clasificación.</p></li>
+  </ol>
+</section>
 <!-- 9b. PREGUNTAS FRECUENTES -->
 <section class="landing-section landing-faq" id="faq">
   <h2>Preguntas frecuentes</h2>
