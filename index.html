@@ -102,7 +102,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/landing.css?v=3871efce">
+<link rel="stylesheet" href="assets/css/landing.css?v=2a6c054d">
+<link rel="stylesheet" href="assets/css/home.css?v=5b0f8489">
 <script>
   // hCaptcha solo se descarga cuando hace falta (al abrir el formulario o en la primera interacción),
   // para que la portada cargue más rápido.
@@ -125,122 +126,144 @@
   });
 </script>
 </head>
-<body>
+<body class="hm">
 
-<nav class="landing-nav">
-  <div class="landing-brand">
-    <span class="mark"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-      <rect x="5" y="10" width="18" height="26" rx="4" fill="#16181D" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/>
-      <rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/>
-    </svg></span>
-    WEREF
-  </div>
-  <div class="landing-nav-actions">
-    <a href="https://x.com/weref_es" target="_blank" rel="noopener" class="nav-social-link" aria-label="WEREF en X">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16"/><path d="M20 4L4 20"/></svg>
+<header class="sh-nav">
+  <div class="sh-wrap sh-nav-in">
+    <a class="sh-brand" href="/" aria-label="WEREF, ir al inicio">
+      <span class="mark"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="10" width="18" height="26" rx="4" fill="#0F1013" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/><rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/></svg></span>
+      WEREF
     </a>
-    <a href="https://www.instagram.com/weref_es/" target="_blank" rel="noopener" class="nav-social-link" aria-label="WEREF en Instagram">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-    </a>
-    <button type="button" class="btn btn-ghost" id="nav-login-btn">Iniciar sesión</button>
-    <button type="button" class="btn btn-primary" id="nav-register-btn">Regístrate</button>
+    <nav class="sh-links" aria-label="Principal">
+      <a href="/reglas-de-juego/">Reglas de Juego</a>
+      <a href="#guias">Guías</a>
+      <a href="/test-reglas-de-juego/">Test gratis</a>
+    </nav>
+    <div class="sh-actions">
+      <a href="https://x.com/weref_es" target="_blank" rel="noopener" class="sh-social" aria-label="WEREF en X"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16"/><path d="M20 4L4 20"/></svg></a>
+      <a href="https://www.instagram.com/weref_es/" target="_blank" rel="noopener" class="sh-social" aria-label="WEREF en Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg></a>
+      <button type="button" class="btn btn-line btn-sm" id="nav-login-btn">Iniciar sesión</button>
+      <button type="button" class="btn btn-yellow btn-sm" id="nav-register-btn">Regístrate</button>
+    </div>
   </div>
-</nav>
+</header>
 
 <!-- 1. HERO -->
-<header class="landing-hero">
-  <div class="lh-glow" aria-hidden="true"></div>
-  <div class="lh-inner">
-  <div class="lh-copy">
-  <div class="lh-badge"><span class="lh-dot"></span> Gratis · Basado en las Reglas de Juego de la IFAB</div>
-  <h1>La app gratuita para preparar <br>el examen de <span class="accent">árbitro de fútbol</span></h1>
-  <p class="lead">Entrena las 17 Reglas de Juego con más de 2.000 preguntas, estadísticas inteligentes, modos competitivos y una academia personal.</p>
-  <div class="landing-hero-actions">
-    <button type="button" class="btn btn-yellow" id="hero-register-btn">Crear cuenta gratis</button>
-    <button type="button" class="btn btn-secondary" id="hero-quiz-btn">Probar un test gratis</button>
-  </div>
-  <div class="landing-hero-social-proof">
-    <span class="stars">★★★★★</span> Más de 2.000 preguntas · Sin tarjeta ni compromiso
-  </div>
-  <div class="landing-stats">
-    <div class="landing-stat"><div class="num" id="stat-questions" data-target="2000" data-suffix="+">0</div><div class="lbl">Preguntas</div></div>
-    <div class="landing-stat"><div class="num" id="stat-rules" data-target="17">0</div><div class="lbl">Reglas IFAB</div></div>
-    <div class="landing-stat"><div class="num" id="stat-free" data-target="100" data-suffix="%">0</div><div class="lbl">Gratis</div></div>
-  </div>
-  </div>
-
-  <div class="landing-hero-mockup" aria-hidden="true">
-    <div class="mk">
-      <div class="mk-bar"><i></i><i></i><i></i><span>we-ref.com</span></div>
-      <div class="mk-body">
-        <aside class="mk-side">
-          <div class="mk-brand"><b></b>WEREF</div>
-          <div class="mk-nav on">Inicio</div>
-          <div class="mk-nav">Test Rápidos</div>
-          <div class="mk-nav">WEREF League</div>
-          <div class="mk-nav">Mi Academia</div>
-        </aside>
-        <div class="mk-main">
-          <div class="mk-hero">
-            <div>
-              <small>BUENOS DÍAS</small>
-              <b>Prepárate para tu próximo examen</b>
-              <span>Aprendiz · 120 puntos · te faltan 130 para ser Árbitro Territorial</span>
-              <div class="mk-btns"><i class="y">Empezar a entrenar</i><i>Test rápido</i></div>
+<header class="hm-hero">
+  <svg class="hm-field" viewBox="0 0 1200 700" preserveAspectRatio="xMaxYMid slice" aria-hidden="true" focusable="false">
+    <g fill="none" stroke="#fff" stroke-width="3">
+      <rect x="40" y="40" width="1120" height="620"/>
+      <line x1="600" y1="40" x2="600" y2="660"/>
+      <circle cx="600" cy="350" r="110"/>
+      <circle cx="600" cy="350" r="6" fill="#fff"/>
+      <rect x="40" y="170" width="190" height="360"/>
+      <rect x="40" y="255" width="80" height="190"/>
+      <path d="M230 295 a115 115 0 0 1 0 110"/>
+      <rect x="970" y="170" width="190" height="360"/>
+      <rect x="1080" y="255" width="80" height="190"/>
+      <path d="M970 295 a115 115 0 0 0 0 110"/>
+    </g>
+  </svg>
+  <div class="sh-wrap hm-hero-in">
+    <div class="hm-hero-copy">
+      <p class="hm-badge"><span class="hm-dot"></span> Gratis · Basado en las Reglas de Juego de la IFAB</p>
+      <h1>La app gratuita para preparar <br>el examen de <span class="hm-hl">árbitro de fútbol</span></h1>
+      <p class="hm-lead">Entrena las 17 Reglas de Juego con más de 2.000 preguntas, estadísticas inteligentes, modos competitivos y una academia personal.</p>
+      <div class="hm-btns">
+        <button type="button" class="btn btn-yellow" id="hero-register-btn">Crear cuenta gratis</button>
+        <button type="button" class="btn btn-line" id="hero-quiz-btn">Probar un test gratis</button>
+      </div>
+      <p class="hm-proof"><span class="hm-stars">★★★★★</span> Más de 2.000 preguntas · Sin tarjeta ni compromiso</p>
+      <div class="hm-stats">
+        <div class="hm-stat"><span class="num" id="stat-questions" data-target="2000" data-suffix="+">2.000+</span><span class="lbl">Preguntas</span></div>
+        <div class="hm-stat"><span class="num" id="stat-rules" data-target="17">17</span><span class="lbl">Reglas IFAB</span></div>
+        <div class="hm-stat"><span class="num" id="stat-free" data-target="100" data-suffix="%">100%</span><span class="lbl">Gratis</span></div>
+      </div>
+    </div>
+    <div class="hm-hero-visual" aria-hidden="true">
+      <span class="hm-card hm-card-r"></span><span class="hm-card hm-card-y"></span>
+      <div class="mock">
+        <div class="mock-bar"><i></i><i></i><i></i><span>we-ref.com</span></div>
+        <div class="mock-body">
+          <aside class="mock-side">
+            <div class="mock-brand"><b></b>WEREF</div>
+            <div class="mock-nav on">Inicio</div>
+            <div class="mock-nav">Test Rápidos</div>
+            <div class="mock-nav">WEREF League</div>
+            <div class="mock-nav">Mi Academia</div>
+          </aside>
+          <div class="mock-main">
+            <div class="mock-hello">
+              <div>
+                <small>BUENOS DÍAS</small>
+                <b>Prepárate para tu próximo examen</b>
+                <span>Aprendiz · 120 puntos · te faltan 130 para ser Árbitro Territorial</span>
+                <div class="mock-btns"><i class="y">Empezar a entrenar</i><i>Test rápido</i></div>
+              </div>
+              <div class="mock-ring"><b>42%</b></div>
             </div>
-            <div class="mk-ring"><b>42%</b></div>
-          </div>
-          <div class="mk-kpis">
-            <div><b>42%</b><span>Progreso</span></div>
-            <div><b>78%</b><span>Acierto reciente</span></div>
-            <div><b>5 días</b><span>Racha</span></div>
-            <div><b>12/20</b><span>Objetivo de hoy</span></div>
-          </div>
-          <div class="mk-laws">
-            <div><b>1</b><span>El Terreno de Juego</span><i style="width:70%"></i></div>
-            <div><b>2</b><span>El Balón</span><i style="width:45%"></i></div>
-            <div><b>3</b><span>Los Jugadores</span><i style="width:88%"></i></div>
-            <div><b>4</b><span>El Equipamiento</span><i style="width:30%"></i></div>
-            <div><b>5</b><span>El Árbitro</span><i style="width:62%"></i></div>
-            <div><b>6</b><span>Otros Miembros del Equipo</span><i style="width:20%"></i></div>
-            <div class="red"><b>VAR</b><span>Sala VAR</span><i style="width:40%"></i></div>
-            <div class="gold"><b>R</b><span>Sala de Repaso</span><i style="width:55%"></i></div>
+            <div class="mock-kpis">
+              <div><b>42%</b><span>Progreso</span></div>
+              <div><b>78%</b><span>Acierto reciente</span></div>
+              <div><b>5 días</b><span>Racha</span></div>
+              <div><b>12/20</b><span>Objetivo de hoy</span></div>
+            </div>
+            <div class="mock-laws">
+              <div><b>1</b><span>El Terreno de Juego</span><i style="width:70%"></i></div>
+              <div><b>2</b><span>El Balón</span><i style="width:45%"></i></div>
+              <div><b>3</b><span>Los Jugadores</span><i style="width:88%"></i></div>
+              <div><b>4</b><span>El Equipamiento</span><i style="width:30%"></i></div>
+              <div><b>5</b><span>El Árbitro</span><i style="width:62%"></i></div>
+              <div><b>6</b><span>Otros Miembros del Equipo</span><i style="width:20%"></i></div>
+              <div class="red"><b>VAR</b><span>Sala VAR</span><i style="width:40%"></i></div>
+              <div class="gold"><b>R</b><span>Sala de Repaso</span><i style="width:55%"></i></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-  </div>
 </header>
 
-<!-- 2. MINI-TEST ANÓNIMO -->
-<section class="landing-quiz-section" id="quiz">
-  <div class="landing-quiz-card">
-
-    <div id="quiz-intro">
-      <h2>¿Aprobarías hoy el examen arbitral?</h2>
-      <p>Pon a prueba tus conocimientos con 5 preguntas basadas en las Reglas de Juego de la IFAB.</p>
-      <div class="quiz-meta">
+<!-- 2. TEST -->
+<section class="hm-sec hm-quiz" id="quiz">
+  <div class="sh-wrap">
+    <div id="quiz-intro" class="hm-quiz-intro">
+      <div class="hm-quiz-copy">
+        <h2>¿Aprobarías hoy el examen arbitral?</h2>
+        <p>Pon a prueba tus conocimientos con 5 preguntas basadas en las Reglas de Juego de la IFAB.</p>
+        <div class="quiz-meta">
         <span class="quiz-meta-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1 minuto</span>
         <span class="quiz-meta-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg> 5 preguntas</span>
         <span class="quiz-meta-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg> Sin registro</span>
       </div>
-
-      <div class="quiz-segmented" role="tablist">
+        <div class="quiz-segmented" role="tablist">
         <button type="button" class="quiz-seg-btn active" id="quiz-mode-study" data-mode="study" data-tooltip="Ve la respuesta correcta y su explicación tras cada pregunta.">Estudio</button>
         <button type="button" class="quiz-seg-btn" id="quiz-mode-exam" data-mode="exam" data-tooltip="Responde las 5 preguntas seguidas y descubre tu puntuación al final.">Examen</button>
       </div>
       <div class="quiz-mode-desc" id="quiz-mode-desc">Ve la respuesta correcta y su explicación tras cada pregunta.</div>
-
-      <button type="button" class="btn btn-yellow btn-quiz-cta" id="quiz-start-btn">Comenzar test</button>
+        <button type="button" class="btn btn-yellow btn-quiz-cta" id="quiz-start-btn">Comenzar test</button>
+      </div>
+      <div class="hm-sheet" aria-hidden="true">
+        <div class="hm-sheet-bar"><span>Pregunta <b>3</b> / 5</span><span>00:42</span></div>
+        <div class="hm-sheet-body">
+          <p class="hm-sheet-q">¿A qué distancia mínima del balón deben estar los adversarios en un tiro libre?</p>
+          <ol>
+            <li><b>A</b> 5,5 m</li>
+            <li class="on"><b>B</b> 9,15 m</li>
+            <li><b>C</b> 11 m</li>
+            <li><b>D</b> 16,5 m</li>
+          </ol>
+        </div>
+        <div class="hm-sheet-foot">Regla 13 · Los tiros libres</div>
+      </div>
     </div>
-
     <div id="quiz-play" class="quiz-play-inner" style="display:none;">
       <div class="quiz-topbar-landing">
         <span id="quiz-progress"></span>
         <span class="score" id="quiz-live-score"></span>
       </div>
-      <div id="quiz-tag" style="font-family:'JetBrains Mono'; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.45); text-align:center; margin-bottom:6px;"></div>
+      <div id="quiz-tag"></div>
       <div class="qtext" id="quiz-question-text"></div>
       <div id="quiz-options"></div>
       <div id="quiz-feedback"></div>
@@ -260,106 +283,128 @@
       <p style="font-size:13.5px; color:var(--muted); margin-bottom:22px;">Regístrate gratis y empieza a entrenar con más de 2.000 preguntas, estadísticas personalizadas y modos de práctica diseñados para ayudarte a mejorar.</p>
       <button type="button" class="btn btn-yellow" id="quiz-register-btn">Quiero seguir mejorando</button>
     </div>
-
   </div>
 </section>
 
 <!-- 3. QUÉ ENCONTRARÁS DENTRO -->
-<section class="landing-section saas-features" id="features">
-  <h2>Todo lo que necesitas para mejorar como <span class="saas-highlight">árbitro</span></h2>
-  <p class="saas-features-sub">Entrena, compite y analiza tu progreso desde un único lugar.</p>
-  <div class="saas-grid">
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span></span>
-      <h3>Reglas de Juego</h3>
-      <p>Entrena las 17 reglas con cientos de preguntas.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></svg></span></span>
-      <h3>WEREF League</h3>
-      <p>Compite contra otros árbitros y sube en la clasificación.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span></span>
-      <h3>Estadísticas</h3>
-      <p>Descubre tus puntos débiles y mejora cada día.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></span>
-      <h3>Mi Academia</h3>
-      <p>Guarda documentos y crea tus propios test.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5"/><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"/><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"/><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"/><path d="M18 18a4 4 0 0 0 2-7.464"/><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"/><path d="M6 18a4 4 0 0 1-2-7.464"/><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"/></svg></span></span>
-      <h3>Sala de Repaso</h3>
-      <p>Repasa tus fallos y aprende de ellos.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
-    <button type="button" class="saas-card" data-action="open-register">
-      <span class="saas-card-icon-wrap"><span class="saas-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg></span></span>
-      <h3>Sincronización</h3>
-      <p>Tu progreso siempre contigo, en cualquier dispositivo.</p>
-      <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
-    </button>
+<section class="hm-sec hm-dark hm-features" id="features">
+  <div class="sh-wrap">
+    <div class="hm-head hm-head-split">
+      <h2>Todo lo que necesitas para mejorar como <span class="saas-highlight">árbitro</span></h2>
+      <p class="hm-sub">Entrena, compite y analiza tu progreso desde un único lugar.</p>
+    </div>
+    <div class="bento">
+      <button type="button" class="bento-card bento-xl bento-rules" data-action="open-register">
+        <span class="bento-ic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
+        <h3>Reglas de Juego</h3>
+        <p>Entrena las 17 reglas con cientos de preguntas.</p>
+        <div class="bento-mini" aria-hidden="true">
+          <div class="bm-row"><b>1</b><span>El Terreno de Juego</span><i style="--p:70%"></i></div>
+          <div class="bm-row"><b>2</b><span>El Balón</span><i style="--p:45%"></i></div>
+          <div class="bm-row"><b>3</b><span>Los Jugadores</span><i style="--p:88%"></i></div>
+          <div class="bm-row"><b>12</b><span>Faltas e Incorrecciones</span><i style="--p:32%"></i></div>
+        </div>
+        <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+      </button>
+      <button type="button" class="bento-card bento-xl bento-league" data-action="open-register">
+        <span class="bento-ic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></svg></span>
+        <h3>WEREF League</h3>
+        <p>Compite contra otros árbitros y sube en la clasificación.</p>
+        <div class="bm-rank" aria-hidden="true"><b>#12</b><span>640 pts</span></div>
+        <div class="bm-bar" aria-hidden="true"></div>
+        <div class="bm-lbl" aria-hidden="true">250 pts para el Top 3</div>
+        <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+      </button>
+      <button type="button" class="bento-card bento-sm" data-action="open-register">
+        <span class="bento-ic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+        <h3>Estadísticas</h3>
+        <p>Descubre tus puntos débiles y mejora cada día.</p>
+        <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+      </button>
+      <button type="button" class="bento-card bento-sm" data-action="open-register">
+        <span class="bento-ic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span>
+        <h3>Mi Academia</h3>
+        <p>Guarda documentos y crea tus propios test.</p>
+        <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+      </button>
+      <button type="button" class="bento-card bento-sm" data-action="open-register">
+        <span class="bento-ic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5"/><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"/><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"/><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"/><path d="M18 18a4 4 0 0 0 2-7.464"/><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"/><path d="M6 18a4 4 0 0 1-2-7.464"/><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"/></svg></span>
+        <h3>Sala de Repaso</h3>
+        <p>Repasa tus fallos y aprende de ellos.</p>
+        <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+      </button>
+      <button type="button" class="bento-card bento-sm" data-action="open-register">
+        <span class="bento-ic" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg></span>
+        <h3>Sincronización</h3>
+        <p>Tu progreso siempre contigo, en cualquier dispositivo.</p>
+        <span class="saas-card-link">Entrar <span aria-hidden="true">→</span></span>
+      </button>
+    </div>
   </div>
 </section>
 
 <!-- 4. ASI FUNCIONA -->
-<section class="landing-section landing-how" id="como-funciona">
-  <h2>Así funciona</h2>
-  <ol class="how-grid">
-    <li class="how-step"><span class="how-num" aria-hidden="true">1</span><h3>Prueba un test sin registrarte</h3><p>Responde 5 preguntas en un minuto y mide tu nivel sin crear cuenta.</p></li>
-    <li class="how-step"><span class="how-num" aria-hidden="true">2</span><h3>Crea tu cuenta gratis</h3><p>Guarda tu progreso y accede a tus estadísticas, a la liga y a Mi Academia.</p></li>
-    <li class="how-step"><span class="how-num" aria-hidden="true">3</span><h3>Entrena cada día</h3><p>Practica las 17 Reglas de Juego, repasa tus fallos y sube en la clasificación.</p></li>
-  </ol>
+<section class="hm-sec hm-paper hm-how" id="como-funciona">
+  <div class="sh-wrap">
+    <h2>Así funciona</h2>
+    <ol class="steps">
+      <li><span class="step-n" aria-hidden="true">1</span><h3>Prueba un test sin registrarte</h3><p>Responde 5 preguntas en un minuto y mide tu nivel sin crear cuenta.</p></li>
+      <li><span class="step-n" aria-hidden="true">2</span><h3>Crea tu cuenta gratis</h3><p>Guarda tu progreso y accede a tus estadísticas, a la liga y a Mi Academia.</p></li>
+      <li><span class="step-n" aria-hidden="true">3</span><h3>Entrena cada día</h3><p>Practica las 17 Reglas de Juego, repasa tus fallos y sube en la clasificación.</p></li>
+    </ol>
+  </div>
 </section>
+
 <!-- REGLAS:START -->
-<section class="landing-section landing-rules" id="reglas">
-  <h2>Las 17 Reglas de Juego, explicadas</h2>
-  <p class="lr-sub">Una guía por regla, con los errores más frecuentes del examen y cinco preguntas para practicar.</p>
-  <ol class="lr-grid"><li><a href="/reglas-de-juego/regla-1-terreno-de-juego/"><span class="lr-n">1</span><span class="lr-t">El terreno de juego</span></a></li><li><a href="/reglas-de-juego/regla-2-balon/"><span class="lr-n">2</span><span class="lr-t">El balón</span></a></li><li><a href="/reglas-de-juego/regla-3-jugadores/"><span class="lr-n">3</span><span class="lr-t">Los jugadores</span></a></li><li><a href="/reglas-de-juego/regla-4-equipamiento/"><span class="lr-n">4</span><span class="lr-t">El equipamiento de los jugadores</span></a></li><li><a href="/reglas-de-juego/regla-5-arbitro/"><span class="lr-n">5</span><span class="lr-t">El árbitro</span></a></li><li><a href="/reglas-de-juego/regla-6-otros-miembros-equipo-arbitral/"><span class="lr-n">6</span><span class="lr-t">Los otros miembros del equipo arbitral</span></a></li><li><a href="/reglas-de-juego/regla-7-duracion-del-partido/"><span class="lr-n">7</span><span class="lr-t">La duración del partido</span></a></li><li><a href="/reglas-de-juego/regla-8-inicio-y-reanudacion/"><span class="lr-n">8</span><span class="lr-t">El inicio y la reanudación del juego</span></a></li><li><a href="/reglas-de-juego/regla-9-balon-en-juego-y-fuera-de-juego/"><span class="lr-n">9</span><span class="lr-t">El balón en juego y fuera de juego</span></a></li><li><a href="/reglas-de-juego/regla-10-determinar-el-resultado/"><span class="lr-n">10</span><span class="lr-t">Determinar el resultado de un partido</span></a></li><li><a href="/reglas-de-juego/regla-11-fuera-de-juego/"><span class="lr-n">11</span><span class="lr-t">El fuera de juego</span></a></li><li><a href="/reglas-de-juego/regla-12-faltas-e-incorrecciones/"><span class="lr-n">12</span><span class="lr-t">Faltas e incorrecciones</span></a></li><li><a href="/reglas-de-juego/regla-13-tiros-libres/"><span class="lr-n">13</span><span class="lr-t">Los tiros libres</span></a></li><li><a href="/reglas-de-juego/regla-14-tiro-penal/"><span class="lr-n">14</span><span class="lr-t">El tiro penal</span></a></li><li><a href="/reglas-de-juego/regla-15-saque-de-banda/"><span class="lr-n">15</span><span class="lr-t">El saque de banda</span></a></li><li><a href="/reglas-de-juego/regla-16-saque-de-meta/"><span class="lr-n">16</span><span class="lr-t">El saque de meta</span></a></li><li><a href="/reglas-de-juego/regla-17-saque-de-esquina/"><span class="lr-n">17</span><span class="lr-t">El saque de esquina</span></a></li></ol>
-  <p class="lr-more"><a class="btn btn-secondary" href="/reglas-de-juego/">Ver todas las reglas</a></p>
+<section class="hm-sec hm-dark hm-rules" id="reglas">
+  <div class="sh-wrap">
+    <div class="hm-head hm-head-split">
+      <h2>Las 17 Reglas de Juego, explicadas</h2>
+      <p class="hm-sub">Una guía por regla, con los errores más frecuentes del examen y cinco preguntas para practicar.</p>
+    </div>
+    <ol class="jerseys"><li><a href="/reglas-de-juego/regla-1-terreno-de-juego/"><span class="j-n">01</span><span class="j-t">El terreno de juego</span></a></li><li><a href="/reglas-de-juego/regla-2-balon/"><span class="j-n">02</span><span class="j-t">El balón</span></a></li><li><a href="/reglas-de-juego/regla-3-jugadores/"><span class="j-n">03</span><span class="j-t">Los jugadores</span></a></li><li><a href="/reglas-de-juego/regla-4-equipamiento/"><span class="j-n">04</span><span class="j-t">El equipamiento de los jugadores</span></a></li><li><a href="/reglas-de-juego/regla-5-arbitro/"><span class="j-n">05</span><span class="j-t">El árbitro</span></a></li><li><a href="/reglas-de-juego/regla-6-otros-miembros-equipo-arbitral/"><span class="j-n">06</span><span class="j-t">Los otros miembros del equipo arbitral</span></a></li><li><a href="/reglas-de-juego/regla-7-duracion-del-partido/"><span class="j-n">07</span><span class="j-t">La duración del partido</span></a></li><li><a href="/reglas-de-juego/regla-8-inicio-y-reanudacion/"><span class="j-n">08</span><span class="j-t">El inicio y la reanudación del juego</span></a></li><li><a href="/reglas-de-juego/regla-9-balon-en-juego-y-fuera-de-juego/"><span class="j-n">09</span><span class="j-t">El balón en juego y fuera de juego</span></a></li><li><a href="/reglas-de-juego/regla-10-determinar-el-resultado/"><span class="j-n">10</span><span class="j-t">Determinar el resultado de un partido</span></a></li><li><a href="/reglas-de-juego/regla-11-fuera-de-juego/"><span class="j-n">11</span><span class="j-t">El fuera de juego</span></a></li><li><a href="/reglas-de-juego/regla-12-faltas-e-incorrecciones/"><span class="j-n">12</span><span class="j-t">Faltas e incorrecciones</span></a></li><li><a href="/reglas-de-juego/regla-13-tiros-libres/"><span class="j-n">13</span><span class="j-t">Los tiros libres</span></a></li><li><a href="/reglas-de-juego/regla-14-tiro-penal/"><span class="j-n">14</span><span class="j-t">El tiro penal</span></a></li><li><a href="/reglas-de-juego/regla-15-saque-de-banda/"><span class="j-n">15</span><span class="j-t">El saque de banda</span></a></li><li><a href="/reglas-de-juego/regla-16-saque-de-meta/"><span class="j-n">16</span><span class="j-t">El saque de meta</span></a></li><li><a href="/reglas-de-juego/regla-17-saque-de-esquina/"><span class="j-n">17</span><span class="j-t">El saque de esquina</span></a></li></ol>
+    <p class="hm-more"><a class="btn btn-yellow" href="/reglas-de-juego/">Ver todas las reglas</a></p>
+  </div>
 </section>
 <!-- REGLAS:END -->
 
 <!-- PILARES:START -->
-<section class="landing-section landing-guides" id="guias">
-  <h2>Guías para árbitros</h2>
-  <p class="lr-sub">Todo lo que necesitas para empezar, preparar el examen y estar al día.</p>
-  <ul class="lg-grid"><li><a href="/app-arbitro-de-futbol/"><strong>App para árbitros de fútbol</strong><span>Qué incluye la app y cómo instalarla en el móvil.</span></a></li><li><a href="/examen-arbitro-de-futbol/"><strong>Examen de árbitro de fútbol</strong><span>Qué se examina, qué estudiar y cómo prepararlo.</span></a></li><li><a href="/como-ser-arbitro-de-futbol/"><strong>Cómo ser árbitro de fútbol</strong><span>Pasos y requisitos generales para hacerse árbitro.</span></a></li><li><a href="/cambios-reglas-de-juego-2026-27/"><strong>Cambios en las Reglas 2026/27</strong><span>Qué ha cambiado la IFAB y qué es opcional.</span></a></li><li><a href="/test-reglas-de-juego/"><strong>Test de Reglas de Juego</strong><span>Cinco preguntas en un minuto, sin registro.</span></a></li></ul>
+<section class="hm-sec hm-paper hm-guides" id="guias">
+  <div class="sh-wrap">
+    <div class="hm-head hm-head-split">
+      <h2>Guías para árbitros</h2>
+      <p class="hm-sub">Todo lo que necesitas para empezar, preparar el examen y estar al día.</p>
+    </div>
+    <ol class="guides"><li><a href="/app-arbitro-de-futbol/"><span class="g-cat">App</span><strong class="g-t">App para árbitros de fútbol</strong><span class="g-d">Qué incluye la app y cómo instalarla en el móvil.</span><span class="g-m">3 min <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a></li><li><a href="/examen-arbitro-de-futbol/"><span class="g-cat">Examen</span><strong class="g-t">Examen de árbitro de fútbol</strong><span class="g-d">Qué se examina, qué estudiar y cómo prepararlo.</span><span class="g-m">4 min <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a></li><li><a href="/como-ser-arbitro-de-futbol/"><span class="g-cat">Primeros pasos</span><strong class="g-t">Cómo ser árbitro de fútbol</strong><span class="g-d">Pasos y requisitos generales para hacerse árbitro.</span><span class="g-m">3 min <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a></li><li><a href="/cambios-reglas-de-juego-2026-27/"><span class="g-cat">Novedades</span><strong class="g-t">Cambios en las Reglas 2026/27</strong><span class="g-d">Qué ha cambiado la IFAB y qué es opcional.</span><span class="g-m">5 min <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a></li><li><a href="/test-reglas-de-juego/"><span class="g-cat">Test gratis</span><strong class="g-t">Test de Reglas de Juego</strong><span class="g-d">Cinco preguntas en un minuto, sin registro.</span><span class="g-m">3 min <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a></li></ol>
+  </div>
 </section>
 <!-- PILARES:END -->
 
 <!-- 9b. PREGUNTAS FRECUENTES -->
-<section class="landing-section landing-faq" id="faq">
-  <h2>Preguntas frecuentes</h2>
-  <div class="faq-list">
-    <details class="faq-item"><summary>¿Qué es WEREF?</summary><p>WEREF es una app web gratuita para preparar los exámenes de árbitro de fútbol. Incluye tests de las 17 Reglas de Juego, estadísticas de tu progreso, una liga para competir con otros árbitros (WEREF League) y una academia personal para tus propios tests.</p></details>
-    <details class="faq-item"><summary>¿WEREF es gratis?</summary><p>Sí. Puedes crear tu cuenta y entrenar sin pagar y sin dar datos de tarjeta.</p></details>
-    <details class="faq-item"><summary>¿Puedo probarla sin registrarme?</summary><p>Sí. Puedes hacer un test rápido de 5 preguntas sin crear cuenta. Para guardar tu progreso, ver tus estadísticas y competir en la liga necesitas registrarte.</p></details>
-    <details class="faq-item"><summary>¿Sirve para preparar el examen de árbitro?</summary><p>Sí, como herramienta de repaso: practicas las Reglas de Juego con preguntas tipo test y detectas qué reglas te cuestan más. No sustituye al curso ni es el examen oficial: el temario y el formato los marca tu federación o tu comité de árbitros.</p></details>
-    <details class="faq-item"><summary>¿Las preguntas son oficiales?</summary><p>No. WEREF es contenido no oficial, basado en las Reglas de Juego de la IFAB. No es material oficial de la IFAB ni de ninguna federación.</p></details>
-    <details class="faq-item"><summary>¿Puedo usarla desde el móvil?</summary><p>Sí. Funciona desde el navegador del móvil, la tablet o el ordenador, y puedes instalarla en la pantalla de inicio como una app.</p></details>
+<section class="hm-sec hm-white hm-faq" id="faq">
+  <div class="sh-wrap hm-faq-grid">
+    <div class="hm-faq-head">
+      <h2>Preguntas frecuentes</h2>
+      <p class="hm-sub">Lo que más nos preguntan los árbitros antes de empezar.</p>
+    </div>
+    <div class="faq-list">
+            <details class="faq-item"><summary>¿Qué es WEREF?</summary><p>WEREF es una app web gratuita para preparar los exámenes de árbitro de fútbol. Incluye tests de las 17 Reglas de Juego, estadísticas de tu progreso, una liga para competir con otros árbitros (WEREF League) y una academia personal para tus propios tests.</p></details>
+      <details class="faq-item"><summary>¿WEREF es gratis?</summary><p>Sí. Puedes crear tu cuenta y entrenar sin pagar y sin dar datos de tarjeta.</p></details>
+      <details class="faq-item"><summary>¿Puedo probarla sin registrarme?</summary><p>Sí. Puedes hacer un test rápido de 5 preguntas sin crear cuenta. Para guardar tu progreso, ver tus estadísticas y competir en la liga necesitas registrarte.</p></details>
+      <details class="faq-item"><summary>¿Sirve para preparar el examen de árbitro?</summary><p>Sí, como herramienta de repaso: practicas las Reglas de Juego con preguntas tipo test y detectas qué reglas te cuestan más. No sustituye al curso ni es el examen oficial: el temario y el formato los marca tu federación o tu comité de árbitros.</p></details>
+      <details class="faq-item"><summary>¿Las preguntas son oficiales?</summary><p>No. WEREF es contenido no oficial, basado en las Reglas de Juego de la IFAB. No es material oficial de la IFAB ni de ninguna federación.</p></details>
+      <details class="faq-item"><summary>¿Puedo usarla desde el móvil?</summary><p>Sí. Funciona desde el navegador del móvil, la tablet o el ordenador, y puedes instalarla en la pantalla de inicio como una app.</p></details>
+    </div>
   </div>
 </section>
 
 <!-- 10. CTA FINAL -->
-<section class="landing-cta">
-  <div class="cta-inner">
-    <div class="cta-text">
-      <div class="cta-icon-badge" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </div>
+<section class="hm-cta" id="cta">
+  <div class="sh-wrap hm-cta-in">
+    <div>
       <h2>¿Preparado para convertirte en un <span class="cta-highlight">mejor árbitro</span>?</h2>
       <p class="cta-sub">Empieza hoy. Solo tardarás un minuto.</p>
-      <button type="button" class="btn btn-yellow cta-btn" id="cta-register-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
-        Crear cuenta gratis
-      </button>
+      <button type="button" class="btn btn-ink cta-btn" id="cta-register-btn">Crear cuenta gratis</button>
       <div class="cta-benefits">
         <div class="cta-benefit">
           <span class="cta-benefit-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></span>
@@ -375,31 +420,51 @@
         </div>
       </div>
     </div>
-    <div class="cta-visual" aria-hidden="true">
-      <svg class="cta-visual-svg" viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg" fill="none">
-        <path class="cta-deco" d="M14 36c16 6 24 20 20 36" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 9"/>
-        <path class="cta-deco" d="m28 68 8 8-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle class="cta-deco" cx="24" cy="150" r="9" stroke="var(--yellow)" stroke-width="2"/>
-        <path class="cta-deco" d="M178 20 190 32M190 20 178 32" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-        <g class="cta-whistle" stroke="var(--yellow)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" transform="rotate(-14 110 100)">
-          <path d="M176 90c8-14 18-22 18-22"/>
-          <circle cx="196" cy="64" r="9"/>
-          <circle cx="166" cy="100" r="14"/>
-          <path d="M140 100h14"/>
-          <path d="M38 100h26"/>
-          <rect x="60" y="76" width="80" height="48" rx="24"/>
-          <circle cx="100" cy="100" r="7" fill="var(--yellow)" fill-opacity="0.16"/>
-          <path d="M120 84v32"/>
-        </g>
-      </svg>
-    </div>
+    <div class="hm-cta-art" aria-hidden="true"><span class="card-d"></span><span class="card-r"></span></div>
   </div>
 </section>
 
-<footer class="landing-footer">
-  <p><a href="contacto.html" style="color:var(--muted);">Contacto</a> · <a href="politica-privacidad.html" style="color:var(--muted);">Política de Privacidad</a> · <a href="terminos-de-uso.html" style="color:var(--muted);">Términos de Uso</a></p>
-  WEREF · Formación Arbitral — Contenido no oficial, basado en las Reglas de Juego IFAB.
+<!-- FOOTER:START -->
+<footer class="sh-foot">
+  <div class="sh-wrap">
+    <div class="sh-foot-top">
+      <div>
+        <a class="sh-brand" href="/" aria-label="WEREF, ir al inicio">
+          <span class="mark"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="10" width="18" height="26" rx="4" fill="#0F1013" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/><rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/></svg></span>
+          WEREF
+        </a>
+        <p class="sh-foot-tag">Formación arbitral gratuita: entrena las 17 Reglas de Juego y prepara tu examen de árbitro.</p>
+        <div class="sh-foot-social">
+          <a href="https://x.com/weref_es" target="_blank" rel="noopener" aria-label="WEREF en X"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16"/><path d="M20 4L4 20"/></svg></a>
+          <a href="https://www.instagram.com/weref_es/" target="_blank" rel="noopener" aria-label="WEREF en Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg></a>
+        </div>
+      </div>
+      <nav class="sh-foot-col" aria-label="Aprende">
+        <p class="sh-foot-h">Aprende</p>
+        <a href="/reglas-de-juego/">Las 17 Reglas de Juego</a>
+        <a href="/test-reglas-de-juego/">Test de Reglas de Juego</a>
+        <a href="/cambios-reglas-de-juego-2026-27/">Cambios en las Reglas 2026/27</a>
+      </nav>
+      <nav class="sh-foot-col" aria-label="Guías">
+        <p class="sh-foot-h">Guías</p>
+        <a href="/app-arbitro-de-futbol/">App para árbitros de fútbol</a>
+        <a href="/examen-arbitro-de-futbol/">Examen de árbitro de fútbol</a>
+        <a href="/como-ser-arbitro-de-futbol/">Cómo ser árbitro de fútbol</a>
+      </nav>
+      <nav class="sh-foot-col" aria-label="WEREF">
+        <p class="sh-foot-h">WEREF</p>
+        <a href="/contacto.html">Contacto</a>
+        <a href="/politica-privacidad.html">Política de Privacidad</a>
+        <a href="/terminos-de-uso.html">Términos de Uso</a>
+      </nav>
+    </div>
+    <div class="sh-foot-bottom">
+      <p>WEREF · Formación Arbitral — Contenido no oficial, basado en las Reglas de Juego IFAB.</p>
+      <p>© 2026 WEREF</p>
+    </div>
+  </div>
 </footer>
+<!-- FOOTER:END -->
 
 <!-- Modal de login / registro -->
 <div class="modal-backdrop" id="auth-modal" style="display:none;">
@@ -687,7 +752,7 @@ document.getElementById('hero-quiz-btn').addEventListener('click', ()=>{
   document.getElementById('quiz').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 document.getElementById('cta-register-btn').addEventListener('click', ()=>openModal('register'));
-document.querySelectorAll('.saas-card[data-action="open-register"], .dash-card[data-action="open-register"]').forEach(btn=>{
+document.querySelectorAll('[data-action="open-register"]').forEach(btn=>{
   btn.addEventListener('click', ()=>openModal('register'));
 });
 modalEls.close.addEventListener('click', closeModal);
@@ -827,7 +892,7 @@ function animateStatCount(el){
   }
   requestAnimationFrame(tick);
 }
-document.querySelectorAll('.landing-stat .num[data-target]').forEach(animateStatCount);
+// Las cifras del hero ya vienen escritas en el HTML (2.000+, 17, 100%): no arrancan en 0 ni dependen del JS.
 
 /* ---------------- Mini-test anónimo (landing) ----------------
    5 preguntas reales del banco de WEREF, elegidas por el propio usuario para este teaser. */

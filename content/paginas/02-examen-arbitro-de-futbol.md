@@ -6,6 +6,7 @@ description: Cómo suele ser el examen de árbitro de fútbol, qué estudiar de 
 h1: Examen de árbitro de fútbol: cómo es y cómo prepararlo
 kicker: Guía para el examen
 resumen: Qué se examina, qué estudiar y cómo prepararlo.
+categoria: Examen
 fecha: 2026-11-12
 cta_title: Empieza a practicar
 cta_text: Haz un test gratis de las Reglas de Juego o crea tu cuenta para guardar tu progreso.

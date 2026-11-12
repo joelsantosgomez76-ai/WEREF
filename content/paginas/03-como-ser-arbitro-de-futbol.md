@@ -6,6 +6,7 @@ description: Cómo hacerte árbitro de fútbol en España: acreditación, edad, 
 h1: Cómo ser árbitro de fútbol en España
 kicker: Guía para empezar
 resumen: Pasos y requisitos generales para hacerse árbitro.
+categoria: Primeros pasos
 fecha: 2026-11-12
 cta_title: Ve entrenando las reglas
 cta_text: Mientras esperas al curso, practica las Reglas de Juego con un test gratis.

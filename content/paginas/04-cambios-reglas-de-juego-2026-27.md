@@ -6,6 +6,7 @@ description: Resumen de los cambios de la IFAB en las Reglas de Juego 2026/27: s
 h1: Cambios en las Reglas de Juego 2026/27
 kicker: Novedades de la temporada
 resumen: Qué ha cambiado la IFAB y qué es opcional.
+categoria: Novedades
 fecha: 2026-11-12
 cta_title: Practica las reglas actualizadas
 cta_text: Entrena con tests de cada regla en WEREF, gratis y sin tarjeta.

@@ -30,22 +30,27 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/landing.css?v=0">
+<link rel="stylesheet" href="/assets/css/home.css?v=0">
 </head>
-<body class="pg">
+<body class="hm pg">
 
-<nav class="landing-nav">
-  <a class="landing-brand" href="/" aria-label="WEREF, ir al inicio">
-    <span class="mark"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-      <rect x="5" y="10" width="18" height="26" rx="4" fill="#16181D" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/>
-      <rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/>
-    </svg></span>
-    WEREF
-  </a>
-  <div class="landing-nav-actions">
-    <a class="btn btn-ghost" href="/#acceso">Iniciar sesión</a>
-    <a class="btn btn-primary" href="/#registro">Regístrate</a>
+<header class="sh-nav">
+  <div class="sh-wrap sh-nav-in">
+    <a class="sh-brand" href="/" aria-label="WEREF, ir al inicio">
+      <span class="mark"><svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="10" width="18" height="26" rx="4" fill="#0F1013" stroke="#fff" stroke-width="2" transform="rotate(-14 14 23)"/><rect x="25" y="12" width="18" height="26" rx="4" fill="#FF6A2B" transform="rotate(14 34 25)"/></svg></span>
+      WEREF
+    </a>
+    <nav class="sh-links" aria-label="Principal">
+      <a href="/reglas-de-juego/">Reglas de Juego</a>
+      <a href="/#guias">Guías</a>
+      <a href="/test-reglas-de-juego/">Test gratis</a>
+    </nav>
+    <div class="sh-actions">
+      <a class="btn btn-line btn-sm" href="/#acceso">Iniciar sesión</a>
+      <a class="btn btn-yellow btn-sm" href="/#registro">Regístrate</a>
+    </div>
   </div>
-</nav>
+</header>
 
 <main class="pg-main">
   <nav class="pg-crumbs" aria-label="Migas de pan">{{BREADCRUMBS}}</nav>
@@ -61,10 +66,7 @@
   <p class="pg-note">Fuente: Reglas de Juego de la IFAB. Consulta el texto oficial en <a href="https://www.theifab.com/laws/latest/" target="_blank" rel="noopener">theifab.com</a>.<br>Contenido no oficial, basado en las Reglas de Juego de la IFAB. Comprueba siempre la edición vigente y el reglamento de tu competición.</p>
 </main>
 
-<footer class="landing-footer">
-  <p><a href="/reglas-de-juego/" style="color:var(--muted);">Reglas de Juego</a> · <a href="/contacto.html" style="color:var(--muted);">Contacto</a> · <a href="/politica-privacidad.html" style="color:var(--muted);">Política de Privacidad</a> · <a href="/terminos-de-uso.html" style="color:var(--muted);">Términos de Uso</a></p>
-  WEREF · Formación Arbitral — Contenido no oficial, basado en las Reglas de Juego IFAB.
-</footer>
+{{FOOTER}}
 
 </body>
 </html>

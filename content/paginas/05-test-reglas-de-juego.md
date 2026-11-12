@@ -6,6 +6,7 @@ description: Haz gratis un test de cinco preguntas sobre las Reglas de Juego del
 h1: Test de las Reglas de Juego, gratis y sin registro
 kicker: Test gratuito
 resumen: Cinco preguntas en un minuto, sin registro.
+categoria: Test gratis
 fecha: 2026-11-12
 cta_title: Haz el test ahora
 cta_text: Cinco preguntas, un minuto y sin registro. Empieza cuando quieras.

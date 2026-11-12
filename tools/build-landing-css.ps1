@@ -92,10 +92,13 @@ $outPath = Join-Path $Site 'assets\css\landing.css'
 # version = huella del archivo: cambia sola cuando cambia el CSS (el service worker guarda en cache lo que lleva ?v=)
 $md5 = [Security.Cryptography.MD5]::Create()
 $hash = ([BitConverter]::ToString($md5.ComputeHash([IO.File]::ReadAllBytes($outPath))) -replace '-', '').Substring(0, 8).ToLower()
+$homeCss = Join-Path $Site 'assets\css\home.css'
+$hashHome = ([BitConverter]::ToString($md5.ComputeHash([IO.File]::ReadAllBytes($homeCss))) -replace '-', '').Substring(0, 8).ToLower()
 foreach($p in $Pages){
   $f = Join-Path $Site $p
   $t = [IO.File]::ReadAllText($f, $utf8)
   $n = [regex]::Replace($t, 'landing\.css\?v=[A-Za-z0-9]+', 'landing.css?v=' + $hash)
+  $n = [regex]::Replace($n, 'home\.css\?v=[A-Za-z0-9]+', 'home.css?v=' + $hashHome)
   if($n -ne $t){ [IO.File]::WriteAllText($f, $n, $utf8) }
 }
 "{0} KB (original {1} KB), version {2}, {3} paginas" -f [math]::Round((Get-Item $outPath).Length / 1024), [math]::Round($src.Length / 1024), $hash, $Pages.Count

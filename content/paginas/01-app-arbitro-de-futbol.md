@@ -6,6 +6,7 @@ description: WEREF es una app gratuita para árbitros de fútbol: tests de las 1
 h1: La app de WEREF para árbitros de fútbol
 kicker: App gratuita
 resumen: Qué incluye la app y cómo instalarla en el móvil.
+categoria: App
 fecha: 2026-11-12
 cta_title: Prueba la app ahora
 cta_text: Crea tu cuenta gratis, sin tarjeta, o haz primero un test de 5 preguntas sin registrarte.

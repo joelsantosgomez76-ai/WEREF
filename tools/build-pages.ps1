@@ -82,7 +82,7 @@ function Parse-Md([string]$text){
   $meta = @{}; $body = $text
   if($text.StartsWith("---`n")){
     $end = $text.IndexOf("`n---", 3)
-    foreach($l in ($text.Substring(4, $end - 4) -split "`n")){ if($l -match '^([a-z_]+):\s*(.*)$'){ $meta[$Matches[1]] = $Matches[2].Trim() } }
+    foreach($l in ($text.Substring(4, $end - 4) -split "`n")){ if($l -match '^([a-z0-9_]+):\s*(.*)$'){ $meta[$Matches[1]] = $Matches[2].Trim() } }
     $body = $text.Substring($end + 4).TrimStart("`n")
   }
   $num = 0; if($meta.ContainsKey('num')){ $num = [int]$meta['num'] }
@@ -139,7 +139,8 @@ function Crumb-Html($crumbs){
   return ($parts -join ' <span aria-hidden="true">&rsaquo;</span> ')
 }
 
-$tpl = RU (Join-Path $Site 'tools\templates\page.html')
+$footer = RU (Join-Path $Site 'tools\templates\footer.html')
+$tpl = (RU (Join-Path $Site 'tools\templates\page.html')).Replace('{{FOOTER}}', $footer.Trim())
 $idx = @()
 foreach($l in ((RU (Join-Path $Site 'content\reglas\_indice.txt')) -split "`n")){
   $l = $l.Trim(); if(-not $l){ continue }
@@ -249,7 +250,8 @@ if(Test-Path $pillarDir){
     WU (Join-Path $Site $rel) $html
     $outRel += $rel
     $sitemap.Add(@{ loc = $url; lastmod = $meta['fecha'] })
-    $pillars += [pscustomobject]@{ slug = $slug; nombre = $meta['crumb']; resumen = $meta['resumen']; orden = $f.Name }
+    $mins = [math]::Max(2, [math]::Ceiling($m.words / 170))
+    $pillars += [pscustomobject]@{ slug = $slug; nombre = $meta['crumb']; resumen = $meta['resumen']; cat = $meta['categoria']; mins = $mins; orden = $f.Name }
     Write-Host ("Pilar: {0} palabras -> {1}" -f $m.words, $rel)
   }
 }
@@ -273,7 +275,7 @@ WU (Join-Path $Site 'tools\generated-pages.txt') (($outRel | ForEach-Object { $_
 $lt = RU (Join-Path $Site 'tools\templates\reglas-landing.html')
 $items = ''
 foreach($r in $idx){
-  if($pub.ContainsKey($r.num)){ $items += '<li><a href="/reglas-de-juego/' + $r.slug + '/"><span class="lr-n">' + $r.num + '</span><span class="lr-t">' + (Esc $r.nombre) + '</span></a></li>' }
+  if($pub.ContainsKey($r.num)){ $items += '<li><a href="/reglas-de-juego/' + $r.slug + '/"><span class="j-n">' + ('{0:00}' -f $r.num) + '</span><span class="j-t">' + (Esc $r.nombre) + '</span></a></li>' }
 }
 $mStart = '<!-- REGLAS:START -->'; $mEnd = '<!-- REGLAS:END -->'
 $block = $mStart + "`n" + $lt.Replace('{{ITEMS}}', $items).Trim() + "`n" + $mEnd
@@ -289,7 +291,8 @@ if($s -ge 0 -and $e -gt $s -and $pub.Count -ge 1){
 if($pillars.Count){
   $gt = RU (Join-Path $Site 'tools\templates\pilares-landing.html')
   $gi = ''
-  foreach($p in $pillars){ $gi += '<li><a href="/' + $p.slug + '/"><strong>' + (Esc $p.nombre) + '</strong><span>' + (Esc $p.resumen) + '</span></a></li>' }
+  $arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+  foreach($p in $pillars){ $gi += '<li><a href="/' + $p.slug + '/"><span class="g-cat">' + (Esc $p.cat) + '</span><strong class="g-t">' + (Esc $p.nombre) + '</strong><span class="g-d">' + (Esc $p.resumen) + '</span><span class="g-m">' + $p.mins + ' min ' + $arrow + '</span></a></li>' }
   $gStart = '<!-- PILARES:START -->'; $gEnd = '<!-- PILARES:END -->'
   $gBlock = $gStart + "`n" + $gt.Replace('{{ITEMS}}', $gi).Trim() + "`n" + $gEnd
   $ix2 = RU $ixPath
@@ -298,6 +301,15 @@ if($pillars.Count){
     $new2 = $ix2.Substring(0, $s2) + $gBlock + $ix2.Substring($e2 + $gEnd.Length)
     if($new2 -ne $ix2){ WU $ixPath $new2 }
   }
+}
+
+# --- pie de pagina de la portada (marcadores FOOTER:START / FOOTER:END) ---
+$fStart = '<!-- FOOTER:START -->'; $fEnd = '<!-- FOOTER:END -->'
+$ix3 = RU $ixPath
+$s3 = $ix3.IndexOf($fStart); $e3 = $ix3.IndexOf($fEnd)
+if($s3 -ge 0 -and $e3 -gt $s3){
+  $new3 = $ix3.Substring(0, $s3) + $fStart + "`n" + $footer.Trim() + "`n" + $fEnd + $ix3.Substring($e3 + $fEnd.Length)
+  if($new3 -ne $ix3){ WU $ixPath $new3 }
 }
 
 # --- sitemap.xml ---
