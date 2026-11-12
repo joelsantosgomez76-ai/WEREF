@@ -58,52 +58,54 @@ Es la reanudación cuando el árbitro detiene el juego y no corresponde ninguna 
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: En un saque inicial, ¿a qué distancia mínima del balón deben estar los rivales del equipo que saca?
-A: 5,5 m.
-B: 9,15 m.
-C: 11 m.
-D: 4 m.
+Q: ¿Cuándo se considerará reanudado el juego en un balón a tierra?
+A: Cuando el balón toca en un jugador.
+B: Cuando el balón toca el suelo.
+C: Cuando el árbitro lo deja caer.
+D: Cuando el árbitro lo deja caer y lo toca un jugador.
 OK: B
-EXP: Los rivales deben estar al menos a 9,15 m del balón hasta que esté en juego.
+EXP: En un balón a tierra, el balón está en juego cuando toca el suelo.
 @fin
 
 @pregunta
-Q: ¿Cuándo está el balón en juego en un saque inicial?
-A: Cuando el árbitro hace sonar el silbato.
-B: Cuando es pateado y se mueve claramente.
-C: Cuando toca a otro jugador.
-D: Cuando sale de la marca central.
-OK: B
-EXP: El balón está en juego en cuanto es pateado y se mueve claramente, después de la señal del árbitro.
+Q: Al reanudarse el juego con un balón a tierra, el balón sale directamente por la línea de banda o la línea de meta, tras haber tocado el suelo y sin haber sido jugado o tocado por un jugador. ¿Qué decisión toma el árbitro?
+A: Reanuda el juego con un nuevo balón a tierra, ejecutándose en el mismo lugar que el anterior.
+B: Reanuda el juego con un nuevo balón a tierra, ejecutándose la línea de demarcación más cercana a donde salió.
+C: Concede un saque de banda a favor del equipo que jugó por última vez el balón.
+D: Concede un saque de banda, meta o esquina.
+OK: A
+EXP: Si el balón sale del campo tras tocar el suelo sin que lo toque ningún jugador, el balón a tierra se repite.
 @fin
 
 @pregunta
-Q: El árbitro detiene el juego por una lesión sin infracción mientras el balón está dentro del área penal. ¿Cómo se reanuda?
-A: Con balón a tierra para un delantero.
-B: Con balón a tierra para el portero del equipo defensor.
-C: Con un tiro libre indirecto.
-D: Con un saque de meta.
+Q: Un jugador que ejecuta correctamente un saque inicial toca el balón con la mano deliberadamente en el centro del campo antes de que cualquier otro jugador tocase o jugase el balón. ¿Qué decisión toma el árbitro?
+A: Concede un tiro libre indirecto a favor del equipo adversario.
+B: Concede un tiro libre directo a favor del equipo adversario, a ejecutarse en el lugar donde se cometió la infracción.
+C: Ordena la repetición del saque de salida.
+D: Concede un tiro libre indirecto a favor del equipo adversario y amonesta al jugador.
 OK: B
-EXP: Dentro del área penal, el balón a tierra es siempre para el portero del equipo defensor, dentro de su área.
+EXP: Si el que saca toca el balón con la mano antes de que lo toque otro jugador, se concede tiro libre directo desde donde se cometió la infracción.
 @fin
 
 @pregunta
-Q: ¿Se puede marcar gol directamente de un balón a tierra?
-A: Sí, en cualquier caso.
-B: No: el balón debe tocar al menos a dos jugadores.
-C: Solo si lo lanza el portero.
-D: Sí, pero solo en la portería rival.
-OK: B
-EXP: Un gol no puede marcarse directamente de un balón a tierra. Si el balón entra sin tocar a dos jugadores, corresponde saque de meta o saque de esquina.
+Q: Un jugador ejecuta un saque inicial correctamente y como consecuencia del fuerte viento, el balón entra en su propia meta sin haber sido tocado por otro jugador. ¿Qué decisión toma el árbitro?
+A: Concede un saque de esquina a favor del equipo adversario o repetición del saque inicial.
+B: Ordena la repetición del saque inicial.
+C: Concede un saque de esquina a favor del equipo adversario.
+D: Concede un saque de meta a favor del equipo defensor.
+OK: C
+EXP: En un saque inicial puede marcarse gol contra el rival, pero si el balón entra directamente en la propia portería se concede saque de esquina a los adversarios.
 @fin
 
 @pregunta
-Q: En un balón a tierra, ¿a qué distancia deben estar del balón los demás jugadores hasta que esté en juego?
-A: 2 m.
-B: 4 m.
-C: 9,15 m.
-D: 5,5 m.
+Q: Un balón a tierra que se ha dejado caer al suelo es pateado por un jugador y entra directamente en una meta sin que se produzca falta ni infracción de las Reglas de Juego. ¿Qué decisión debe tomar el árbitro?
+A: Se concederá un saque de esquina.
+B: Se concederá un saque de meta o esquina.
+C: Se concederá el gol.
+D: Se repetirá el balón a tierra.
 OK: B
-EXP: Los demás jugadores de ambos equipos deben mantenerse al menos a 4 m del balón hasta que esté en juego.
+EXP: No se puede marcar gol directamente de un balón a tierra: si entra sin tocar a dos jugadores, corresponde saque de meta o de esquina.
 @fin

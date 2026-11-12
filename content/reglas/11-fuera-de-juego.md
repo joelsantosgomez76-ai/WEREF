@@ -68,52 +68,54 @@ Se concede un **tiro libre indirecto** para los adversarios, desde donde se come
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Es una infracción estar en posición de fuera de juego?
-A: Sí, siempre.
-B: No: solo se sanciona si participa en el juego activo.
-C: Sí, si el jugador está en el campo rival.
-D: No, nunca se sanciona.
-OK: B
-EXP: Estar en posición de fuera de juego no es una infracción en sí. Solo se sanciona si el jugador interviene en el juego activo.
+Q: ¿En cual de estas acciones no se señala fuera de juego?
+A: Cuando un jugador corre solo hacia el balón.
+B: Cuando un jugador saca ventaja de su posición tras rebotar el balón de un poste.
+C: Cuando interfiere claramente en la visión de un adversario.
+D: Cuando un defensor juega deliberadamente el balón.
+OK: D
+EXP: Cuando un adversario juega el balón de forma deliberada, el atacante que lo recibe no obtiene ventaja y no hay fuera de juego.
 @fin
 
 @pregunta
-Q: Para determinar la posición de fuera de juego, ¿qué partes del cuerpo se tienen en cuenta?
-A: La cabeza, el cuerpo y los pies; no las manos ni los brazos.
-B: Todo el cuerpo, incluidos los brazos.
-C: Solo los pies.
-D: La cabeza y las manos.
-OK: A
-EXP: Cuentan la cabeza, el cuerpo y los pies. Las manos y los brazos de todos los jugadores no se consideran.
+Q: En posición de fuera de juego, ¿Qué partes del cuerpo se incluyen y qué partes no cuentan?
+A: La cabeza, cuerpo o pies se incluyen y las manos no.
+B: El cuerpo o pies se incluyen y las manos o brazos no.
+C: La cabeza, cuerpo o pies se incluyen y las manos y brazos no (excepto los guardametas).
+D: La cabeza, cuerpo o pies se incluyen y las manos y brazos no.
+OK: D
+EXP: Cuentan la cabeza, el cuerpo y los pies; las manos y los brazos de todos los jugadores, porteros incluidos, no cuentan.
 @fin
 
 @pregunta
-Q: Un atacante recibe el balón directamente de un saque de banda estando más cerca de la línea de meta rival que el penúltimo defensor. ¿Qué decide el árbitro?
-A: Tiro libre indirecto por fuera de juego.
-B: Tiro libre directo por fuera de juego.
-C: No hay infracción de fuera de juego.
-D: Saque de banda para el otro equipo.
+Q: Un jugador está en posición de fuera de juego e interfiere claramente el campo de visión del guardameta. Un compañero lanza a meta y consigue un gol. ¿Qué decisión toma el árbitro?
+A: Concede el gol.
+B: Concede el gol si el balón no toca en el jugador.
+C: Anula el gol y manda reanudar el juego con un tiro libre indirecto.
+D: Concede el gol, ya que no puede sancionar a un jugador sólo por estar en posición de fuera de juego.
 OK: C
-EXP: No hay fuera de juego si el jugador recibe el balón directamente de un saque de meta, un saque de banda o un saque de esquina.
+EXP: Un jugador en posición de fuera de juego que impide claramente la visión del portero interfiere con un adversario: se anula el gol y se concede tiro libre indirecto.
 @fin
 
 @pregunta
-Q: Un atacante está a la misma altura que el penúltimo defensor cuando un compañero pasa el balón. ¿Está en posición de fuera de juego?
-A: Sí.
-B: No.
-C: Solo si está en el área.
-D: Solo si el balón va por el aire.
-OK: B
-EXP: Un jugador a la misma altura que el penúltimo adversario, o que los dos últimos, no está en posición de fuera de juego.
+Q: ¿Cómo es penalizado un jugador que está en posición de fuera de juego?
+A: Con un tiro libre indirecto.
+B: Con un balón a tierra.
+C: No es infracción.
+D: Con un tiro libre directo.
+OK: C
+EXP: Estar en posición de fuera de juego no es infracción por sí mismo: solo se sanciona si el jugador participa en el juego activo.
 @fin
 
 @pregunta
-Q: ¿Cómo se reanuda el juego tras una infracción de fuera de juego?
-A: Con un tiro libre directo desde la línea de medio campo.
-B: Con un tiro libre indirecto desde donde se cometió la infracción.
-C: Con un balón a tierra.
-D: Con un saque de banda.
+Q: ¿En cuántas situaciones no se sancionará a un jugador que recibe el balón de un compañero, por estar en posición de fuera de juego?
+A: En la medida en que se encuentre en la mitad del terreno de juego adversario.
+B: Siempre que reciba el balón directamente de un saque de meta, saque de banda o saque de esquina.
+C: Se sanciona en todos los casos.
+D: En la medida en que no interfiera en el juego.
 OK: B
-EXP: Se concede un tiro libre indirecto a los adversarios, desde donde se cometió la infracción, aunque sea en el propio campo del infractor.
+EXP: No hay fuera de juego si el jugador recibe el balón directamente de un saque de meta, de un saque de banda o de un saque de esquina.
 @fin

@@ -87,52 +87,54 @@ Para valorar una ocasión manifiesta de gol se tienen en cuenta la distancia a l
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Qué sanción disciplinaria corresponde a una falta cometida de forma temeraria?
-A: Ninguna.
-B: Amonestación.
-C: Expulsión.
-D: Advertencia verbal.
+Q: ¿Puede el árbitro mostrar la tarjeta amarilla o roja a un jugador en el vestuario?
+A: Sí, siempre.
+B: No.
+C: Sí, pero sólo si es por conducta violenta.
+D: Sí, e informará al Delegado de su equipo.
 OK: B
-EXP: Una falta descuidada no tiene sanción disciplinaria; una temeraria se sanciona con amonestación y una cometida con fuerza excesiva, con expulsión.
+EXP: La autoridad disciplinaria del árbitro empieza con la inspección previa al partido y termina cuando abandona el campo; no puede mostrar tarjetas en el vestuario.
 @fin
 
 @pregunta
-Q: ¿Qué se concede si el portero controla el balón con las manos dentro de su área más de ocho segundos?
-A: Un tiro libre indirecto.
-B: Un saque de esquina para los adversarios.
-C: Un tiro libre directo.
-D: Un tiro penal.
+Q: ¿Está permitido que un jugador adversario cabecee el balón y se lo quite al guardameta cuando este lo sostiene en la palma de su mano?
+A: Sí, ya que no está en posesión del balón.
+B: No, nunca.
+C: Sí, si no lo hace de forma peligrosa.
+D: No, pero podrá hacerlo mientras que el guardameta lo bota o lo lanza al aire.
 OK: B
-EXP: Controlar el balón con las manos más de ocho segundos se sanciona con un saque de esquina para el equipo contrario. El árbitro cuenta los últimos cinco segundos con la mano levantada.
+EXP: Mientras el portero controla el balón con las manos, no puede ser disputado por un adversario.
 @fin
 
 @pregunta
-Q: Un delantero marca gol con el brazo, sin intención. ¿Es válido el gol?
-A: Sí, porque no hubo intención.
-B: No: marcar directamente con la mano o el brazo, aunque sea sin querer, es una infracción.
-C: Sí, si el árbitro no lo vio.
-D: Solo si el delantero es el portero.
-OK: B
-EXP: Marcar en la portería rival directamente con la mano o el brazo es una infracción aunque sea accidental, y también inmediatamente después de que el balón haya tocado en ellos.
+Q: ¿Cómo se debe reanudar el juego tras la conducta de un jugador de insultar a otro jugador, árbitro, árbitro asistente o cuarto árbitro con el balón en juego y dentro del terreno de juego?
+A: Con un tiro libre directo o tiro penal donde se hallaba el balón cuando el juego fue detenido.
+B: Con un tiro libre directo o tiro penal donde se cometió la infracción.
+C: Con un tiro libre indirecto donde se hallaba el balón cuando el juego fue detenido.
+D: Con un tiro libre indirecto donde se cometió la infracción.
+OK: D
+EXP: Las infracciones verbales con el balón en juego se sancionan con tiro libre indirecto, desde donde se cometió la infracción.
 @fin
 
 @pregunta
-Q: ¿Cuál de estas infracciones se sanciona con un tiro libre indirecto?
-A: Una zancadilla.
-B: Jugar de forma peligrosa.
-C: Un empujón.
-D: Sujetar a un adversario.
-OK: B
-EXP: Jugar de forma peligrosa y obstruir sin contacto se sancionan con tiro libre indirecto. Las otras tres se sancionan con tiro libre directo.
+Q: ¿Cuál de las siguientes infracciones cometidas con el balón en juego no puede ser sancionada como juego brusco y grave?
+A: Escupir a un adversario.
+B: Patear con fuerza excesiva a un adversario.
+C: Cargar a un adversario con fuerza excesiva.
+D: Disputarle el balón a un adversario con uso de fuerza excesiva.
+OK: A
+EXP: Escupir es un motivo de expulsión por sí mismo, distinto del juego brusco grave.
 @fin
 
 @pregunta
-Q: Un defensor sujeta a un atacante dentro del área e impide una ocasión manifiesta de gol. ¿Qué decide el árbitro?
-A: Penal y amonestación.
-B: Penal y expulsión.
-C: Tiro libre indirecto.
-D: Penal sin sanción disciplinaria.
-OK: B
-EXP: Cuando la infracción ocurre en el área propia y se concede penal, hay amonestación si fue un intento de jugar el balón y expulsión en el resto de casos, como sujetar o empujar.
+Q: En un periodo de unos cinco minutos, el mismo jugador ha efectuado tres infracciones diferentes sobre distintos jugadores adversarios, todas ellas de manera imprudente. ¿Puede el árbitro tomar alguna medida disciplinaria?
+A: Puede amonestar al jugador por infringir reiteradamente las Reglas de Juego.
+B: No debe asumir ninguna medida disciplinaria, ya que las infracciones fueron realizadas de manera imprudente.
+C: Sólo debe amonestar al jugador si estima que realiza las sucesivas infracciones con la intención de perder tiempo.
+D: No, ya que la reiteración sólo se contempla si son infracciones sobre el mismo jugador adversario.
+OK: A
+EXP: Las infracciones persistentes se sancionan con amonestación, aunque cada una sea imprudente y recaiga sobre jugadores diferentes.
 @fin

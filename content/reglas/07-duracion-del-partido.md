@@ -60,52 +60,54 @@ El árbitro también puede detener, suspender o terminar el partido si el terren
 
 ## Preguntas de muestra
 
-@pregunta
-Q: ¿Cuánto dura un partido normal?
-A: Dos tiempos de 40 minutos.
-B: Dos tiempos de 45 minutos.
-C: Dos tiempos de 50 minutos.
-D: Dos tiempos de 35 minutos.
-OK: B
-EXP: Un partido se juega en dos tiempos iguales de 45 minutos, salvo acuerdo previo con el árbitro y ambos equipos si la competición lo permite.
-@fin
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
 
 @pregunta
-Q: ¿Cuál es la duración máxima del descanso entre los dos tiempos?
-A: 10 minutos.
-B: 15 minutos.
-C: 20 minutos.
-D: 30 minutos.
-OK: B
-EXP: Los jugadores tienen derecho a un descanso de hasta 15 minutos. La competición fija la duración exacta.
-@fin
-
-@pregunta
-Q: El cuarto árbitro muestra el tiempo añadido mínimo. ¿Qué puede hacer el árbitro con ese tiempo?
-A: Aumentarlo, pero no reducirlo.
-B: Reducirlo, pero no aumentarlo.
-C: Cambiarlo libremente en cualquier sentido.
-D: Nada: no puede modificarlo.
+Q: ¿Quién debe decidir la cantidad de tiempo perdido que se ha de recuperar?
+A: El árbitro.
+B: El equipo arbitral.
+C: El cuarto árbitro.
+D: El árbitro junto con los árbitros asistentes.
 OK: A
-EXP: El tiempo que muestra el cuarto árbitro es un mínimo. El árbitro puede ampliarlo, pero no reducirlo.
+EXP: El árbitro es quien decide cuánto tiempo perdido se añade al final de cada tiempo.
 @fin
 
 @pregunta
-Q: Se señala un tiro penal justo al final del primer tiempo. ¿Qué ocurre con el tiempo?
-A: El tiempo termina y el penal no se ejecuta.
-B: El tiempo se prolonga hasta que se complete el tiro penal.
-C: El penal se ejecuta al empezar el segundo tiempo.
-D: El penal se sustituye por un tiro libre indirecto.
-OK: B
-EXP: Si se señala o se repite un tiro penal, el tiempo se prolonga hasta que se complete su ejecución.
+Q: La recuperación del tiempo perdido queda a criterio del árbitro, pero ¿es obligatorio que se recupere tiempo en caso de que haya habido motivos para ello?
+A: Sí.
+B: No.
+C: Depende del criterio del árbitro.
+D: Depende de lo que estipule el reglamento de la competición o el organizador de la competición.
+OK: A
+EXP: El árbitro debe añadir el tiempo perdido cuando ha habido motivos para ello, como sustituciones, lesiones o pérdidas de tiempo.
 @fin
 
 @pregunta
-Q: ¿Qué duración tiene una pausa de refrigeración permitida por la competición?
-A: Hasta 30 segundos.
-B: Entre 90 segundos y 3 minutos.
-C: 5 minutos.
-D: 10 minutos.
+Q: Si los dos equipos se ponen de acuerdo para que el descanso dure 20 minutos, ¿debe el árbitro atender esta petición?
+A: No, el tiempo de descanso es inamovible ya que es establecido por las Asociaciones Miembro.
+B: Sí, si él lo autoriza.
+C: No, ya que el tiempo de descanso no puede exceder de 15 minutos.
+D: Sí, si ambos equipos están de acuerdo.
+OK: C
+EXP: El descanso dura hasta un máximo de 15 minutos, aunque los dos equipos pidan más.
+@fin
+
+@pregunta
+Q: El anuncio de los minutos a añadir, ¿Expresa el tiempo exacto que queda de partido?
+A: Sí, una vez indicado el mismo, no se puede modificar.
+B: No, simplemente indica la cantidad mínima de tiempo que el árbitro va a añadir al final del período.
+C: Sí, pero no debe ser más de cinco minutos.
+D: Sí, el final del partido debe producirse tan pronto como dicho tiempo haya transcurrido.
 OK: B
-EXP: Las pausas de refrigeración duran entre 90 segundos y 3 minutos. Las de hidratación son de un minuto o menos.
+EXP: El tiempo que anuncia el cuarto árbitro es un mínimo: el árbitro puede aumentarlo, pero no reducirlo.
+@fin
+
+@pregunta
+Q: ¿Cuándo no es necesario recuperar el tiempo perdido?
+A: Por la evaluación de lesiones de los jugadores.
+B: Por las pérdidas de tiempo.
+C: Cuando el balón sale fuera del terreno de juego por cualquier situación normal del juego.
+D: Por las sustituciones.
+OK: C
+EXP: No se recupera el tiempo cuando el balón sale por situaciones normales del juego; sí por sustituciones, lesiones, pérdidas de tiempo y similares.
 @fin

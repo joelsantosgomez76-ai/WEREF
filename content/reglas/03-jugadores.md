@@ -61,52 +61,54 @@ Cada equipo tiene un capitán en el campo, identificado con un brazalete. No tie
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Cuál es el número mínimo de jugadores con el que un equipo puede comenzar o continuar un partido?
-A: 6
-B: 7
-C: 8
-D: 9
-OK: B
-EXP: Un partido no puede comenzar ni continuar si algún equipo tiene menos de 7 jugadores.
+Q: Si un jugador cambia de puesto con el guardameta sin la autorización previa del árbitro, ¿Es necesario detener el juego?
+A: Sí, amonestando a ambos jugadores por conducta antideportiva.
+B: No, amonestando a ambos jugadores por retardar la reanudación del juego.
+C: No, amonestando a ambos en la siguiente interrupción.
+D: Sí, amonestando a ambos y reanudando con un tiro libre indirecto.
+OK: C
+EXP: El juego continúa y se amonesta a los dos jugadores cuando el balón salga del juego, salvo que el cambio se haga en el descanso o antes de la prórroga o de la tanda de penaltis.
 @fin
 
 @pregunta
-Q: En una competición oficial en la que se permiten cinco sustitutos, ¿cuántas ocasiones de cambio tiene cada equipo, sin contar el descanso?
-A: 2
-B: 3
-C: 4
-D: 5
-OK: B
-EXP: Cada equipo dispone de tres ocasiones para hacer cambios, además del descanso. Varios cambios en la misma interrupción cuentan como una sola.
+Q: ¿Se pueden hacer sustituciones durante el tiempo a recuperar al final del segundo tiempo si no se ha agotado el número de sustituciones permitidas?
+A: No, ya que el encuentro ha finalizado.
+B: No, tendrán que seguir los que estaban participando.
+C: Sí.
+D: Sí, pero siempre que sea por lesión.
+OK: C
+EXP: Las sustituciones se hacen durante una interrupción del juego, también durante el tiempo añadido, siempre que el equipo conserve sustituciones disponibles.
 @fin
 
 @pregunta
-Q: ¿Cómo debe entrar el sustituto al terreno de juego?
-A: En cualquier momento, aunque el balón esté en juego.
-B: Durante una interrupción, por la línea de medio campo, cuando el sustituido ya ha salido y el árbitro lo autoriza.
-C: Por el mismo punto por el que sale el sustituido.
-D: Por cualquier línea de banda, sin esperar la señal del árbitro.
+Q: ¿Cuál de los siguientes no podría ser sancionado con tiro libre directo o tiro penal si estuviese dentro del terreno de juego de forma no autorizada e interfiriese en el juego?
+A: Jugador.
+B: Agente externo.
+C: Jugador expulsado.
+D: Suplente o jugador sustituido.
 OK: B
-EXP: El sustituto solo entra durante una interrupción, por la línea de medio campo, después de que salga el jugador sustituido y con la señal del árbitro.
+EXP: Una persona ajena a los equipos (agente externo) que interfiere se sanciona con balón a tierra; en cambio, un jugador, un suplente o un expulsado que entra sin permiso se sanciona con tiro libre directo o penal.
 @fin
 
 @pregunta
-Q: ¿En cuánto tiempo debe abandonar el campo un jugador sustituido, desde que se muestra el cartel de sustitución?
-A: 5 segundos.
-B: 10 segundos.
-C: 15 segundos.
-D: 30 segundos.
+Q: Un jugador que va a ser sustituido abandona el terreno de juego y el árbitro indica al suplente que entre. Antes de entrar, el suplente ejecuta un saque de banda. ¿Es correcto?
+A: Sí.
+B: No.
+C: Sí, siempre que sea autorizado por el árbitro.
+D: Sí, ya que el jugador sustituido abandonó el terreno de juego.
 OK: B
-EXP: El jugador sustituido debe estar fuera del terreno de juego en un máximo de diez segundos, salvo que lo impida la seguridad o una lesión.
+EXP: El suplente solo pasa a ser jugador cuando entra en el terreno de juego; hasta entonces no puede ejecutar ninguna reanudación.
 @fin
 
 @pregunta
-Q: Un jugador cambia su puesto con el portero sin avisar al árbitro. ¿Qué ocurre?
-A: El juego continúa y se amonesta a los dos jugadores cuando el balón salga del juego.
-B: Se detiene el juego y se concede un tiro libre indirecto.
-C: Se expulsa al portero.
-D: Se anula el cambio y no hay sanción.
+Q: ¿Está autorizado el guardameta a efectuar un saque de banda, un saque de esquina o un tiro penal?
+A: Sí, es un jugador más del equipo.
+B: Sí, es un jugador más del equipo, pero, deberá regresar a su área de penal.
+C: No.
+D: Sólo si el árbitro le da permiso.
 OK: A
-EXP: El juego continúa y ambos jugadores son amonestados cuando el balón salga del juego, salvo que el cambio se haga en el descanso o entre el final del partido y la prórroga o la tanda de penaltis.
+EXP: El portero es un jugador más del equipo y puede ejecutar saques de banda, saques de esquina y tiros penales.
 @fin

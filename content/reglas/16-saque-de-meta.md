@@ -49,52 +49,54 @@ Se puede marcar gol directamente de un saque de meta, pero **solo contra el equi
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Desde dónde se ejecuta un saque de meta?
-A: Desde cualquier punto del área de meta.
-B: Desde la línea de meta, fuera del área de meta.
-C: Desde cualquier punto del área penal.
-D: Desde la marca del punto penal.
+Q: En un saque de meta ejecutado correctamente, un compañero del ejecutor juega el balón antes de que haya salido del área penal. ¿Qué decisión toma el árbitro?
+A: Amonesta al infractor por conducta antideportiva y ordena la repetición del saque de meta.
+B: Deja que el juego continúe.
+C: Ordena repetir el saque de meta, ya que el balón no estaba en juego.
+D: Amonesta al compañero del ejecutor por pérdida de tiempo y concede un tiro libre indirecto.
+OK: B
+EXP: En un saque de meta el balón está en juego cuando se patea y se mueve claramente; no hace falta que salga del área penal.
+@fin
+
+@pregunta
+Q: En un saque de meta el balón recorre 10 metros, lo juega un delantero y marca gol. ¿Qué decisión toma el árbitro?
+A: Concede el gol si el procedimiento del saque de meta ha sido correcto.
+B: Manda repetir el saque de meta.
+C: Concede un tiro libre indirecto a favor del equipo defensor.
+D: Amonesta al delantero por conducta antideportiva y manda repetir el saque de meta.
 OK: A
-EXP: El balón se patea desde cualquier punto del área de meta, por un jugador del equipo defensor.
+EXP: Si el saque de meta se ejecuta correctamente, el juego sigue con normalidad y el gol que marca después el delantero es válido.
 @fin
 
 @pregunta
-Q: ¿Cuándo está en juego el balón de un saque de meta?
-A: Cuando sale del área penal.
-B: Cuando es pateado y se mueve claramente.
-C: Cuando toca a otro jugador.
-D: Cuando el árbitro hace la señal.
+Q: ¿Es posible conseguir un gol directamente de un saque de meta, si se ha ejecutado de forma correcta?
+A: No, en ningún caso.
+B: Sí, pero sólo en la meta adversaria.
+C: Sí, en ambas metas.
+D: Las Reglas de Juego no lo mencionan.
 OK: B
-EXP: El balón está en juego en cuanto es pateado y se mueve claramente.
+EXP: Se puede marcar directamente de un saque de meta, pero solo en la portería rival.
 @fin
 
 @pregunta
-Q: Un equipo retrasa injustamente un saque de meta y, tras la cuenta de cinco segundos del árbitro, sigue sin ejecutarlo. ¿Qué se concede?
-A: Un saque de esquina para los adversarios.
-B: Un tiro libre indirecto para los adversarios.
-C: Un balón a tierra.
-D: Una amonestación y se repite el saque.
+Q: ¿Cuándo está en juego el balón en un saque de meta?
+A: Cuando se pone en movimiento y es golpeado con la pierna por un defensor.
+B: Cuando es golpeado con el pie directamente y sale del área de meta.
+C: Cuando es golpeado con el pie por un defensor desde el área de meta y esté claramente en movimiento.
+D: Cuando es golpeado con la pierna desde cualquier lugar dentro del área de meta por un jugador del equipo defensor.
+OK: C
+EXP: El balón de un saque de meta está en juego cuando es pateado y se mueve claramente.
+@fin
+
+@pregunta
+Q: ¿Se puede ejecutar un saque de meta en cualquier lugar del área de meta?
+A: Sí.
+B: No, nunca.
+C: Sí, pero el encargado de la ejecución será el guardameta.
+D: No. Debe ejecutarse por la zona de la meta por el que el balón salió del terreno de juego.
 OK: A
-EXP: Si el saque de meta no se ejecuta en los cinco segundos, se concede un saque de esquina a los adversarios. Solo se amonesta por un retraso excesivo posterior.
-@fin
-
-@pregunta
-Q: El balón de un saque de meta entra directamente en la propia portería. ¿Qué decide el árbitro?
-A: Concede el gol al equipo contrario.
-B: Concede un saque de esquina a los adversarios.
-C: Repite el saque de meta.
-D: Concede un tiro libre indirecto.
-OK: B
-EXP: Si el balón de un saque de meta entra directamente en la portería de quien lo ejecuta, se concede un saque de esquina a los adversarios.
-@fin
-
-@pregunta
-Q: ¿Puede marcarse gol directamente de un saque de meta?
-A: No, nunca.
-B: Sí, pero solo contra el equipo contrario.
-C: Sí, también en la propia portería.
-D: Solo si lo ejecuta el portero.
-OK: B
-EXP: Se puede marcar directamente de un saque de meta, pero solo contra el adversario. Si entra en la propia portería, se concede un saque de esquina.
+EXP: El saque de meta se ejecuta desde cualquier punto del área de meta.
 @fin

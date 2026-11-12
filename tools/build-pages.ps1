@@ -48,12 +48,17 @@ function Reorder-Q($q, [int]$num, [int]$n){
   if($short){
     if($seed % 2 -eq 1){ [array]::Reverse($opts); $ok = 3 - $ok }
   } else {
-    $t = $Targets[$seed % $Targets.Length]
-    $correct = $opts[$ok]; $rest = @()
-    for($i = 0; $i -lt 4; $i++){ if($i -ne $ok){ $rest += $opts[$i] } }
-    $new = @(); $ri = 0
-    for($i = 0; $i -lt 4; $i++){ if($i -eq $t){ $new += $correct } else { $new += $rest[$ri]; $ri++ } }
-    $opts = $new; $ok = $t
+    # las opciones tipo "Ninguna..." / "Todas..." se quedan donde estan
+    $anch = @(); for($i = 0; $i -lt 4; $i++){ if($opts[$i] -match '^\s*(Ninguna|Ninguno|Todas|Todos)\b'){ $anch += $i } }
+    if($anch -notcontains $ok){
+      $free = @(); for($i = 0; $i -lt 4; $i++){ if($anch -notcontains $i){ $free += $i } }
+      $t = $free[$Targets[$seed % $Targets.Length] % $free.Count]
+      $correct = $opts[$ok]; $rest = @()
+      foreach($i in $free){ if($i -ne $ok){ $rest += $opts[$i] } }
+      $new = @($opts); $ri = 0
+      foreach($i in $free){ if($i -eq $t){ $new[$i] = $correct } else { $new[$i] = $rest[$ri]; $ri++ } }
+      $opts = $new; $ok = $t
+    }
   }
   $r = @{ Q = $q['Q']; EXP = $q['EXP']; OK = $letters[$ok] }
   for($i = 0; $i -lt 4; $i++){ $r[$letters[$i]] = $opts[$i] }

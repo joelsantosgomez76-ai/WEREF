@@ -68,52 +68,54 @@ Si entra sin permiso, se le amonesta. Si el árbitro detiene el juego por ello, 
 
 ## Preguntas de muestra
 
-@pregunta
-Q: ¿Qué prendas forman el equipamiento obligatorio de un jugador?
-A: Camiseta con mangas, pantalón corto, medias, espinilleras y calzado.
-B: Camiseta, pantalón corto, medias y guantes.
-C: Camiseta, pantalón corto, calzado y muñequeras.
-D: Camiseta con mangas, pantalón largo, medias y espinilleras.
-OK: A
-EXP: El equipamiento obligatorio es camiseta con mangas, pantalón corto, medias, espinilleras y calzado.
-@fin
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
 
 @pregunta
-Q: Durante la revisión previa, un jugador lleva un anillo e intenta cubrirlo con cinta. ¿Qué debe hacer el árbitro?
-A: Permitírselo si la cinta lo cubre del todo.
-B: Ordenarle que se lo quite: las joyas están prohibidas y no vale taparlas.
-C: Permitírselo si el anillo es pequeño.
-D: Dejarlo jugar y amonestarlo.
-OK: B
-EXP: Las joyas están prohibidas y deben retirarse. Taparlas con cinta no está permitido.
-@fin
-
-@pregunta
-Q: Un jugador pierde sin querer una bota y, con el balón en juego, marca gol con el pie descalzo. ¿Qué decide el árbitro?
-A: Concede el gol.
-B: Anula el gol y concede un tiro libre indirecto.
-C: Concede el gol y amonesta al jugador.
-D: Anula el gol y expulsa al jugador.
-OK: A
-EXP: Si el jugador pierde el calzado accidentalmente y juega el balón o marca antes de reponerlo, el gol es válido.
-@fin
-
-@pregunta
-Q: ¿De qué color deben ser las mallas térmicas que se llevan bajo el pantalón?
-A: De cualquier color, si son iguales entre compañeros.
-B: Del color principal de la camiseta.
-C: Del color principal del pantalón o de la parte más baja del mismo, iguales para todos los compañeros.
-D: Siempre negras.
+Q: ¿Según las Reglas de juego, un jugador podría jugar sin espinilleras?
+A: Sí.
+B: Sólo si es autorizado por el árbitro.
+C: No.
+D: No, excepto si es por un motivo médico justificado.
 OK: C
-EXP: Las prendas bajo el pantalón deben ser del color principal del pantalón o de su parte más baja, y los compañeros deben llevar el mismo color.
+EXP: Las espinilleras son obligatorias: un jugador no puede jugar sin ellas y deben estar cubiertas por las medias.
 @fin
 
 @pregunta
-Q: Un jugador que salió para corregir su equipamiento vuelve a entrar sin esperar la autorización del árbitro. ¿Qué debe hacer el árbitro?
-A: Nada, si el jugador no interfiere en el juego.
-B: Amonestarlo.
-C: Expulsarlo directamente.
-D: Mandarlo a la línea de banda sin sanción.
+Q: ¿Es legal conseguir un gol descalzo?
+A: Sólo si hay inmediatez y el quedar descalzo fue un hecho accidental.
+B: Sí, si el quedar descalzo fue un hecho accidental.
+C: No. El jugador debe abandonar el terreno de juego para ponerse el calzado.
+D: Sólo si hay inmediatez.
 OK: B
-EXP: Entrar sin permiso se sanciona con amonestación. Si el árbitro detiene el juego, reanuda con un tiro libre directo si hubo interferencia o indirecto si no la hubo.
+EXP: Si el jugador pierde el calzado sin querer y marca antes de reponerlo, el gol es válido.
+@fin
+
+@pregunta
+Q: ¿Cuántas prendas componen el equipamiento obligatorio de un jugador, sin considerar al guardameta?
+A: 3 prendas.
+B: 4 prendas.
+C: 5 prendas.
+D: 6 prendas.
+OK: C
+EXP: El equipamiento obligatorio de un jugador son cinco prendas: camiseta con mangas, pantalón corto, medias, espinilleras y calzado.
+@fin
+
+@pregunta
+Q: ¿Puede un jugador llevar gafas durante un partido?
+A: No, las Reglas de Juego no lo permiten al considerarse peligroso.
+B: Sí, pero únicamente en partidos de fútbol base.
+C: Sí, si el reglamento de la competición lo permite.
+D: Sí, si el árbitro no las considera peligrosas y se trata de gafas adecuadas para la práctica del fútbol.
+OK: D
+EXP: Se permiten gafas deportivas siempre que no sean peligrosas.
+@fin
+
+@pregunta
+Q: ¿Qué ocurre si en un partido los colores de las camisetas de los guardametas coinciden y ninguno de ellos tiene otro color de repuesto?
+A: El árbitro debe suspender el partido y mencionará el hecho en su informe.
+B: El árbitro debe permitir que los guardametas participen en el partido.
+C: El árbitro ordena al guardameta visitante que se ponga una indumentaria o peto de otro color.
+D: El árbitro ordena al guardameta visitante que se ponga la camiseta del segundo uniforme del equipo visitante.
+OK: B
+EXP: Si los dos porteros llevan el mismo color y ninguno tiene otra camiseta, el árbitro deja que se juegue el partido.
 @fin

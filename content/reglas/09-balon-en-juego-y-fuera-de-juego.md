@@ -45,52 +45,54 @@ Si un miembro del cuerpo técnico, un suplente, un jugador sustituido o expulsad
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Cuándo el balón está fuera de juego por haber cruzado una línea?
-A: Cuando toca la línea.
-B: Cuando ha traspasado por completo la línea, por el suelo o por el aire.
-C: Cuando más de la mitad del balón cruza la línea.
-D: Solo cuando toca el suelo fuera del campo.
-OK: B
-EXP: El balón sale cuando traspasa por completo la línea de meta o de banda, por el suelo o por el aire.
+Q: ¿Cuándo el balón no está en juego?
+A: Cuando el juego ha sido detenido por el árbitro.
+B: Cuando toca en la mano o brazo de un jugador, exceptuando al guardameta en su propia área penal.
+C: Cuando ha traspasado parcialmente la línea de meta, bien sea por aire o tierra.
+D: Ninguna de las respuestas es correcta.
+OK: A
+EXP: El balón está fuera de juego cuando ha traspasado por completo una línea de meta o de banda, cuando el árbitro detiene el juego y en los casos de contacto con un miembro del equipo arbitral previstos en la regla.
 @fin
 
 @pregunta
-Q: El balón rebota en el poste y vuelve al campo. ¿Está en juego?
-A: No: se concede saque de meta.
-B: Sí.
-C: Solo si toca a un jugador.
-D: No: se concede balón a tierra.
+Q: El balón pega en el banderín de esquina durante el juego. ¿Está el balón en juego?
+A: No.
+B: Sí, si no traspasa completamente la línea de banda o meta.
+C: Sí, siempre.
+D: Según la Regla 10, si el balón vuelve al terreno de juego sigue estando en juego.
 OK: B
 EXP: El balón sigue en juego si rebota en un poste, en el larguero o en un banderín de esquina y permanece dentro del campo.
 @fin
 
 @pregunta
-Q: El balón toca al árbitro, sigue dentro del campo y un equipo inicia un ataque prometedor. ¿Qué debe hacer el árbitro?
-A: Dejar que continúe el ataque.
-B: Detener el juego y reanudar con balón a tierra.
-C: Conceder un tiro libre indirecto.
-D: Reanudar con un saque inicial.
-OK: B
-EXP: Si el balón toca al árbitro, sigue en el campo y un equipo inicia un ataque prometedor, el balón queda fuera de juego y se reanuda con balón a tierra.
+Q: Si el guardameta tiene el balón controlado entre sus manos, ¿cuándo esta el balón en juego?
+A: Cuando lo patea.
+B: Cuando es jugado por un compañero o un adversario.
+C: El balón esta en juego en todo momento.
+D: Cuando lo bote.
+OK: C
+EXP: El balón sigue en juego mientras el portero lo controla con las manos: eso no lo saca del juego.
 @fin
 
 @pregunta
-Q: Un disparo toca al árbitro dentro del área penal del equipo defensor y entra directamente en la portería. ¿Qué decide el árbitro?
+Q: Un jugador atacante dispara a portería, el balón rebota en el árbitro que está situado dentro del área de penal del equipo defensor y el balón entra en la portería del equipo defensor. El árbitro….
 A: Concede el gol.
-B: Anula el gol y reanuda con balón a tierra para el portero del equipo defensor.
-C: Anula el gol y concede un saque de meta.
-D: Concede tiro penal.
-OK: B
-EXP: Si el balón toca al árbitro, sigue en el campo y entra directamente en la portería, el gol no vale y se reanuda con balón a tierra, que dentro del área es para el portero defensor.
+B: Concede un balón a tierra a favor del equipo defensor en su área penal.
+C: Concede un balón a tierra a favor del guardameta del equipo defensor en su área penal.
+D: Ninguna respuesta es correcta.
+OK: C
+EXP: Si el balón toca al árbitro dentro del área, sigue en el campo y entra directamente en la portería, el gol no vale y se reanuda con balón a tierra para el portero defensor.
 @fin
 
 @pregunta
-Q: El entrenador de un equipo toca un balón que sale claramente por la línea de banda, sin intención de interferir. ¿Cómo se reanuda el juego?
-A: Con un saque de banda.
-B: Con un tiro libre indirecto para los rivales, sin sanción disciplinaria.
-C: Con un tiro libre directo y amonestación.
-D: Con balón a tierra.
-OK: B
-EXP: El toque se sanciona con un tiro libre indirecto para el equipo contrario, desde donde tocó el balón, y sin sanción disciplinaria si no hay otra infracción.
+Q: Tras ejecutar un saque de banda, el balón golpea en el árbitro y sale por la línea de banda. ¿Cuál debe ser la decisión del árbitro?
+A: Conceder un saque de banda al equipo adversario.
+B: Ordenar la repetición del saque de banda.
+C: Conceder un balón a tierra para un jugador del equipo que ejecutó el saque de banda.
+D: Ninguna respuesta es correcta.
+OK: A
+EXP: Si el balón toca al árbitro y sale del campo sin tocar a otro jugador, se concede la reanudación que corresponda por la salida del balón; aquí, saque de banda para el otro equipo.
 @fin

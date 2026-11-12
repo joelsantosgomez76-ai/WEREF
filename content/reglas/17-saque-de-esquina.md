@@ -51,52 +51,54 @@ Se puede marcar gol directamente de un saque de esquina, pero solo contra el equ
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿A qué distancia mínima del arco de esquina deben estar los adversarios en un saque de esquina?
-A: 5,5 m.
-B: 9,15 m.
-C: 11 m.
-D: 16,5 m.
-OK: B
-EXP: Los adversarios deben estar al menos a 9,15 m del arco de esquina hasta que el balón esté en juego.
+Q: ¿Puede conseguirse gol en ambas metas si se ejecuta de forma correcta un saque de esquina?
+A: No, de un saque de esquina no se puede conseguir directamente un gol.
+B: Sí, en cualquiera de las dos metas.
+C: No, sólo se podría conseguir en la meta adversaria.
+D: Ninguna respuesta es correcta.
+OK: C
+EXP: De un saque de esquina puede marcarse gol directamente, pero solo contra el equipo contrario.
 @fin
 
 @pregunta
-Q: ¿Puede el ejecutor de un saque de esquina mover el banderín de esquina?
-A: Sí, si molesta.
-B: No: no se puede mover el banderín.
-C: Sí, solo el portero.
-D: Sí, si el árbitro lo autoriza.
-OK: B
-EXP: El banderín de esquina no debe moverse al ejecutar el saque de esquina.
+Q: Un jugador ejecuta un saque de esquina hacia su propia portería y sin que lo toque nadie más, el balón entra a gol. Decisión:
+A: El gol no es válido y se concederá un saque de esquina al equipo contrario.
+B: Gol válido.
+C: El gol no es válido y se concederá un saque de meta.
+D: Ninguna respuesta es correcta.
+OK: A
+EXP: Si el balón de un saque de esquina entra directamente en la propia portería, se concede un saque de esquina a los adversarios.
 @fin
 
 @pregunta
-Q: Un portero controla el balón con las manos más de ocho segundos dentro de su área. ¿Qué decide el árbitro?
-A: Concede un tiro libre indirecto.
-B: Concede un saque de esquina a los adversarios.
-C: Concede un tiro libre directo.
-D: Concede un balón a tierra.
-OK: B
-EXP: Controlar el balón con las manos más de ocho segundos se sanciona con un saque de esquina para el equipo contrario.
+Q: En un saque de esquina, los adversarios deberán permanecer a un mínimo de 9,15 metros del…
+A: cuadrante de esquina hasta que el balón esté en juego.
+B: banderín de esquina hasta que el balón esté en juego.
+C: balón hasta que el balón esté en juego.
+D: Ninguna respuesta es correcta.
+OK: A
+EXP: Los adversarios deben permanecer a 9,15 m del arco de esquina hasta que el balón esté en juego.
 @fin
 
 @pregunta
-Q: El balón de un saque de esquina entra directamente en la propia portería de quien lo ejecuta. ¿Qué decide el árbitro?
-A: Concede el gol al equipo contrario.
-B: Concede otro saque de esquina a los adversarios.
-C: Repite el saque de esquina.
-D: Concede un saque de meta.
-OK: B
-EXP: Si el balón entra directamente en la portería de quien ejecuta el saque, se concede un saque de esquina a los adversarios.
+Q: Un jugador que está ejecutando un saque de esquina lanza ligeramente el balón hacia atrás con el talón, sin que el balón llegue a traspasar por completo, ni la línea de banda, ni la de meta. ¿Qué decisión toma el árbitro?
+A: Deja que el juego continúe si el balón se movió con claridad.
+B: Detiene el juego y ordena la repetición del saque de esquina si el balón no salió del cuadrante de esquina.
+C: Detiene el juego y concede un balón a tierra a favor del equipo defensor.
+D: Detiene el juego y sanciona a su equipo con un tiro libre indirecto.
+OK: A
+EXP: El balón está en juego cuando se patea y se mueve claramente; no hace falta que salga del área de esquina.
 @fin
 
 @pregunta
-Q: Un atacante recibe el balón directamente de un saque de esquina estando en posición de fuera de juego. ¿Qué decide el árbitro?
-A: Concede un tiro libre indirecto a los defensores.
-B: Deja continuar el juego: no hay infracción de fuera de juego.
-C: Concede un saque de meta.
-D: Repite el saque de esquina.
-OK: B
-EXP: No hay fuera de juego cuando el jugador recibe el balón directamente de un saque de esquina, de un saque de banda o de un saque de meta.
+Q: Si durante la ejecución de un saque de esquina el jugador eleva el balón con ambos pies simultáneamente para ponerlo en juego, el árbitro...
+A: deja que el juego continúe.
+B: detiene el juego, amonesta al ejecutor y repite el saque.
+C: detiene el juego y sanciona a su equipo con un tiro libre indirecto.
+D: detiene el juego y ordena repetirlo.
+OK: A
+EXP: Se puede levantar el balón con los dos pies a la vez: es una forma válida de ejecutar el saque de esquina.
 @fin

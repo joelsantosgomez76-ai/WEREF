@@ -68,52 +68,54 @@ Los miembros del equipo arbitral no son responsables de lesiones, daños materia
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Hasta cuándo se extiende la autoridad disciplinaria del árbitro?
-A: Hasta el pitido final del segundo tiempo.
-B: Desde la inspección previa al partido hasta que abandona el campo después de este, incluidos los penaltis.
-C: Desde que los equipos saltan al campo hasta el descanso.
-D: Solo mientras el balón está en juego.
-OK: B
-EXP: La autoridad del árbitro empieza con la inspección previa al partido y termina cuando abandona el campo tras el encuentro, incluidos los penaltis.
+Q: Un jugador es objeto de falta por parte de un jugador del equipo contrario, pero se rehace y continúa jugando en posición ventajosa. El árbitro…
+A: Aplica ventaja y deja que el juego continúe.
+B: Sanciona la infracción si no está seguro acerca de la ventaja.
+C: Deja que el juego continúe, pero no puede volverse atrás una vez que aplica la ventaja.
+D: Ninguna respuesta es correcta.
+OK: A
+EXP: Si el equipo que sufre la falta se beneficia de seguir jugando, el árbitro aplica la ventaja y deja que continúe el juego.
 @fin
 
 @pregunta
-Q: ¿Puede el árbitro cambiar una decisión de reanudación después de que el juego se haya reanudado?
-A: Sí, si se lo aconseja un asistente.
-B: No, no puede.
-C: Sí, durante los diez segundos siguientes.
-D: Solo si el VAR se lo indica.
-OK: B
-EXP: Una vez reanudado el juego, el árbitro no puede cambiar la decisión de reanudación, aunque fuera errónea.
+Q: ¿Quién debe tomar la decisión final en los partidos en los que participe el VAR?
+A: El árbitro.
+B: El árbitro y el VAR, de forma consensuada.
+C: El árbitro o el VAR.
+D: Ninguna respuesta es correcta.
+OK: A
+EXP: La decisión final es siempre del árbitro, aunque se apoye en el VAR.
 @fin
 
 @pregunta
-Q: Un jugador sufre una lesión leve. ¿Qué debe hacer el árbitro?
-A: Detener el juego de inmediato.
-B: Dejar que el juego continúe hasta que el balón salga.
-C: Mostrar tarjeta amarilla.
-D: Reanudar con balón a tierra.
+Q: ¿Tiene autoridad el árbitro para expulsar y ordenar a los miembros del cuerpo técnico que se coloquen lejos del terreno de juego y sus inmediaciones?
+A: No.
+B: Sí, aunque un médico podrá permanecer si el equipo no cuenta con otro médico disponible.
+C: Sí, pero podrán continuar presenciando el encuentro desde las gradas.
+D: Sí, a menos que el Reglamento de la competición estipule otro procedimiento.
 OK: B
-EXP: En una lesión leve el juego continúa hasta que el balón salga del juego. Solo se detiene de inmediato si la lesión es grave.
+EXP: El árbitro puede expulsar a un miembro del cuerpo técnico, que debe abandonar el campo y sus inmediaciones; un médico puede quedarse si el equipo no tiene otro disponible.
 @fin
 
 @pregunta
-Q: ¿En cuáles de estas situaciones puede intervenir el VAR?
-A: En cualquier decisión del árbitro.
-B: Ante un error claro y manifiesto o un incidente grave no visto en gol, penal, expulsión directa y confusión de identidad.
-C: Solo en las decisiones sobre goles.
-D: Solo en las decisiones sobre tarjetas amarillas.
+Q: De acuerdo con las Reglas de Juego, el árbitro puede amonestar o expulsar…
+A: sólo a jugadores, suplentes y jugadores sustituidos.
+B: a miembros del cuerpo técnico, jugadores, suplentes y jugadores sustituidos.
+C: sólo a jugadores que estén participando en el juego.
+D: a jugadores, suplentes y miembros del cuerpo técnico de los equipos.
 OK: B
-EXP: El VAR solo ayuda ante un error claro y manifiesto o un incidente grave no visto en cuatro situaciones: gol, penal, expulsión directa y confusión de identidad.
+EXP: El árbitro puede mostrar tarjeta amarilla o roja a jugadores, suplentes, jugadores sustituidos y miembros del cuerpo técnico.
 @fin
 
 @pregunta
-Q: Tras una revisión con el VAR, ¿quién toma la decisión final?
-A: El VAR.
-B: El árbitro.
-C: El cuarto árbitro.
-D: El árbitro asistente más cercano.
-OK: B
-EXP: La decisión final es siempre del árbitro, que puede basarse en la información del VAR o en una revisión en el campo.
+Q: Si el balón golpea a un árbitro en la cara y directamente entra en la meta, mientras que él queda incapacitado temporalmente, ¿puede concederse el gol?
+A: Sí, previa consulta con los árbitros asistentes.
+B: Sí, ya que todos saben que el balón entró en la meta por lo tanto el árbitro debe conceder el gol.
+C: No, deberá concederse un balón a tierra, siguiendo el procedimiento de la Regla 8.
+D: No, a menos que el cuarto oficial confirme que el gol fue correctamente anotado.
+OK: C
+EXP: Si el balón toca al árbitro, sigue en el campo y entra directamente en la portería, el gol no vale y se reanuda con balón a tierra.
 @fin

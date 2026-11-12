@@ -51,52 +51,54 @@ Pueden usarse otros balones, siempre que cumplan esta regla. Se pueden colocar a
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Qué circunferencia debe tener el balón?
-A: Entre 62 y 64 cm.
-B: Entre 66 y 68 cm.
-C: Entre 68 y 70 cm.
-D: Entre 70 y 72 cm.
+Q: Si el balón quedara defectuoso después de ejecutarse correctamente un tiro penal, mientras se desplaza hacia adelante, sin haber tocado a otro jugador, guardameta, cuerpo extraño, etc. ¿Cómo se reanuda el juego?
+A: Repetición del tiro penal.
+B: Balón a tierra donde se encontraba el balón.
+C: Balón a tierra en el lugar donde explotó el balón.
+D: Balón a tierra o repetición del tiro penal.
+OK: A
+EXP: Si el balón se vuelve defectuoso mientras avanza en un tiro penal, antes de tocar a un jugador, el larguero o un poste, el tiro se repite.
+@fin
+
+@pregunta
+Q: ¿Quién controla los balones adicionales colocados alrededor del terreno de juego?
+A: El cuarto árbitro.
+B: El delegado de campo u oficial responsable.
+C: El árbitro.
+D: Ninguna respuesta es correcta.
 OK: C
+EXP: Los balones adicionales que cumplen la Regla 2 pueden colocarse alrededor del campo, y su uso está bajo el control del árbitro.
+@fin
+
+@pregunta
+Q: Al comienzo del partido, el balón debe tener un peso comprendido entre...
+A: 410 y 460 gramos.
+B: 400 y 450 gramos.
+C: 410 y 450 gramos.
+D: 420 y 450 gramos.
+OK: C
+EXP: Al comenzar el partido el balón debe pesar entre 410 y 450 g.
+@fin
+
+@pregunta
+Q: ¿Quién es la persona responsable para autorizar el cambio de balón durante el partido?
+A: El cuarto árbitro a petición del árbitro.
+B: El árbitro.
+C: Cualquier miembro del equipo arbitral excepto el árbitro asistente de reserva.
+D: El árbitro o el cuarto árbitro.
+OK: B
+EXP: Durante el partido no se puede cambiar el balón sin permiso del árbitro.
+@fin
+
+@pregunta
+Q: El balón tendrá una circunferencia…
+A: no superior a 70 cm, ni inferior a 68 cm.
+B: no superior a 65 cm, ni inferior a 60 cm.
+C: no superior a 75 cm, ni inferior a 70 cm.
+D: no superior a 60 cm, ni inferior a 55 cm.
+OK: A
 EXP: La circunferencia del balón debe estar entre 68 y 70 cm.
-@fin
-
-@pregunta
-Q: ¿Qué peso debe tener el balón al comenzar el partido?
-A: Entre 350 y 400 g.
-B: Entre 410 y 450 g.
-C: Entre 450 y 500 g.
-D: Entre 500 y 550 g.
-OK: B
-EXP: Al empezar el partido el balón debe pesar entre 410 y 450 g.
-@fin
-
-@pregunta
-Q: ¿Qué presión debe tener el balón a nivel del mar?
-A: Entre 0,3 y 0,6 atmósferas.
-B: Entre 0,6 y 1,1 atmósferas.
-C: Entre 1,1 y 1,6 atmósferas.
-D: Entre 1,6 y 2,0 atmósferas.
-OK: B
-EXP: La presión correcta va de 0,6 a 1,1 atmósferas, es decir, de 600 a 1.100 g/cm².
-@fin
-
-@pregunta
-Q: El balón se vuelve defectuoso en el momento de ejecutar un saque de esquina. ¿Qué debe hacer el árbitro?
-A: Repetir el saque de esquina con otro balón.
-B: Reanudar con balón a tierra.
-C: Conceder un tiro libre indirecto.
-D: Conceder un saque de meta.
-OK: A
-EXP: Si el balón se vuelve defectuoso en el momento de ejecutar un saque inicial, de meta, de esquina, de banda, un tiro libre o un tiro penal, esa reanudación se repite.
-@fin
-
-@pregunta
-Q: Durante el juego, un balón revienta dentro del área penal sin haber entrado en la portería. ¿Cómo se reanuda el juego?
-A: Con un balón a tierra para el portero del equipo defensor.
-B: Con un tiro penal.
-C: Con un saque de meta.
-D: Con un balón a tierra para un delantero.
-OK: A
-EXP: Como el juego se detuvo dentro del área penal, el balón a tierra es para el portero del equipo defensor.
 @fin

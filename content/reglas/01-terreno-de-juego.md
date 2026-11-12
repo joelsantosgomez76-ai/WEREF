@@ -60,52 +60,54 @@ La publicidad comercial no se permite en el terreno de juego, en el suelo dentro
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Cuál es la anchura máxima permitida para las líneas del terreno de juego?
-A: 8 cm
-B: 10 cm
-C: 12 cm
-D: 15 cm
+Q: ¿A qué distancia de las líneas de banda puede haber publicidad?
+A: A un mínimo de 2 m.
+B: A un mínimo de 3 m.
+C: A un mínimo de 1 m.
+D: A un mínimo de 5 m.
 OK: C
-EXP: Todas las líneas deben tener la misma anchura y esta no puede superar los 12 cm. Las líneas de meta, además, deben ser tan anchas como los postes y el larguero.
+EXP: La publicidad vertical debe estar al menos a 1 m de las líneas de banda, y no se permite publicidad comercial a menos de 1 m de las líneas que delimitan el campo.
 @fin
 
 @pregunta
-Q: ¿A qué distancia del punto medio entre los postes se marca el punto penal?
-A: 9,15 m
-B: 11 m
-C: 12 m
-D: 16,5 m
-OK: B
-EXP: El punto penal está a 11 m. El 9,15 m es el radio del arco del área penal y el 16,5 m es la profundidad del área penal.
-@fin
-
-@pregunta
-Q: Durante un partido se rompe el larguero y no es posible repararlo. ¿Qué debe hacer el árbitro?
-A: Colocar una cuerda como larguero provisional y continuar.
-B: Suspender el partido.
-C: Seguir jugando y decidir los goles por la altura estimada.
-D: Reanudar con un tiro libre indirecto.
-OK: B
-EXP: Si el larguero no puede repararse o recolocarse, el partido se suspende. Una cuerda u otro material flexible o peligroso no es válido como sustituto.
-@fin
-
-@pregunta
-Q: ¿Qué dimensiones del terreno de juego serían válidas para un partido entre selecciones nacionales?
-A: 95 m de largo y 60 m de ancho.
-B: 105 m de largo y 68 m de ancho.
-C: 120 m de largo y 90 m de ancho.
-D: 100 m de largo y 80 m de ancho.
-OK: B
-EXP: En partidos internacionales la línea de banda mide entre 100 y 110 m y la línea de meta entre 64 y 75 m. Solo 105 × 68 cumple ambos márgenes.
-@fin
-
-@pregunta
-Q: ¿Qué distancia hay entre el interior de los postes y a qué altura está el borde inferior del larguero?
-A: 7,32 m y 2,44 m.
-B: 7,32 m y 2,50 m.
-C: 7,00 m y 2,44 m.
-D: 8,00 m y 2,44 m.
+Q: ¿Está permitida la publicidad en el interior del área técnica durante el tiempo de juego?
+A: No.
+B: Sí.
+C: Depende del reglamento de la competición.
+D: Depende de la decisión del árbitro.
 OK: A
-EXP: La portería mide 7,32 m entre postes, medidos por el interior, y 2,44 m desde el suelo hasta el borde inferior del larguero.
+EXP: La publicidad comercial está prohibida en el área técnica desde que los equipos salen al campo hasta el descanso y desde que vuelven hasta el final del partido.
+@fin
+
+@pregunta
+Q: ¿Cuál es la altura mínima del poste del banderín de esquina?
+A: 1,70 m.
+B: 1,60 m.
+C: 1,40 m.
+D: 1,50 m.
+OK: D
+EXP: Los banderines de esquina deben medir al menos 1,5 m de altura y no pueden tener la parte superior puntiaguda.
+@fin
+
+@pregunta
+Q: ¿Se pueden utilizar metas portátiles?
+A: No.
+B: Sí, siempre que estén ancladas firmemente al suelo.
+C: Sí, siempre que estén sujetas las redes convenientemente.
+D: Sí, pero se deja a criterio de las federaciones nacionales de fútbol el uso de las mismas.
+OK: B
+EXP: Se pueden usar porterías portátiles siempre que estén firmemente ancladas al suelo, como el resto de porterías.
+@fin
+
+@pregunta
+Q: ¿Cuál es la distancia entre el punto de penal y la línea del área de penal más cercana?
+A: 9,15 m.
+B: 11 m.
+C: 5,50 m.
+D: 7,32 m.
+OK: C
+EXP: El punto penal está a 11 m de la línea de meta y la línea del área penal a 16,5 m, así que la distancia entre ambos es de 5,5 m.
 @fin

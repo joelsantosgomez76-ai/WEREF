@@ -61,52 +61,54 @@ El tiro termina cuando el balón se detiene, sale del juego o el árbitro detien
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: En la ejecución de un tiro penal, ¿dónde deben estar los demás jugadores?
-A: Dentro del campo, fuera del área penal, detrás del punto penal y al menos a 9,15 m de este.
-B: Dentro del área penal, detrás del punto penal.
-C: Fuera del campo, detrás de la portería.
-D: En el círculo central.
-OK: A
-EXP: Los demás jugadores deben estar dentro del campo, fuera del área penal, detrás del punto penal y al menos a 9,15 m de él.
+Q: En la ejecución de un tiro penal, ¿Cuándo se amonesta al ejecutor por realizar una finta antirreglamentaria?
+A: Sólo si el guardameta se ve afectado por dicha finta y el tiro penal acaba en gol.
+B: Sólo si el guardameta se ve afectado por dicha finta.
+C: Sólo si acaba en gol.
+D: En todos los casos, independientemente de si el tiro penal acaba en gol o no.
+OK: D
+EXP: El amago ilegal después de la carrera se sanciona con amonestación y tiro libre indirecto para los defensores, haya gol o no.
 @fin
 
 @pregunta
-Q: ¿Cómo debe estar el portero cuando se golpea el balón en un tiro penal?
-A: Con los dos pies sobre la línea de meta.
-B: Con al menos una parte de un pie tocando la línea de meta, en línea con ella o detrás.
-C: Con los pies dentro del área de meta.
-D: Fuera de la línea, siempre que no se adelante más de 1 m.
+Q: Si en un tiro penal el guardameta se adelanta de la línea de meta con sus dos pies antes de que se patee el balón y lo detiene, no anotando un gol. ¿Qué decisión toma el árbitro?
+A: Manda que se repita el tiro penal y amonestará al guardameta en cualquier caso.
+B: Deja que el juego continúe.
+C: Amonesta o advierte al guardameta y manda repetir el tiro penal.
+D: Concede un tiro libre indirecto al equipo adversario.
+OK: C
+EXP: Si el portero se adelanta y detiene el tiro, se repite y se le advierte la primera vez en el partido o se le amonesta en las siguientes.
+@fin
+
+@pregunta
+Q: Se prolonga un partido para que pueda lanzarse un tiro penal, el ejecutor golpea el balón hacia delante y después de desplazarse 1 metro se para en un charco. ¿Qué decisión toma el árbitro?
+A: Ordena repetir el tiro penal.
+B: Da por finalizado el partido.
+C: Concede un balón a tierra al guardameta defensor dentro del área penal.
+D: Deja seguir el juego.
 OK: B
-EXP: Cuando se golpea el balón, el portero debe tener al menos una parte de un pie tocando la línea de meta, en línea con ella o detrás de ella.
+EXP: El tiro termina cuando el balón se detiene; como el tiempo se prolongó solo para ejecutarlo, el árbitro da por finalizado el partido.
 @fin
 
 @pregunta
-Q: El lanzador de un penal toca el balón por segunda vez antes de que lo toque otro jugador. ¿Qué decide el árbitro?
-A: Repite el tiro.
-B: Concede un tiro libre indirecto a los adversarios.
-C: Concede un tiro libre directo siempre.
-D: Concede un saque de meta.
-OK: B
-EXP: Si el lanzador toca el balón de nuevo antes que otro jugador, se concede tiro libre indirecto (directo si es con la mano).
+Q: En un tiro penal en el que se prolonga el tiempo para su ejecución, tras ser ejecutado correctamente, el balón pega en el larguero, entrando en la meta. ¿Qué decisión toma el árbitro?
+A: Anula el gol porque se había cumplido el tiempo y sólo se había prolongado para ejecutar el tiro penal.
+B: Anula el gol. La acción del tiro penal finaliza en el momento en que el balón toca el larguero.
+C: Anula el gol si el balón no entra en la meta de forma directa.
+D: Concede el gol.
+OK: D
+EXP: El tiro no termina hasta que el balón se detiene, sale del juego o el árbitro lo detiene; si entra tras tocar el larguero, el gol vale.
 @fin
 
 @pregunta
-Q: Un jugador distinto del identificado ejecuta el tiro penal. ¿Qué decide el árbitro?
-A: Deja continuar.
-B: Concede un tiro libre indirecto a los defensores y amonesta a quien lo lanzó.
-C: Repite el penal sin sanción.
-D: Expulsa al lanzador.
-OK: B
-EXP: Si un compañero toma el penal en lugar del lanzador identificado, se concede tiro libre indirecto a los defensores y se amonesta al jugador que lo ejecutó.
-@fin
-
-@pregunta
-Q: El portero se adelanta de la línea antes del golpeo, pero el lanzador marca gol. ¿Qué decide el árbitro?
-A: Concede el gol.
-B: Repite el penal.
-C: Anula el gol y concede tiro libre indirecto.
-D: Expulsa al portero.
-OK: A
-EXP: Si el portero comete una infracción y el balón entra en la portería, el gol vale. Al portero se le advierte la primera vez y se le amonesta en las siguientes.
+Q: Durante la ejecución de un tiro penal, jugadores de ambos equipos entran en el área penal antes de que el balón esté en juego. El tiro penal se ejecuta correctamente y termina en gol. ¿Qué decisión toma el árbitro?
+A: Amonesta a los jugadores y reanuda con balón a tierra.
+B: Amonesta a los jugadores y manda repetir el tiro penal.
+C: Concede el gol.
+D: Manda repetir el tiro penal.
+OK: D
+EXP: Si los jugadores de ambos equipos cometen infracciones antes de que el balón esté en juego, el tiro se repite, aunque haya gol.
 @fin

@@ -66,52 +66,54 @@ Se ejecutan **después de terminado el partido**. Los jugadores expulsados duran
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Cuándo se considera que hay gol?
-A: Cuando el balón toca la línea de meta.
-B: Cuando todo el balón pasa la línea de meta entre los postes y bajo el larguero, sin infracción del equipo que marca.
-C: Cuando más de la mitad del balón cruza la línea.
-D: Cuando el árbitro hace sonar el silbato.
+Q: ¿Puede un jugador ser amonestado o expulsado durante el lanzamiento una tanda de penales?
+A: No.
+B: Sí.
+C: Sólo puede ser expulsado.
+D: Ninguna respuesta es correcta.
 OK: B
-EXP: Hay gol cuando todo el balón pasa por encima de la línea de meta, entre los postes y bajo el larguero, y el equipo que marca no ha cometido una infracción.
+EXP: Durante la tanda de penaltis se puede amonestar o expulsar a jugadores, suplentes, jugadores sustituidos y miembros del cuerpo técnico.
 @fin
 
 @pregunta
-Q: El portero lanza el balón con la mano y este entra directamente en la portería contraria. ¿Qué decide el árbitro?
-A: Concede el gol.
-B: Concede saque de meta.
-C: Concede saque de esquina.
-D: Concede tiro libre indirecto.
-OK: B
-EXP: Si el portero lanza el balón con la mano directamente a la portería rival, no hay gol y se concede saque de meta.
+Q: Durante el lanzamiento de una tanda de penales se lesiona el guardameta y no puede seguir jugando. ¿Puede ser reemplazado por un suplente designado?
+A: Sí, siempre que no se hayan efectuado todas las sustituciones.
+B: No, no se pueden realizar sustituciones durante una tanda de penales.
+C: Sí, en la medida en que sea una lesión grave.
+D: Sí, siempre y cuando el reglamento de la competición lo estipule.
+OK: A
+EXP: Un portero que no puede continuar puede ser sustituido por un suplente nombrado, si su equipo no ha agotado el máximo de sustituciones.
 @fin
 
 @pregunta
-Q: ¿Qué duración máxima tiene cada período de una prórroga?
-A: 10 minutos.
-B: 15 minutos.
-C: 20 minutos.
-D: 30 minutos.
-OK: B
-EXP: La prórroga se juega en dos períodos iguales de no más de 15 minutos cada uno.
+Q: ¿Quién ejecuta el primer tiro en una tanda de penales para determinar el ganador de un partido o eliminatoria?
+A: El equipo cuyo capitán gane el sorteo decide si ejecuta el primer o el segundo tiro.
+B: El equipo que ganó el sorteo antes de comenzar el encuentro.
+C: El equipo que gane el sorteo antes de comenzar la tanda de penales.
+D: El equipo que indique el árbitro.
+OK: A
+EXP: Antes de la tanda hay dos sorteos: el primero decide la portería y el segundo, qué equipo lanza primero o segundo, que elige quien lo gana.
 @fin
 
 @pregunta
-Q: ¿Cuántos tiros lanza cada equipo al principio de una tanda de penaltis?
-A: Tres, alternados.
-B: Cinco, alternados.
-C: Siete, alternados.
-D: Los que haga falta, hasta que uno falle.
-OK: B
-EXP: Cada equipo lanza cinco tiros, alternados. Si hay empate, se sigue por rondas hasta que un equipo tenga ventaja con el mismo número de lanzamientos.
+Q: Si un árbitro concede un gol antes de que el balón haya pasado por completo la línea de meta e inmediatamente se da cuenta de su error. ¿Cómo debe proceder?
+A: Concede un balón a tierra al guardameta defensor.
+B: Concede el gol.
+C: Concede un saque de meta al equipo defensor.
+D: Ninguna de las respuestas anteriores es correcta.
+OK: A
+EXP: Si el árbitro concede un gol antes de que todo el balón haya pasado la línea de meta y se da cuenta, reanuda con balón a tierra, que dentro del área es para el portero defensor.
 @fin
 
 @pregunta
-Q: En la tanda de penaltis, el portero comete una infracción que obliga a repetir el tiro. ¿Qué sanción le corresponde?
-A: Una amonestación siempre.
-B: Una advertencia la primera vez y amonestación en las siguientes.
-C: La expulsión.
-D: Ninguna sanción.
+Q: Si durante el lanzamiento de un tiro penal, el guardameta se adelanta y el tiro penal es repetido….
+A: Será amonestado si detuvo el lanzamiento.
+B: Será advertido y en caso de reincidencia se le amonestará.
+C: Será amonestado en todos los casos.
+D: Ninguna respuesta es correcta.
 OK: B
-EXP: Si la infracción del portero obliga a repetir el tiro, recibe una advertencia la primera vez y una amonestación por cada infracción posterior.
+EXP: Si la infracción del portero obliga a repetir el tiro, se le advierte la primera vez y se le amonesta en las siguientes.
 @fin

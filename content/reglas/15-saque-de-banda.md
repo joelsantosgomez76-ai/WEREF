@@ -58,52 +58,54 @@ No se puede marcar gol directamente de un saque de banda:
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿A qué distancia mínima del punto del saque de banda deben estar los adversarios?
-A: 1 m.
-B: 2 m.
-C: 4 m.
-D: 9,15 m.
-OK: B
-EXP: En un saque de banda los adversarios deben estar al menos a 2 m del punto de la línea de banda desde donde se saca.
+Q: ¿Se puede marcar un gol directamente de un saque de banda?
+A: Sí, pero sólo en la meta adversaria.
+B: Sí, siempre que el saque de banda haya sido correctamente ejecutado.
+C: Sí, en ambas metas.
+D: No, nunca.
+OK: D
+EXP: No se puede marcar gol directamente de un saque de banda.
 @fin
 
 @pregunta
-Q: Un jugador ejecuta un saque de banda incorrectamente. ¿Qué decide el árbitro?
-A: Que lo repita el mismo jugador.
-B: Que lo ejecute el equipo contrario.
-C: Un tiro libre indirecto.
-D: Un balón a tierra.
-OK: B
-EXP: Si el saque no se ejecuta correctamente, lo hace el equipo contrario. Solo se repite por el mismo equipo si el balón toca el suelo antes de entrar en el campo.
+Q: Un jugador que va a realizar un saque de banda pisa con uno de sus pies la línea de banda. ¿Qué decisión toma el árbitro?
+A: Concede un saque de banda a favor del equipo adversario.
+B: Ordena la repetición del saque de banda.
+C: Deja seguir el juego, ya que para ser infracción tiene que pisar con los dos pies.
+D: Deja seguir el juego si el resto del procedimiento fue correcto.
+OK: D
+EXP: Basta con que una parte de cada pie esté sobre la línea de banda o fuera de ella: pisar la línea no es infracción.
 @fin
 
 @pregunta
-Q: El árbitro cuenta cinco segundos con la mano levantada por un retraso en un saque de banda y el equipo no lo ejecuta. ¿Qué ocurre?
-A: Lo ejecuta el equipo contrario.
-B: Se concede un tiro libre indirecto.
-C: Se amonesta al jugador y se repite.
-D: Se concede un balón a tierra.
-OK: A
-EXP: Si el saque no se ejecuta dentro de los cinco segundos, lo ejecuta el equipo contrario. Se amonesta solo si hay un retraso excesivo después de ese cambio.
+Q: Un jugador que ejecuta un saque de banda, salta mientras suelta el balón de sus manos. ¿Qué decisión toma el árbitro?
+A: Deja que el juego continúe.
+B: Detiene el juego y concede un tiro libre indirecto a favor del equipo adversario.
+C: Concede un saque de banda a favor del equipo adversario.
+D: Detiene el juego y repite el saque de banda.
+OK: C
+EXP: Si el ejecutor no tiene una parte de cada pie sobre la línea o fuera de ella al lanzar, el saque es incorrecto y lo ejecuta el equipo contrario.
 @fin
 
 @pregunta
-Q: El balón de un saque de banda entra directamente en la propia portería del equipo que lo ejecuta. ¿Qué decide el árbitro?
-A: Concede el gol al equipo contrario.
-B: Concede un saque de esquina a los adversarios.
-C: Repite el saque de banda.
-D: Concede un saque de meta.
-OK: B
-EXP: No puede marcarse gol directamente de un saque de banda. Si el balón entra en la propia portería, se concede un saque de esquina a los adversarios.
+Q: Un jugador ejecuta un saque de banda estando de espaldas al terreno de juego, pero con los pies alejados a 2 metros al exterior de la línea de banda. ¿Qué decisión toma el árbitro?
+A: Deja que el juego continúe si el saque de banda se ejecutó correctamente.
+B: Concede un tiro libre indirecto a favor del equipo adversario.
+C: Concede un saque de banda a favor del equipo adversario.
+D: Manda repetir el saque de banda a favor del mismo equipo.
+OK: C
+EXP: El saque de banda debe ejecutarse de cara al terreno de juego; si no, lo ejecuta el equipo contrario.
 @fin
 
 @pregunta
-Q: ¿Puede marcarse gol directamente de un saque de banda en la portería rival?
-A: Sí, siempre.
-B: No: se concede saque de meta.
-C: Solo si el balón toca antes a otro jugador.
-D: Solo si el árbitro lo autoriza.
-OK: B
-EXP: No se puede marcar gol directamente de un saque de banda. Si el balón entra en la portería rival, se concede saque de meta.
+Q: Un gol es conseguido directamente en la meta adversaria de un saque de banda. ¿Qué decisión toma el árbitro?
+A: Concede el gol.
+B: No concede el gol y ordena repetir el saque de banda.
+C: No concede el gol y manda reanudar el juego con un saque de banda a favor del equipo adversario.
+D: No da validez al gol y concede un saque de meta.
+OK: D
+EXP: Un gol directo de un saque de banda en la portería rival no es válido: se concede saque de meta.
 @fin

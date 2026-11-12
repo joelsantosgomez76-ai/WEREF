@@ -60,52 +60,54 @@ Los dos tipos se conceden al equipo contrario del jugador, suplente, jugador sus
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿A qué distancia mínima del balón deben estar los adversarios en un tiro libre?
-A: 5,5 m.
-B: 9,15 m.
-C: 11 m.
-D: 16,5 m.
+Q: ¿Está permitido ejecutar un tiro libre hacia atrás?
+A: Sí, salvo si es dentro del área de meta.
+B: Sí.
+C: Sí, siempre que sea directo.
+D: No, salvo que sea directo.
 OK: B
-EXP: Hasta que el balón esté en juego, los adversarios deben estar al menos a 9,15 m, salvo si están en su línea de meta entre los postes.
+EXP: Un tiro libre puede ejecutarse en cualquier dirección, también hacia atrás.
 @fin
 
 @pregunta
-Q: Cuando tres o más defensores forman una barrera, ¿a qué distancia mínima de ella deben situarse los atacantes?
-A: A 1 m.
-B: A 2 m.
-C: A 5 m.
-D: A 9,15 m.
+Q: ¿Cuándo estará el balón en juego tras un tiro libre según la Regla 13?
+A: Cuando es golpeado y se mueve con claridad.
+B: Cuando es golpeado o tocado con el pie.
+C: Cuando es golpeado y da una vuelta completa en movimiento.
+D: Cuando es tocado por el ejecutor.
 OK: A
-EXP: Los atacantes deben mantenerse al menos a 1 m de una barrera de tres o más defensores hasta que el balón esté en juego.
+EXP: El balón de un tiro libre está en juego cuando es pateado y se mueve claramente.
 @fin
 
 @pregunta
-Q: Un tiro libre indirecto entra directamente en la portería rival sin tocar a ningún otro jugador. ¿Qué decide el árbitro?
+Q: Un jugador ejecuta un tiro libre directo elevando el balón con los pies simultáneamente y consigue un gol. ¿Qué decisión toma el árbitro?
 A: Concede el gol.
-B: Concede un saque de meta.
-C: Concede un saque de esquina.
-D: Repite el tiro libre.
-OK: B
-EXP: Si un tiro libre indirecto entra directamente en la portería rival, no hay gol y se concede saque de meta.
+B: Muestra al jugador la tarjeta amarilla y manda reanudar el juego con un tiro libre indirecto.
+C: Anula el gol, repite el tiro libre y amonesta al ejecutor.
+D: Concede un saque de meta y amonesta al ejecutor.
+OK: A
+EXP: El balón puede levantarse con un pie o con los dos pies a la vez: es una forma legal de ejecutar el tiro libre.
 @fin
 
 @pregunta
-Q: Un tiro libre directo se lanza y el balón entra directamente en la portería del propio equipo que lo ejecuta. ¿Qué decide el árbitro?
-A: Concede el gol al equipo contrario.
-B: Concede un saque de esquina a los adversarios.
-C: Repite el tiro libre.
-D: Concede un saque de meta.
-OK: B
-EXP: Si el balón de cualquier tiro libre entra directamente en la portería del propio equipo, se concede un saque de esquina a los adversarios.
+Q: Se concede un tiro libre indirecto fuera del área penal del equipo defensor. El árbitro no levanta el brazo y el balón es pateado directamente a gol. ¿Qué decisión toma el árbitro?
+A: Ordena repetir de nuevo el tiro libre indirecto.
+B: Concede el gol.
+C: Concede un saque de meta a favor del equipo defensor.
+D: Concede un balón a tierra.
+OK: A
+EXP: Si el árbitro olvida la señal del tiro libre indirecto y el balón entra directamente en la portería, el gol no vale y se repite el tiro.
 @fin
 
 @pregunta
-Q: El árbitro olvida levantar el brazo en un tiro libre indirecto y el balón entra directamente en la portería. ¿Qué ocurre?
-A: El gol es válido.
-B: No hay gol y se repite el tiro libre.
-C: No hay gol y se concede saque de meta.
-D: Se concede un tiro libre directo al otro equipo.
-OK: B
-EXP: Si el árbitro no hace la señal de tiro libre indirecto y el balón entra directamente, el gol no vale y se repite el tiro, para que el equipo no sufra por un error del árbitro.
+Q: Un jugador desea ejecutar un tiro libre rápidamente cuando un adversario se encuentra a sólo a 4,5 m del balón. ¿Qué decisión toma el árbitro?
+A: Deja que el tiro libre se ejecute rápidamente.
+B: Deja que el tiro libre se ejecute rápidamente y amonesta al adversario cuando el balón no esté en juego.
+C: No permite que el tiro libre se ejecute porque los adversarios no están a la distancia reglamentaria de 9,15 m.
+D: Amonesta al adversario y no permite que el tiro libre se ejecute porque no está a los 9,15 metros reglamentarios.
+OK: A
+EXP: El tiro libre puede ejecutarse rápido: si un adversario que está a menos de 9,15 m intercepta el balón, el juego continúa.
 @fin

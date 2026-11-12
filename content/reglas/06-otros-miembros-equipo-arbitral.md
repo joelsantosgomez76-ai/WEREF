@@ -70,52 +70,54 @@ El **VAR** ayuda al árbitro solo con repeticiones y solo ante un error claro y 
 
 ## Preguntas de muestra
 
+Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
+
 @pregunta
-Q: ¿Qué indica el cuarto árbitro al final de cada tiempo?
-A: El tiempo añadido mínimo que el árbitro piensa jugar.
-B: El resultado del partido.
-C: Los jugadores amonestados.
-D: El tiempo que queda de descanso.
-OK: A
-EXP: El cuarto árbitro indica el tiempo añadido mínimo que el árbitro tiene intención de jugar al final de cada tiempo.
+Q: En los partidos en los que sean designados árbitros asistentes adicionales, ¿el árbitro asistente donde deberá colocarse en el lanzamiento de un tiro penal durante el partido?
+A: El AA deberá colocarse junto al banderín de esquina.
+B: El AA deberá colocarse alineado con el punto de penalti.
+C: El AA deberá colocarse a la altura de la línea frontal del área penal.
+D: El AA deberá colocarse en la intersección de la línea de meta y el área penal.
+OK: B
+EXP: Cuando hay árbitros asistentes adicionales, el árbitro asistente se coloca alineado con el punto penal durante los tiros penales.
 @fin
 
 @pregunta
-Q: ¿Quién puede sustituir a un árbitro asistente que no puede continuar?
-A: El VAR.
-B: El árbitro asistente de reserva.
-C: El AVAR.
-D: Un delegado del equipo.
-OK: B
+Q: ¿Deben los árbitros asistentes anotar las incidencias que ocurren en un partido en el que también hay cuarto árbitro?
+A: Sí.
+B: No, a menos que sea solicitado por el árbitro.
+C: Únicamente las amonestaciones y expulsiones.
+D: No, ya que es responsabilidad del cuarto árbitro.
+OK: A
+EXP: Los miembros del equipo arbitral llevan registro del tiempo, de los goles y de las faltas de conducta.
+@fin
+
+@pregunta
+Q: ¿Debe indicar el árbitro asistente al árbitro cualquier incorrección que ocurra fuera del campo visual de éste?
+A: No.
+B: Sí, pero sólo en sus inmediaciones.
+C: Sí.
+D: No, a menos que sea requerido para ello.
+OK: C
+EXP: Los árbitros asistentes deben comunicar al árbitro las faltas graves o los incidentes ocurridos fuera de su campo visual.
+@fin
+
+@pregunta
+Q: ¿Puede el árbitro asistente de reserva sustituir a un cuarto árbitro que no pueda continuar con su labor?
+A: Sí, está dentro de sus funciones.
+B: No, tan solo puede sustituir a otro árbitro asistente.
+C: Sí, puede sustituir a cualquiera de los miembros del equipo arbitral sobre el terreno de juego.
+D: Esa posibilidad la determinará el reglamento de la competición.
+OK: A
 EXP: El árbitro asistente de reserva puede sustituir a un asistente, al cuarto árbitro o a un asistente adicional que no pueda continuar.
 @fin
 
 @pregunta
-Q: En el lanzamiento de un tiro penal, ¿qué debe indicar el árbitro asistente?
-A: Si el portero se adelanta de la línea de meta antes del golpeo y si el balón cruza la línea.
-B: Si el lanzador hace un amago.
-C: Si hay jugadores dentro del área.
-D: Cuánto tiempo se ha perdido.
-OK: A
-EXP: En los penaltis, el asistente controla si el portero se mueve de la línea de meta antes del golpeo y si el balón cruza la línea.
-@fin
-
-@pregunta
-Q: ¿Qué función tiene el AVAR?
-A: Decide si hay gol.
-B: Sigue la imagen mientras el VAR revisa, lleva los registros y ayuda en la comunicación con el árbitro.
-C: Sustituye al árbitro principal.
-D: Controla los balones de reposición.
-OK: B
-EXP: El AVAR sigue las imágenes cuando el VAR está ocupado, anota los incidentes y los problemas técnicos, ayuda a comunicarse con el árbitro y registra el tiempo perdido.
-@fin
-
-@pregunta
-Q: Un jugador protesta con gestos y palabras a un árbitro asistente por una decisión. ¿Qué puede hacer el árbitro?
-A: Nada, porque solo se puede sancionar la protesta al árbitro.
-B: Amonestarlo.
-C: Expulsarlo siempre.
-D: Mandarlo a la línea de banda.
-OK: B
-EXP: Protestar a cualquier miembro del equipo arbitral es sancionable, y la sanción normal es la amonestación.
+Q: ¿Qué miembro del equipo arbitral es el encargado de llevar un registro del tiempo “perdido” mientras el juego se ha detenido para chequear o revisar una jugada por el VAR?
+A: el cuarto árbitro.
+B: el VAR.
+C: el AVAR.
+D: el árbitro asistente más próximo a la zona de revisión del VAR.
+OK: C
+EXP: El AVAR registra el tiempo perdido durante las comprobaciones y revisiones del VAR.
 @fin
