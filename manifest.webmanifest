@@ -1,17 +1,22 @@
 {
   "id": "/app.html",
-  "name": "WeRef · Formación Arbitral",
-  "short_name": "WeRef",
-  "description": "Entrena las Reglas de Juego con tests, retos y el comité de árbitros del Bages.",
+  "name": "WEREF · Formación Arbitral",
+  "short_name": "WEREF",
+  "description": "App gratuita para preparar el examen de árbitro de fútbol: test de las 17 Reglas de Juego, estadísticas y liga.",
   "lang": "es",
+  "dir": "ltr",
   "start_url": "/app.html",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#FFFFFF",
   "theme_color": "#16181D",
   "categories": ["education", "sports"],
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/assets/icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/assets/icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/assets/icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

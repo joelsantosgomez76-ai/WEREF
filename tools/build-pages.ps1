@@ -20,7 +20,13 @@ function WU([string]$p, [string]$t){
 }
 function Esc([string]$s){ return $s.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;') }
 function EscA([string]$s){ return (Esc $s).Replace('"', '&quot;') }
-function Inline([string]$s){ return [regex]::Replace((Esc $s), '\*\*(.+?)\*\*', '<strong>$1</strong>') }
+function Inline([string]$s){
+  $t = [regex]::Replace((Esc $s), '\*\*(.+?)\*\*', '<strong>$1</strong>')
+  # enlaces [texto](url): los externos se abren en otra pestana
+  $t = [regex]::Replace($t, '\[([^\]]+)\]\((https?://[^)\s]+)\)', '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  $t = [regex]::Replace($t, '\[([^\]]+)\]\((/[^)\s]*)\)', '<a href="$2">$1</a>')
+  return $t
+}
 function Slug([string]$s){
   $n = $s.Normalize([Text.NormalizationForm]::FormD); $sb = New-Object Text.StringBuilder
   foreach($c in $n.ToCharArray()){ if([Globalization.CharUnicodeInfo]::GetUnicodeCategory($c) -ne 'NonSpacingMark'){ [void]$sb.Append($c) } }
@@ -84,6 +90,7 @@ function Parse-Md([string]$text){
   $para = New-Object System.Collections.Generic.List[string]
   $items = New-Object System.Collections.Generic.List[string]
   $q = $null; $qn = 0; $words = 0
+  $faq = $null; $faqAll = New-Object System.Collections.Generic.List[object]
   $flushP = { if($para.Count){ [void]$html.AppendLine('<p>' + (Inline ($para -join ' ')) + '</p>'); $para.Clear() } }
   $flushL = { if($items.Count){ [void]$html.AppendLine('<ul>'); foreach($i in $items){ [void]$html.AppendLine('<li>' + (Inline $i) + '</li>') }; [void]$html.AppendLine('</ul>'); $items.Clear() } }
   foreach($line in ($body -split "`n")){
@@ -92,6 +99,17 @@ function Parse-Md([string]$text){
       if($line -match '^(Q|A|B|C|D|OK|EXP):\s*(.*)$'){ $q[$Matches[1]] = $Matches[2].Trim() }
       continue
     }
+    if($null -ne $faq){
+      if($line -eq '@fin'){
+        [void]$html.AppendLine('<div class="faq-list">')
+        foreach($f in $faq){ [void]$html.AppendLine('<details class="faq-item"><summary>' + (Inline $f.P) + '</summary><p>' + (Inline $f.R) + '</p></details>'); $faqAll.Add($f) }
+        [void]$html.AppendLine('</div>'); $faq = $null; continue
+      }
+      if($line -match '^P:\s*(.*)$'){ $faq.Add(@{ P = $Matches[1].Trim(); R = '' }); continue }
+      if($line -match '^R:\s*(.*)$' -and $faq.Count){ $faq[$faq.Count - 1].R = $Matches[1].Trim(); continue }
+      continue
+    }
+    if($line -eq '@faq'){ & $flushP; & $flushL; $faq = New-Object System.Collections.Generic.List[object]; continue }
     if($line -eq '@pregunta'){ & $flushP; & $flushL; $q = @{}; $qn++; continue }
     if($line -match '^## (.+)$'){ & $flushP; & $flushL; [void]$html.AppendLine('<h2 id="' + (Slug $Matches[1]) + '">' + (Inline $Matches[1]) + '</h2>'); continue }
     if($line -match '^### (.+)$'){ & $flushP; & $flushL; [void]$html.AppendLine('<h3>' + (Inline $Matches[1]) + '</h3>'); continue }
@@ -100,7 +118,7 @@ function Parse-Md([string]$text){
     & $flushL; $para.Add($line.Trim()); $words += ($line -split '\s+').Count
   }
   & $flushP; & $flushL
-  return @{ meta = $meta; html = $html.ToString(); words = $words }
+  return @{ meta = $meta; html = $html.ToString(); words = $words; faq = $faqAll }
 }
 
 function Json-Script($obj){
@@ -202,6 +220,55 @@ $outRel += 'reglas-de-juego\index.html'
 if($complete){ $sitemap.Add(@{ loc = $hubUrl; lastmod = $hub.meta['fecha'] }) }
 Write-Host ("Indice: {0} de {1} reglas publicadas ({2})" -f $pub.Count, $TotalReglas, $(if($complete){ 'indexable' } else { 'noindex hasta completarlas' }))
 
+# --- paginas pilar (content\paginas\*.md) ---
+$pillars = @()
+$pillarDir = Join-Path $Site 'content\paginas'
+if(Test-Path $pillarDir){
+  foreach($f in (Get-ChildItem $pillarDir -Filter '*.md' | Sort-Object Name)){
+    $m = Parse-Md (RU $f.FullName); $meta = $m.meta
+    $slug = $meta['slug']; $url = $Base + '/' + $slug + '/'
+    $crumbs = @(@{ name = 'Inicio'; url = $Base + '/' }, @{ name = $meta['crumb']; url = $url })
+    $article = [ordered]@{
+      '@context' = 'https://schema.org'; '@type' = 'Article'; headline = $meta['h1']; description = $meta['description']; inLanguage = 'es'
+      datePublished = $meta['fecha']; dateModified = $meta['fecha']; mainEntityOfPage = $url; image = $Base + '/assets/og-image.png'
+      author = [ordered]@{ '@type' = 'Organization'; name = 'WEREF'; url = $Base + '/' }
+      publisher = [ordered]@{ '@type' = 'Organization'; name = 'WEREF'; logo = [ordered]@{ '@type' = 'ImageObject'; url = $Base + '/assets/icon-512.png' } }
+    }
+    $ld = (Json-Script (Crumb-List $crumbs)) + "`n" + (Json-Script $article)
+    if($m.faq.Count){
+      $ents = @()
+      foreach($q in $m.faq){ $ents += [ordered]@{ '@type' = 'Question'; name = ($q.P -replace '\*\*', ''); acceptedAnswer = [ordered]@{ '@type' = 'Answer'; text = ($q.R -replace '\*\*', '') } } }
+      $ld += "`n" + (Json-Script ([ordered]@{ '@context' = 'https://schema.org'; '@type' = 'FAQPage'; mainEntity = $ents }))
+    }
+    $html = Fill $tpl @{
+      TITLE = (Esc $meta['title']); DESCRIPTION = (EscA $meta['description']); ROBOTS = 'index, follow'; CANONICAL = $url
+      JSONLD = $ld; BREADCRUMBS = (Crumb-Html $crumbs); KICKER = (Esc $meta['kicker']); H1 = (Esc $meta['h1'])
+      CONTENT = $m.html; CTA = (Cta-Html $meta['cta_title'] $meta['cta_text']); PAGER = ''
+    }
+    $rel = $slug + '\index.html'
+    WU (Join-Path $Site $rel) $html
+    $outRel += $rel
+    $sitemap.Add(@{ loc = $url; lastmod = $meta['fecha'] })
+    $pillars += [pscustomobject]@{ slug = $slug; nombre = $meta['crumb']; resumen = $meta['resumen']; orden = $f.Name }
+    Write-Host ("Pilar: {0} palabras -> {1}" -f $m.words, $rel)
+  }
+}
+
+# --- pagina 404 ---
+$nfList = '<li><a href="/">Inicio de WEREF</a></li><li><a href="/reglas-de-juego/">Las 17 Reglas de Juego explicadas</a></li>'
+foreach($p in $pillars){ $nfList += '<li><a href="/' + $p.slug + '/">' + (Esc $p.nombre) + '</a></li>' }
+$nfList += '<li><a href="/contacto.html">Contacto</a></li>'
+$nf = Fill $tpl @{
+  TITLE = 'P&aacute;gina no encontrada | WEREF'; DESCRIPTION = 'La p&aacute;gina que buscas no existe o ha cambiado de direcci&oacute;n.'; ROBOTS = 'noindex, follow'; CANONICAL = ($Base + '/')
+  JSONLD = ''; BREADCRUMBS = '<a href="/">Inicio</a>'; KICKER = 'Error 404'; H1 = 'No encontramos esa p&aacute;gina'
+  CONTENT = ('<p>La direcci&oacute;n que buscas no existe o ha cambiado. Estas p&aacute;ginas te pueden ayudar:</p><ul>' + $nfList + '</ul>'); CTA = ''; PAGER = ''
+}
+WU (Join-Path $Site '404.html') $nf
+$outRel += '404.html'
+
+# lista de paginas generadas (la usa build-landing-css.ps1 para estampar la version del CSS)
+WU (Join-Path $Site 'tools\generated-pages.txt') (($outRel | ForEach-Object { $_.Replace('/', '\') }) -join "`n")
+
 # --- bloque "Las 17 reglas" de la portada (entre los marcadores REGLAS:START y REGLAS:END de index.html) ---
 $lt = RU (Join-Path $Site 'tools\templates\reglas-landing.html')
 $items = ''
@@ -216,6 +283,21 @@ $s = $ix.IndexOf($mStart); $e = $ix.IndexOf($mEnd)
 if($s -ge 0 -and $e -gt $s -and $pub.Count -ge 1){
   $new = $ix.Substring(0, $s) + $block + $ix.Substring($e + $mEnd.Length)
   if($new -ne $ix){ WU $ixPath $new }
+}
+
+# --- bloque "Guias para arbitros" de la portada (marcadores PILARES:START / PILARES:END) ---
+if($pillars.Count){
+  $gt = RU (Join-Path $Site 'tools\templates\pilares-landing.html')
+  $gi = ''
+  foreach($p in $pillars){ $gi += '<li><a href="/' + $p.slug + '/"><strong>' + (Esc $p.nombre) + '</strong><span>' + (Esc $p.resumen) + '</span></a></li>' }
+  $gStart = '<!-- PILARES:START -->'; $gEnd = '<!-- PILARES:END -->'
+  $gBlock = $gStart + "`n" + $gt.Replace('{{ITEMS}}', $gi).Trim() + "`n" + $gEnd
+  $ix2 = RU $ixPath
+  $s2 = $ix2.IndexOf($gStart); $e2 = $ix2.IndexOf($gEnd)
+  if($s2 -ge 0 -and $e2 -gt $s2){
+    $new2 = $ix2.Substring(0, $s2) + $gBlock + $ix2.Substring($e2 + $gEnd.Length)
+    if($new2 -ne $ix2){ WU $ixPath $new2 }
+  }
 }
 
 # --- sitemap.xml ---

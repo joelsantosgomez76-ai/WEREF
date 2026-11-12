@@ -3,16 +3,16 @@ slug: regla-4-equipamiento
 num: 4
 nombre: El equipamiento de los jugadores
 title: Regla 4: El equipamiento de los jugadores – Test y explicación para árbitros | WEREF
-description: Resumen de la Regla 4 del fútbol, el equipamiento de los jugadores: prendas obligatorias, joyas, colores, mensajes y sanciones, con errores frecuentes y 5 preguntas de práctica.
+description: Resumen de la Regla 4 del fútbol, el equipamiento de los jugadores: prendas obligatorias, seguridad, colores, mensajes y sanciones, con errores frecuentes y 5 preguntas de práctica.
 fecha: 2026-11-12
 ---
 La Regla 4 dice qué puede ponerse un jugador y qué no. Mezcla seguridad, colores y mensajes en la ropa, y suele dar preguntas de situación: qué hace el árbitro cuando alguien lleva algo que no debe. Aquí tienes lo esencial.
 
 ## Seguridad
 
-Los jugadores no pueden usar ni llevar nada peligroso. Las **joyas están prohibidas** (collares, anillos, pulseras, pendientes y bandas de cuero o goma) y deben quitarse. **No vale taparlas con cinta.**
+Los jugadores no pueden usar ni llevar nada peligroso. Lo peligroso debe retirarse, y **taparlo con cinta no vale**. Los complementos (collares, pulseras, pendientes y similares) que no sean peligrosos pueden llevarse si están **bien cubiertos y sujetos con seguridad**. Si algo es peligroso o no, lo decide el árbitro. La edición 2026/27 cambió este apartado, así que consulta siempre el texto vigente.
 
-Se permiten complementos que no sean peligrosos si están bien cubiertos y sujetos con seguridad. Los jugadores se revisan antes del partido y los suplentes antes de entrar. Si alguien lleva algo no autorizado o peligroso, el árbitro le ordena quitárselo o, si no puede o no quiere, abandonar el campo en la siguiente interrupción. Quien se niega, o se lo vuelve a poner, es amonestado.
+Los jugadores se revisan antes del partido y los suplentes antes de entrar. Si alguien lleva algo no autorizado o peligroso, el árbitro le ordena quitárselo o, si no puede o no quiere, abandonar el campo en la siguiente interrupción. Quien se niega, o se lo vuelve a poner, es amonestado.
 
 ## Equipamiento obligatorio
 
@@ -60,7 +60,7 @@ Si entra sin permiso, se le amonesta. Si el árbitro detiene el juego por ello, 
 
 ## Errores frecuentes en el examen
 
-- Pensar que se pueden tapar las joyas con cinta.
+- Pensar que algo peligroso se arregla tapándolo con cinta: hay que quitarlo.
 - Olvidar que el gol se concede si el jugador sin bota marca antes de que el balón salga.
 - Confundir el color de las mallas: es el del pantalón, no el de la camiseta.
 - Creer que los guantes son obligatorios para el portero: no lo son.

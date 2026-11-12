@@ -48,7 +48,7 @@ El árbitro puede detener, suspender o suspender definitivamente el partido por 
 
 ## VAR
 
-El VAR solo puede usarse si el organizador cumple los requisitos y tiene el permiso escrito de la FIFA. Solo ayuda ante un **error claro y manifiesto** o un **incidente grave no visto** en cuatro situaciones: gol o no gol, penal o no penal, expulsión directa (no una segunda amonestación claramente incorrecta) y confusión de identidad. Con el VAR, la decisión final es **siempre del árbitro**, que puede apoyarse solo en la información del VAR o hacer una revisión en el campo.
+El VAR solo puede usarse si el organizador cumple los requisitos y tiene el permiso escrito de la FIFA. Solo ayuda ante un **error claro y manifiesto** o un **incidente grave no visto** en cuatro situaciones: gol o no gol, penal o no penal, expulsión directa (en 2026/27 se añade la roja que sigue a una segunda amonestación claramente incorrecta) y confusión de identidad (ahora, de cualquiera de los dos equipos). Con el VAR, la decisión final es **siempre del árbitro**, que puede apoyarse solo en la información del VAR o hacer una revisión en el campo.
 
 ## Equipamiento del árbitro
 

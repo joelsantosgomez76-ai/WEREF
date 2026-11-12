@@ -10,8 +10,9 @@ param(
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 if(-not $Pages.Count){
   $Pages = @('index.html')
-  $gen = Join-Path $Site 'reglas-de-juego'
-  if(Test-Path $gen){ foreach($f in (Get-ChildItem $gen -Recurse -Filter 'index.html')){ $Pages += $f.FullName.Substring($Site.Length).TrimStart('\') } }
+  # tools\generated-pages.txt lo escribe build-pages.ps1 con todas las paginas que genera
+  $list = Join-Path $Site 'tools\generated-pages.txt'
+  if(Test-Path $list){ foreach($l in ([IO.File]::ReadAllText($list, $utf8) -split "`n")){ $l = $l.Trim(); if($l){ $Pages += $l } } }
 }
 $src = [IO.File]::ReadAllText((Join-Path $Site 'assets\css\styles.css'), $utf8)
 $src = [regex]::Replace($src, '/\*.*?\*/', '', 'Singleline')
