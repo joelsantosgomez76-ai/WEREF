@@ -3699,6 +3699,16 @@ body.ex-panel-open .ex-detail.open{animation:exSlide .18s ease-out;}
 .how-step p{margin:0; font:400 15px/1.55 'Work Sans'; color:var(--muted);}
 @media (max-width:760px){ .how-grid{grid-template-columns:minmax(0,1fr);} }
 
+/* Landing · las 17 reglas */
+.lr-sub{margin:-12px auto 26px; max-width:560px; text-align:center; color:var(--muted); font:400 16px/1.55 'Work Sans';}
+.lr-grid{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;}
+.lr-grid a{display:flex; align-items:center; gap:12px; padding:12px 14px; background:#fff; border:1px solid var(--line); border-radius:14px; color:var(--ink); text-decoration:none; font:600 14.5px/1.3 'Work Sans'; transition:border-color .15s ease;}
+.lr-grid a:hover{border-color:var(--ink);}
+.lr-n{flex:none; display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:var(--ink); color:#fff; font:700 14px 'Oswald';}
+.lr-more{margin:22px 0 0; text-align:center;}
+@media (max-width:900px){ .lr-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media (max-width:520px){ .lr-grid{grid-template-columns:minmax(0,1fr);} }
+
 /* Páginas públicas · guías de las Reglas de Juego */
 a.landing-brand{text-decoration:none; color:var(--pitch);}
 a.btn{text-decoration:none; display:inline-flex; align-items:center; justify-content:center;}

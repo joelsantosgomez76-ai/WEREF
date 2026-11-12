@@ -34,6 +34,32 @@ function GitDate([string]$rel){
   return $d
 }
 
+# Reparte la letra correcta de forma fija y reproducible (en el texto original casi todas eran la B).
+# Preguntas de cifras (opciones cortas con numeros): se mantiene el orden, pero se invierte en la mitad.
+# El resto: la opcion correcta se coloca en la posicion objetivo y las demas conservan su orden.
+$Targets = 2, 0, 3, 1, 3, 1, 2, 0, 1, 3, 0, 2, 0, 2, 1, 3
+function Reorder-Q($q, [int]$num, [int]$n){
+  $letters = 'A', 'B', 'C', 'D'
+  $opts = @(); foreach($l in $letters){ $opts += $q[$l] }
+  $ok = [array]::IndexOf($letters, $q['OK'])
+  $short = $true
+  foreach($o in $opts){ if($o -notmatch '\d' -or $o.Length -gt 45){ $short = $false } }
+  $seed = $num * 5 + $n
+  if($short){
+    if($seed % 2 -eq 1){ [array]::Reverse($opts); $ok = 3 - $ok }
+  } else {
+    $t = $Targets[$seed % $Targets.Length]
+    $correct = $opts[$ok]; $rest = @()
+    for($i = 0; $i -lt 4; $i++){ if($i -ne $ok){ $rest += $opts[$i] } }
+    $new = @(); $ri = 0
+    for($i = 0; $i -lt 4; $i++){ if($i -eq $t){ $new += $correct } else { $new += $rest[$ri]; $ri++ } }
+    $opts = $new; $ok = $t
+  }
+  $r = @{ Q = $q['Q']; EXP = $q['EXP']; OK = $letters[$ok] }
+  for($i = 0; $i -lt 4; $i++){ $r[$letters[$i]] = $opts[$i] }
+  return $r
+}
+
 function Render-Q($q, [int]$n){
   $opts = ''
   foreach($l in 'A', 'B', 'C', 'D'){ $opts += '<li>' + (Inline $q[$l]) + '</li>' }
@@ -48,6 +74,7 @@ function Parse-Md([string]$text){
     foreach($l in ($text.Substring(4, $end - 4) -split "`n")){ if($l -match '^([a-z_]+):\s*(.*)$'){ $meta[$Matches[1]] = $Matches[2].Trim() } }
     $body = $text.Substring($end + 4).TrimStart("`n")
   }
+  $num = 0; if($meta.ContainsKey('num')){ $num = [int]$meta['num'] }
   $html = New-Object System.Text.StringBuilder
   $para = New-Object System.Collections.Generic.List[string]
   $items = New-Object System.Collections.Generic.List[string]
@@ -56,7 +83,7 @@ function Parse-Md([string]$text){
   $flushL = { if($items.Count){ [void]$html.AppendLine('<ul>'); foreach($i in $items){ [void]$html.AppendLine('<li>' + (Inline $i) + '</li>') }; [void]$html.AppendLine('</ul>'); $items.Clear() } }
   foreach($line in ($body -split "`n")){
     if($null -ne $q){
-      if($line -eq '@fin'){ [void]$html.AppendLine((Render-Q $q $qn)); $q = $null; continue }
+      if($line -eq '@fin'){ [void]$html.AppendLine((Render-Q (Reorder-Q $q $num $qn) $qn)); $q = $null; continue }
       if($line -match '^(Q|A|B|C|D|OK|EXP):\s*(.*)$'){ $q[$Matches[1]] = $Matches[2].Trim() }
       continue
     }
@@ -169,6 +196,22 @@ WU (Join-Path $Site 'reglas-de-juego\index.html') $hubHtml
 $outRel += 'reglas-de-juego\index.html'
 if($complete){ $sitemap.Add(@{ loc = $hubUrl; lastmod = $hub.meta['fecha'] }) }
 Write-Host ("Indice: {0} de {1} reglas publicadas ({2})" -f $pub.Count, $TotalReglas, $(if($complete){ 'indexable' } else { 'noindex hasta completarlas' }))
+
+# --- bloque "Las 17 reglas" de la portada (entre los marcadores REGLAS:START y REGLAS:END de index.html) ---
+$lt = RU (Join-Path $Site 'tools\templates\reglas-landing.html')
+$items = ''
+foreach($r in $idx){
+  if($pub.ContainsKey($r.num)){ $items += '<li><a href="/reglas-de-juego/' + $r.slug + '/"><span class="lr-n">' + $r.num + '</span><span class="lr-t">' + (Esc $r.nombre) + '</span></a></li>' }
+}
+$mStart = '<!-- REGLAS:START -->'; $mEnd = '<!-- REGLAS:END -->'
+$block = $mStart + "`n" + $lt.Replace('{{ITEMS}}', $items).Trim() + "`n" + $mEnd
+$ixPath = Join-Path $Site 'index.html'
+$ix = RU $ixPath
+$s = $ix.IndexOf($mStart); $e = $ix.IndexOf($mEnd)
+if($s -ge 0 -and $e -gt $s -and $pub.Count -ge 1){
+  $new = $ix.Substring(0, $s) + $block + $ix.Substring($e + $mEnd.Length)
+  if($new -ne $ix){ WU $ixPath $new }
+}
 
 # --- sitemap.xml ---
 $sm = '<?xml version="1.0" encoding="UTF-8"?>' + "`n" + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "`n"
