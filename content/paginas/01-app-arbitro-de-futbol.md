@@ -7,11 +7,21 @@ h1: La app de WEREF para árbitros de fútbol
 kicker: App gratuita
 resumen: Qué incluye la app y cómo instalarla en el móvil.
 categoria: App
+grupo: empezar
+entradilla: Qué incluye la app gratuita de WEREF, cómo instalarla en el móvil y cómo te ayuda a preparar el examen de árbitro.
+relacionadas: test-reglas-de-juego, examen-arbitro-de-futbol, como-ser-arbitro-de-futbol
 fecha: 2026-11-12
 cta_title: Prueba la app ahora
 cta_text: Crea tu cuenta gratis, sin tarjeta, o haz primero un test de 5 preguntas sin registrarte.
 ---
 WEREF es una app web gratuita para preparar el examen de árbitro de fútbol y repasar las Reglas de Juego. Funciona desde el navegador del móvil, la tablet o el ordenador, y puedes instalarla en la pantalla de inicio como cualquier otra app.
+
+@resumen
+- Es gratis y no pide tarjeta: tests por regla, liga, estadísticas, sala de repaso y tu academia personal.
+- Puedes hacer un test de cinco preguntas sin registrarte; con una cuenta guardas tu progreso.
+- No está en las tiendas de aplicaciones: se instala desde el navegador, en Android y en iPhone.
+- Está basada en las Reglas de Juego de la IFAB, pero no es material oficial.
+@fin
 
 ## Qué puedes hacer con WEREF
 
@@ -25,9 +35,11 @@ WEREF es una app web gratuita para preparar el examen de árbitro de fútbol y r
 
 ## Cómo empezar
 
-1. Haz el test gratis de cinco preguntas para ver tu nivel.
-2. Crea tu cuenta gratuita. No pedimos tarjeta.
-3. Entrena regla a regla y revisa tus fallos en la Sala de Repaso.
+@pasos
+1. **Haz el test gratis** de cinco preguntas para ver tu nivel.
+2. **Crea tu cuenta gratuita.** No pedimos tarjeta.
+3. **Entrena regla a regla** y revisa tus fallos en la Sala de Repaso.
+@fin
 
 Si prefieres leer antes de practicar, tienes una [guía de cada una de las 17 Reglas de Juego](/reglas-de-juego/), con los errores más frecuentes del examen y cinco preguntas de práctica.
 
@@ -49,6 +61,18 @@ Aprender las Reglas de Juego no es solo leerlas: hay que aplicarlas a situacione
 - **Repasas lo que has fallado**, que es lo que más rinde.
 - **Mides tu progreso** con estadísticas, para saber en qué reglas te falta nivel.
 - **Mantienes la constancia**: diez minutos al día suelen ser más eficaces que una tarde entera antes del examen.
+
+@consejo Fija una hora para tus diez minutos diarios, por ejemplo el trayecto al trabajo o antes de dormir, y no te saltes la Sala de Repaso: es donde más se aprende.
+
+@error Leer las reglas una vez y no practicar. Las Reglas de Juego se aprenden aplicándolas a situaciones concretas, y lo que has fallado una vez se vuelve a fallar si no lo repasas.
+
+## Así son las preguntas
+
+Dos preguntas reales del banco de WEREF para que veas el formato. Pulsa una opción: te dirá si has acertado y por qué.
+
+@test 15 1
+
+@test 9 1
 
 ## Para quién es
 

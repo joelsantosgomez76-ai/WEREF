@@ -7,11 +7,21 @@ h1: Test de las Reglas de Juego, gratis y sin registro
 kicker: Test gratuito
 resumen: Cinco preguntas en un minuto, sin registro.
 categoria: Test gratis
+grupo: examen
+entradilla: Cinco preguntas tipo test sobre las Reglas de Juego, en un minuto y sin registrarte, en modo estudio o modo examen.
+relacionadas: examen-arbitro-de-futbol, app-arbitro-de-futbol, cambios-reglas-de-juego-2026-27
 fecha: 2026-11-12
 cta_title: Haz el test ahora
 cta_text: Cinco preguntas, un minuto y sin registro. Empieza cuando quieras.
 ---
 ¿Cuánto sabes de las Reglas de Juego? Haz el test de WEREF: **cinco preguntas, un minuto y sin registrarte**. Sirve para ver tu nivel, para calentar antes de un examen de árbitro o simplemente para comprobar si te acuerdas de las reglas.
+
+@resumen
+- Son cinco preguntas tipo test sobre las Reglas de Juego, y tardas un minuto aproximadamente.
+- No hace falta registrarse ni dar datos de tarjeta.
+- Hay dos modos: estudio (respuesta y explicación tras cada pregunta) y examen (la nota al final).
+- Al terminar puedes revisar tus respuestas y leer la guía de la regla que has fallado.
+@fin
 
 ## Cómo funciona
 
@@ -23,6 +33,16 @@ cta_text: Cinco preguntas, un minuto y sin registro. Empieza cuando quieras.
   - **Examen:** respondes las cinco seguidas y descubres tu puntuación al final.
 
 Cuando termines, puedes revisar las preguntas y, si quieres seguir entrenando, crear una cuenta gratuita para guardar tu progreso.
+
+@consejo Haz primero el test en modo examen para medir tu nivel real, y repítelo después en modo estudio para aprender de cada pregunta que hayas fallado.
+
+## Calienta con dos preguntas
+
+Antes de empezar el test, prueba con dos preguntas reales del banco de WEREF. Pulsa una opción para ver si aciertas y leer la explicación.
+
+@test 16 4
+
+@test 17 3
 
 ## Qué puedes hacer después
 

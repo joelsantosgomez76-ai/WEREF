@@ -101,4 +101,16 @@ foreach($p in $Pages){
   $n = [regex]::Replace($n, 'home\.css\?v=[A-Za-z0-9]+', 'home.css?v=' + $hashHome)
   if($n -ne $t){ [IO.File]::WriteAllText($f, $n, $utf8) }
 }
+foreach($asset in @(@('guia\.css', 'assets\css\guia.css', 'guia.css'), @('guia\.js', 'assets\js\guia.js', 'guia.js'))){
+  $ap = Join-Path $Site $asset[1]
+  if(Test-Path $ap){
+    $ah = ([BitConverter]::ToString($md5.ComputeHash([IO.File]::ReadAllBytes($ap))) -replace '-', '').Substring(0, 8).ToLower()
+    foreach($p in $Pages){
+      $f = Join-Path $Site $p
+      $t = [IO.File]::ReadAllText($f, $utf8)
+      $n = [regex]::Replace($t, $asset[0] + '\?v=[A-Za-z0-9]+', $asset[2] + '?v=' + $ah)
+      if($n -ne $t){ [IO.File]::WriteAllText($f, $n, $utf8) }
+    }
+  }
+}
 "{0} KB (original {1} KB), version {2}, {3} paginas" -f [math]::Round((Get-Item $outPath).Length / 1024), [math]::Round($src.Length / 1024), $hash, $Pages.Count

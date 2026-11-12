@@ -22,6 +22,8 @@ function Esc([string]$s){ return $s.Replace('&', '&amp;').Replace('<', '&lt;').R
 function EscA([string]$s){ return (Esc $s).Replace('"', '&quot;') }
 function Inline([string]$s){
   $t = [regex]::Replace((Esc $s), '\*\*(.+?)\*\*', '<strong>$1</strong>')
+  # marcadores [VERIFICAR: ...]: no se ven en la pagina, quedan como comentario HTML y en la lista del generador
+  $t = [regex]::Replace($t, '\[VERIFICAR:([^\]]*)\]', { param($m) $script:verifList.Add($m.Groups[1].Value.Trim()); '<!-- VERIFICAR:' + $m.Groups[1].Value.Replace('--', '-') + ' -->' })
   # enlaces [texto](url): los externos se abren en otra pestana
   $t = [regex]::Replace($t, '\[([^\]]+)\]\((https?://[^)\s]+)\)', '<a href="$2" target="_blank" rel="noopener">$1</a>')
   $t = [regex]::Replace($t, '\[([^\]]+)\]\((/[^)\s]*)\)', '<a href="$2">$1</a>')
@@ -77,6 +79,14 @@ function Render-Q($q, [int]$n){
   return '<section class="pg-q"><p class="pg-q-n">Pregunta ' + $n + '</p><p class="pg-q-t">' + (Inline $q['Q']) + '</p><ol class="pg-q-o" type="A">' + $opts + '</ol><details class="pg-q-a"><summary>Ver la respuesta</summary><p><strong>Respuesta correcta: ' + $q['OK'] + '.</strong> ' + (Inline $q['EXP']) + '</p></details></section>'
 }
 
+$script:verifList = New-Object System.Collections.Generic.List[string]
+
+function Render-QI($q, [int]$num, [string]$slug){
+  $opts = ''
+  foreach($l in 'A', 'B', 'C', 'D'){ $opts += '<li>' + (Inline $q[$l]) + '</li>' }
+  return '<section class="pg-q qi" data-ok="' + $q['OK'] + '"><p class="pg-q-n">Pregunta de examen &middot; Regla ' + $num + '</p><p class="pg-q-t">' + (Inline $q['Q']) + '</p><ol class="pg-q-o" type="A">' + $opts + '</ol><details class="pg-q-a"><summary>Ver la respuesta</summary><p><strong>Respuesta correcta: ' + $q['OK'] + '.</strong> ' + (Inline $q['EXP']) + '</p></details><p class="qi-src">Del banco de WEREF &middot; <a href="/reglas-de-juego/' + $slug + '/">Gu&iacute;a de la Regla ' + $num + '</a></p></section>'
+}
+
 function Parse-Md([string]$text){
   $text = $text.Replace("`r`n", "`n")
   $meta = @{}; $body = $text
@@ -89,13 +99,19 @@ function Parse-Md([string]$text){
   $html = New-Object System.Text.StringBuilder
   $para = New-Object System.Collections.Generic.List[string]
   $items = New-Object System.Collections.Generic.List[string]
+  $olItems = New-Object System.Collections.Generic.List[string]
   $q = $null; $qn = 0; $words = 0
+  $qAll = New-Object System.Collections.Generic.List[object]
   $faq = $null; $faqAll = New-Object System.Collections.Generic.List[object]
+  $toc = New-Object System.Collections.Generic.List[object]
+  $sum = New-Object System.Collections.Generic.List[string]; $inSum = $false
+  $tab = $null; $steps = $null
   $flushP = { if($para.Count){ [void]$html.AppendLine('<p>' + (Inline ($para -join ' ')) + '</p>'); $para.Clear() } }
   $flushL = { if($items.Count){ [void]$html.AppendLine('<ul>'); foreach($i in $items){ [void]$html.AppendLine('<li>' + (Inline $i) + '</li>') }; [void]$html.AppendLine('</ul>'); $items.Clear() } }
+  $flushO = { if($olItems.Count){ [void]$html.AppendLine('<ol>'); foreach($i in $olItems){ [void]$html.AppendLine('<li>' + (Inline $i) + '</li>') }; [void]$html.AppendLine('</ol>'); $olItems.Clear() } }
   foreach($line in ($body -split "`n")){
     if($null -ne $q){
-      if($line -eq '@fin'){ [void]$html.AppendLine((Render-Q (Reorder-Q $q $num $qn) $qn)); $q = $null; continue }
+      if($line -eq '@fin'){ $ro = Reorder-Q $q $num $qn; $qAll.Add($ro); [void]$html.AppendLine((Render-Q $ro $qn)); $q = $null; continue }
       if($line -match '^(Q|A|B|C|D|OK|EXP):\s*(.*)$'){ $q[$Matches[1]] = $Matches[2].Trim() }
       continue
     }
@@ -109,16 +125,68 @@ function Parse-Md([string]$text){
       if($line -match '^R:\s*(.*)$' -and $faq.Count){ $faq[$faq.Count - 1].R = $Matches[1].Trim(); continue }
       continue
     }
-    if($line -eq '@faq'){ & $flushP; & $flushL; $faq = New-Object System.Collections.Generic.List[object]; continue }
-    if($line -eq '@pregunta'){ & $flushP; & $flushL; $q = @{}; $qn++; continue }
-    if($line -match '^## (.+)$'){ & $flushP; & $flushL; [void]$html.AppendLine('<h2 id="' + (Slug $Matches[1]) + '">' + (Inline $Matches[1]) + '</h2>'); continue }
-    if($line -match '^### (.+)$'){ & $flushP; & $flushL; [void]$html.AppendLine('<h3>' + (Inline $Matches[1]) + '</h3>'); continue }
-    if($line -match '^- (.+)$'){ & $flushP; $items.Add($Matches[1]); $words += ($Matches[1] -split '\s+').Count; continue }
-    if($line.Trim() -eq ''){ & $flushP; & $flushL; continue }
-    & $flushL; $para.Add($line.Trim()); $words += ($line -split '\s+').Count
+    if($inSum){
+      if($line -eq '@fin'){ $inSum = $false; continue }
+      if($line -match '^- (.+)$'){ $sum.Add($Matches[1]) }
+      continue
+    }
+    if($null -ne $tab){
+      if($line -eq '@fin'){
+        $t = '<figure class="cx-table"><figcaption>' + (Inline $tab.title) + '</figcaption><div class="cx-scroll"><table>'
+        for($ri = 0; $ri -lt $tab.rows.Count; $ri++){
+          $cells = $tab.rows[$ri] -split '\s*\|\s*'
+          if($ri -eq 0){ $t += '<thead><tr>'; foreach($c in $cells){ $t += '<th scope="col">' + (Inline $c) + '</th>' }; $t += '</tr></thead><tbody>' }
+          else { $t += '<tr>'; $ci = 0; foreach($c in $cells){ if($ci -eq 0){ $t += '<th scope="row">' + (Inline $c) + '</th>' } else { $t += '<td>' + (Inline $c) + '</td>' }; $ci++ }; $t += '</tr>' }
+        }
+        $t += '</tbody></table></div></figure>'
+        [void]$html.AppendLine($t); $tab = $null; continue
+      }
+      if($line.Trim() -ne ''){ $tab.rows.Add($line.Trim()); $words += ($line -split '\s+').Count }
+      continue
+    }
+    if($null -ne $steps){
+      if($line -eq '@fin'){
+        [void]$html.AppendLine('<ol class="cx-steps">')
+        foreach($s in $steps){
+          if($s -match '^\*\*(.+?)\*\*\s*(.*)$'){ [void]$html.AppendLine('<li><b class="cx-st">' + (Inline $Matches[1]) + '</b><span>' + (Inline $Matches[2]) + '</span></li>') }
+          else { [void]$html.AppendLine('<li><span>' + (Inline $s) + '</span></li>') }
+        }
+        [void]$html.AppendLine('</ol>'); $steps = $null; continue
+      }
+      if($line -match '^\d+\.\s+(.+)$'){ $steps.Add($Matches[1]); $words += ($Matches[1] -split '\s+').Count }
+      continue
+    }
+    if($line -eq '@faq'){ & $flushP; & $flushL; & $flushO; $faq = New-Object System.Collections.Generic.List[object]; continue }
+    if($line -eq '@pregunta'){ & $flushP; & $flushL; & $flushO; $q = @{}; $qn++; continue }
+    if($line -eq '@resumen'){ & $flushP; & $flushL; & $flushO; $inSum = $true; continue }
+    if($line -match '^@cifras\s+(.+)$'){ & $flushP; & $flushL; & $flushO; $tab = @{ title = $Matches[1].Trim(); rows = (New-Object System.Collections.Generic.List[string]) }; continue }
+    if($line -eq '@pasos'){ & $flushP; & $flushL; & $flushO; $steps = New-Object System.Collections.Generic.List[string]; continue }
+    if($line -match '^@consejo\s+(.+)$'){ & $flushP; & $flushL; & $flushO; [void]$html.AppendLine('<aside class="cx cx-tip"><p class="cx-t">Consejo de &aacute;rbitro</p><p>' + (Inline $Matches[1]) + '</p></aside>'); $words += ($Matches[1] -split '\s+').Count; continue }
+    if($line -match '^@error\s+(.+)$'){ & $flushP; & $flushL; & $flushO; [void]$html.AppendLine('<aside class="cx cx-err"><p class="cx-t">Error t&iacute;pico</p><p>' + (Inline $Matches[1]) + '</p></aside>'); $words += ($Matches[1] -split '\s+').Count; continue }
+    if($line -match '^@test\s+(\d+)\s+(\d+)\s*$'){
+      & $flushP; & $flushL; & $flushO
+      $rn = [int]$Matches[1]; $rk = [int]$Matches[2]
+      if(-not $pub.ContainsKey($rn) -or $rk -lt 1 -or $rk -gt $pub[$rn].qs.Count){ throw ('@test: no existe la pregunta ' + $rn + ':' + $rk) }
+      $slugR = ($idx | Where-Object { $_.num -eq $rn } | Select-Object -First 1).slug
+      [void]$html.AppendLine((Render-QI $pub[$rn].qs[$rk - 1] $rn $slugR)); $words += 60; continue
+    }
+    if($line -match '^@figura\s+(\S+)\s*$'){ & $flushP; & $flushL; & $flushO; [void]$html.AppendLine((RU (Join-Path $Site ('tools\templates\fig-' + $Matches[1] + '.html'))).Trim()); continue }
+    if($line -match '^## (.+)$'){
+      & $flushP; & $flushL; & $flushO
+      $hid = Slug $Matches[1]
+      [void]$html.AppendLine('<h2 id="' + $hid + '">' + (Inline $Matches[1]) + '</h2>')
+      $toc.Add(@{ id = $hid; t = ($Matches[1] -replace '\*\*', '') }); continue
+    }
+    if($line -match '^### (.+)$'){ & $flushP; & $flushL; & $flushO; [void]$html.AppendLine('<h3>' + (Inline $Matches[1]) + '</h3>'); continue }
+    if($line -match '^\s*- (.+)$'){ & $flushP; & $flushO; $items.Add($Matches[1]); $words += ($Matches[1] -split '\s+').Count; continue }
+    if($line -match '^\d+\.\s+(.+)$'){ & $flushP; & $flushL; $olItems.Add($Matches[1]); $words += ($Matches[1] -split '\s+').Count; continue }
+    if($line.Trim() -eq ''){ & $flushP; & $flushL; & $flushO; continue }
+    & $flushL; & $flushO; $para.Add($line.Trim()); $words += ($line -split '\s+').Count
   }
-  & $flushP; & $flushL
-  return @{ meta = $meta; html = $html.ToString(); words = $words; faq = $faqAll }
+  & $flushP; & $flushL; & $flushO
+  $sumHtml = ''
+  if($sum.Count){ $sumHtml = '<ul>'; foreach($s in $sum){ $sumHtml += '<li>' + (Inline $s) + '</li>' }; $sumHtml += '</ul>' }
+  return @{ meta = $meta; html = $html.ToString(); words = $words; faq = $faqAll; qs = $qAll; toc = $toc; summary = $sumHtml }
 }
 
 function Json-Script($obj){
@@ -140,7 +208,8 @@ function Crumb-Html($crumbs){
 }
 
 $footer = RU (Join-Path $Site 'tools\templates\footer.html')
-$tpl = (RU (Join-Path $Site 'tools\templates\page.html')).Replace('{{FOOTER}}', $footer.Trim())
+$nav = RU (Join-Path $Site 'tools\templates\nav.html')
+$tpl = (RU (Join-Path $Site 'tools\templates\page.html')).Replace('{{NAV}}', $nav.Replace('{{PROGRESS}}', '')).Replace('{{FOOTER}}', $footer.Trim())
 $idx = @()
 foreach($l in ((RU (Join-Path $Site 'content\reglas\_indice.txt')) -split "`n")){
   $l = $l.Trim(); if(-not $l){ continue }
@@ -150,7 +219,7 @@ foreach($l in ((RU (Join-Path $Site 'content\reglas\_indice.txt')) -split "`n"))
 $pub = @{}
 foreach($f in (Get-ChildItem (Join-Path $Site 'content\reglas') -Filter '*.md' | Where-Object { $_.Name -notlike '_*' })){
   $m = Parse-Md (RU $f.FullName)
-  $pub[[int]$m.meta['num']] = @{ meta = $m.meta; html = $m.html; words = $m.words; rel = 'content/reglas/' + $f.Name }
+  $pub[[int]$m.meta['num']] = @{ meta = $m.meta; html = $m.html; words = $m.words; qs = $m.qs; rel = 'content/reglas/' + $f.Name }
 }
 
 $cssTag = '/assets/css/landing.css?v=0'
@@ -221,13 +290,29 @@ $outRel += 'reglas-de-juego\index.html'
 if($complete){ $sitemap.Add(@{ loc = $hubUrl; lastmod = $hub.meta['fecha'] }) }
 Write-Host ("Indice: {0} de {1} reglas publicadas ({2})" -f $pub.Count, $TotalReglas, $(if($complete){ 'indexable' } else { 'noindex hasta completarlas' }))
 
-# --- paginas pilar (content\paginas\*.md) ---
+# --- guias (content\paginas\*.md): plantilla de guia con indice, resumen, autor y relacionadas ---
+$Months = 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+function Fecha-Es([string]$iso, [bool]$short){
+  $d = [datetime]::ParseExact($iso, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+  if($short){ return ('{0} {1} {2}' -f $d.Day, $Months[$d.Month - 1].Substring(0, 3), $d.Year) }
+  return ('{0} de {1} de {2}' -f $d.Day, $Months[$d.Month - 1], $d.Year)
+}
+$GrupoNombre = [ordered]@{ empezar = 'Empezar como &aacute;rbitro'; examen = 'Examen'; reglas = 'Reglas'; partido = 'Partido'; novedades = 'Novedades' }
+$guiaTpl = (RU (Join-Path $Site 'tools\templates\guia.html')).Replace('{{NAV}}', $nav.Replace('{{PROGRESS}}', '<div class="rp" aria-hidden="true"><i></i></div>')).Replace('{{FOOTER}}', $footer.Trim())
+
 $pillars = @()
+$GL = @()
 $pillarDir = Join-Path $Site 'content\paginas'
 if(Test-Path $pillarDir){
   foreach($f in (Get-ChildItem $pillarDir -Filter '*.md' | Sort-Object Name)){
-    $m = Parse-Md (RU $f.FullName); $meta = $m.meta
-    $slug = $meta['slug']; $url = $Base + '/' + $slug + '/'
+    $m = Parse-Md (RU $f.FullName)
+    $mins = [int][math]::Max(2, [math]::Ceiling($m.words / 185))
+    $GL += [pscustomobject]@{ m = $m; meta = $m.meta; slug = $m.meta['slug']; mins = $mins; name = $f.Name }
+  }
+  foreach($g in $GL){
+    $meta = $g.meta; $m = $g.m
+    if(-not $m.summary){ throw ('Falta @resumen en ' + $g.slug) }
+    $slug = $g.slug; $url = $Base + '/' + $slug + '/'
     $crumbs = @(@{ name = 'Inicio'; url = $Base + '/' }, @{ name = $meta['crumb']; url = $url })
     $article = [ordered]@{
       '@context' = 'https://schema.org'; '@type' = 'Article'; headline = $meta['h1']; description = $meta['description']; inLanguage = 'es'
@@ -241,20 +326,73 @@ if(Test-Path $pillarDir){
       foreach($q in $m.faq){ $ents += [ordered]@{ '@type' = 'Question'; name = ($q.P -replace '\*\*', ''); acceptedAnswer = [ordered]@{ '@type' = 'Answer'; text = ($q.R -replace '\*\*', '') } } }
       $ld += "`n" + (Json-Script ([ordered]@{ '@context' = 'https://schema.org'; '@type' = 'FAQPage'; mainEntity = $ents }))
     }
-    $html = Fill $tpl @{
-      TITLE = (Esc $meta['title']); DESCRIPTION = (EscA $meta['description']); ROBOTS = 'index, follow'; CANONICAL = $url
-      JSONLD = $ld; BREADCRUMBS = (Crumb-Html $crumbs); KICKER = (Esc $meta['kicker']); H1 = (Esc $meta['h1'])
-      CONTENT = $m.html; CTA = (Cta-Html $meta['cta_title'] $meta['cta_text']); PAGER = ''
+    $toc = ''
+    foreach($t in $m.toc){ $toc += '<li><a href="#' + $t.id + '">' + (Esc $t.t) + '</a></li>' }
+    $rel = ''
+    foreach($rs in ($meta['relacionadas'] -split '\s*,\s*')){
+      $o = $GL | Where-Object { $_.slug -eq $rs } | Select-Object -First 1
+      if($o){ $rel += '<li><a href="/' + $o.slug + '/"><span class="gd-rel-c">' + $GrupoNombre[$o.meta['grupo']] + '</span><strong>' + (Esc $o.meta['crumb']) + '</strong><span class="gd-rel-m">' + $o.mins + ' min de lectura</span></a></li>' }
     }
-    $rel = $slug + '\index.html'
-    WU (Join-Path $Site $rel) $html
-    $outRel += $rel
+    $html = Fill $guiaTpl @{
+      TITLE = (Esc $meta['title']); DESCRIPTION = (EscA $meta['description']); ROBOTS = 'index, follow'; CANONICAL = $url
+      JSONLD = $ld; BREADCRUMBS = (Crumb-Html $crumbs); CAT = $GrupoNombre[$meta['grupo']]; H1 = (Esc $meta['h1']); ENTRADILLA = (Inline $meta['entradilla'])
+      FECHA = $meta['fecha']; FECHA_ES = (Fecha-Es $meta['fecha'] $false); MINS = $g.mins
+      TOC = $toc; RESUMEN = $m.summary; CONTENT = $m.html; RELATED = $rel; CTA = (Cta-Html $meta['cta_title'] $meta['cta_text'])
+    }
+    $relp = $slug + '\index.html'
+    WU (Join-Path $Site $relp) $html
+    $outRel += $relp
     $sitemap.Add(@{ loc = $url; lastmod = $meta['fecha'] })
-    $mins = [math]::Max(2, [math]::Ceiling($m.words / 170))
-    $pillars += [pscustomobject]@{ slug = $slug; nombre = $meta['crumb']; resumen = $meta['resumen']; cat = $meta['categoria']; mins = $mins; orden = $f.Name }
-    Write-Host ("Pilar: {0} palabras -> {1}" -f $m.words, $rel)
+    $pillars += [pscustomobject]@{ slug = $slug; nombre = $meta['crumb']; resumen = $meta['resumen']; cat = $meta['categoria']; mins = $g.mins; orden = $g.name }
+    Write-Host ("Guia: {0} palabras, {1} min -> {2}" -f $m.words, $g.mins, $relp)
   }
 }
+
+# --- indice /guias/ ---
+$ArrowSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+$cards = New-Object System.Collections.Generic.List[object]
+foreach($g in $GL){
+  $cards.Add([pscustomobject]@{ cat = $g.meta['grupo']; href = '/' + $g.slug + '/'; title = $g.meta['crumb']; desc = $g.meta['entradilla']; mins = $g.mins; fecha = $g.meta['fecha']; feat = ($g.meta['destacada'] -eq 'si') })
+}
+foreach($r in ($idx | Where-Object { $pub.ContainsKey($_.num) })){
+  $pg = $pub[$r.num]
+  $cards.Add([pscustomobject]@{ cat = 'reglas'; href = '/reglas-de-juego/' + $r.slug + '/'; title = ('Regla ' + $r.num + ': ' + $r.nombre); desc = $r.resumen; mins = [int][math]::Ceiling(($pg.words + 250) / 190); fecha = $pg.meta['fecha']; feat = $false })
+}
+$gDir = Join-Path $Site 'content\guias'
+$gm = Parse-Md (RU (Join-Path $gDir '_indice.md'))
+$featured = $cards | Where-Object { $_.feat } | Select-Object -First 1
+$featHtml = ''
+if($featured){
+  $featHtml = '<a class="gl-feat" data-cat="' + $featured.cat + '" href="' + $featured.href + '"><span class="gl-feat-k">Gu&iacute;a destacada &middot; ' + $GrupoNombre[$featured.cat] + '</span><strong class="gl-feat-t">' + (Esc $featured.title) + '</strong><span class="gl-feat-d">' + (Inline $featured.desc) + '</span><span class="gl-m"><time datetime="' + $featured.fecha + '">' + (Fecha-Es $featured.fecha $true) + '</time> &middot; ' + $featured.mins + ' min de lectura ' + $ArrowSvg + '</span></a>'
+}
+$gridHtml = ''; $ldItems = @(); $pos = 1
+$used = @{}
+foreach($c in $cards){
+  $used[$c.cat] = $true
+  $ldItems += [ordered]@{ '@type' = 'ListItem'; position = $pos; url = ($Base + $c.href); name = (($c.title -replace '&[a-z]+;', ' ')) }; $pos++
+  if($featured -and $c.href -eq $featured.href){ continue }
+  $gridHtml += '<li class="gl-card" data-cat="' + $c.cat + '"><a href="' + $c.href + '"><span class="gl-cat">' + $GrupoNombre[$c.cat] + '</span><strong class="gl-t">' + (Esc $c.title) + '</strong><span class="gl-d">' + (Inline $c.desc) + '</span><span class="gl-m"><time datetime="' + $c.fecha + '">' + (Fecha-Es $c.fecha $true) + '</time> &middot; ' + $c.mins + ' min ' + $ArrowSvg + '</span></a></li>'
+}
+$filters = '<button type="button" class="gl-f is-on" data-f="todas" aria-pressed="true">Todas</button>'
+foreach($k in $GrupoNombre.Keys){ if($used.ContainsKey($k)){ $filters += '<button type="button" class="gl-f" data-f="' + $k + '" aria-pressed="false">' + $GrupoNombre[$k] + '</button>' } }
+$gUrl = $Base + '/guias/'
+$gCrumbs = @(@{ name = 'Inicio'; url = $Base + '/' }, @{ name = ('Gu' + [char]0x00ED + 'as'); url = $gUrl })
+$gLd = (Json-Script (Crumb-List $gCrumbs)) + "`n" + (Json-Script ([ordered]@{
+  '@context' = 'https://schema.org'; '@type' = 'CollectionPage'; name = $gm.meta['h1']; description = $gm.meta['description']; url = $gUrl; inLanguage = 'es'
+  isPartOf = [ordered]@{ '@type' = 'WebSite'; name = 'WEREF'; url = $Base + '/' }
+  mainEntity = [ordered]@{ '@type' = 'ItemList'; numberOfItems = $ldItems.Count; itemListElement = $ldItems }
+}))
+$glTpl = (RU (Join-Path $Site 'tools\templates\guias.html')).Replace('{{NAV}}', $nav.Replace('{{PROGRESS}}', '')).Replace('{{FOOTER}}', $footer.Trim())
+$glHtml = Fill $glTpl @{
+  TITLE = (Esc $gm.meta['title']); DESCRIPTION = (EscA $gm.meta['description']); CANONICAL = $gUrl; JSONLD = $gLd
+  BREADCRUMBS = (Crumb-Html $gCrumbs); H1 = (Esc $gm.meta['h1']); LEDE = (Inline $gm.meta['entradilla']); COUNT = $cards.Count
+  FILTERS = $filters; FEATURED = $featHtml; CARDS = $gridHtml
+}
+WU (Join-Path $Site 'guias\index.html') $glHtml
+$outRel += 'guias\index.html'
+$sitemap.Add(@{ loc = $gUrl; lastmod = $gm.meta['fecha'] })
+Write-Host ("Indice de guias: {0} tarjetas" -f $cards.Count)
+if($script:verifList.Count){ Write-Host ('PENDIENTE DE VERIFICAR (' + $script:verifList.Count + '):'); foreach($v in $script:verifList){ Write-Host ('  - ' + $v) } }
 
 # --- pagina 404 ---
 $nfList = '<li><a href="/">Inicio de WEREF</a></li><li><a href="/reglas-de-juego/">Las 17 Reglas de Juego explicadas</a></li>'

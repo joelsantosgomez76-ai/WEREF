@@ -32,9 +32,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/landing.css?v=2a6c054d">
-<link rel="stylesheet" href="/assets/css/home.css?v=5b0f8489">
+<link rel="stylesheet" href="/assets/css/home.css?v=7a3d7717">
+<link rel="stylesheet" href="/assets/css/guia.css?v=0d27cafc">
+<script src="/assets/js/guia.js?v=177c9f78" defer></script>
 </head>
-<body class="hm pg">
+<body class="hm gd">
 
 <header class="sh-nav">
   <div class="sh-wrap sh-nav-in">
@@ -44,7 +46,7 @@
     </a>
     <nav class="sh-links" aria-label="Principal">
       <a href="/reglas-de-juego/">Reglas de Juego</a>
-      <a href="/#guias">Guías</a>
+      <a href="/guias/">Guías</a>
       <a href="/test-reglas-de-juego/">Test gratis</a>
     </nav>
     <div class="sh-actions">
@@ -52,15 +54,40 @@
       <a class="btn btn-yellow btn-sm" href="/#registro">Regístrate</a>
     </div>
   </div>
+<div class="rp" aria-hidden="true"><i></i></div>
 </header>
 
-<main class="pg-main">
-  <nav class="pg-crumbs" aria-label="Migas de pan"><a href="/">Inicio</a> <span aria-hidden="true">&rsaquo;</span> <span aria-current="page">App para árbitros de fútbol</span></nav>
-  <article class="pg-article">
-    <header class="pg-head">
-      <p class="pg-kicker">App gratuita</p>
-      <h1>La app de WEREF para árbitros de fútbol</h1>
-    </header>
+
+<header class="gd-hero">
+  <svg class="gd-field" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="#fff" stroke-width="2"><rect x="40" y="40" width="1120" height="440"/><line x1="600" y1="40" x2="600" y2="480"/><circle cx="600" cy="260" r="92"/><rect x="40" y="130" width="170" height="260"/><rect x="990" y="130" width="170" height="260"/></g></svg>
+  <div class="sh-wrap gd-hero-in">
+    <nav class="pg-crumbs" aria-label="Migas de pan"><a href="/">Inicio</a> <span aria-hidden="true">&rsaquo;</span> <span aria-current="page">App para árbitros de fútbol</span></nav>
+    <p class="gd-chip">Empezar como &aacute;rbitro</p>
+    <h1>La app de WEREF para árbitros de fútbol</h1>
+    <p class="gd-lede">Qué incluye la app gratuita de WEREF, cómo instalarla en el móvil y cómo te ayuda a preparar el examen de árbitro.</p>
+    <div class="gd-meta">
+      <span class="gd-by"><span class="gd-av" aria-hidden="true">JS</span><span><strong>Joel Santos</strong><small>&Aacute;rbitro de f&uacute;tbol en activo</small></span></span>
+      <span class="gd-dt">Actualizado: <time datetime="2026-11-12">12 de noviembre de 2026</time></span>
+      <span class="gd-rt">4 min de lectura</span>
+    </div>
+  </div>
+</header>
+
+<main class="sh-wrap gd-grid">
+  <aside class="gd-toc" aria-label="&Iacute;ndice de la gu&iacute;a">
+    <p class="gd-aside-t">En esta gu&iacute;a</p>
+    <ol><li><a href="#que-puedes-hacer-con-weref">Qué puedes hacer con WEREF</a></li><li><a href="#como-empezar">Cómo empezar</a></li><li><a href="#como-instalarla-en-el-movil">Cómo instalarla en el móvil</a></li><li><a href="#como-te-ayuda-a-preparar-el-examen">Cómo te ayuda a preparar el examen</a></li><li><a href="#asi-son-las-preguntas">Así son las preguntas</a></li><li><a href="#para-quien-es">Para quién es</a></li><li><a href="#contenido-no-oficial">Contenido no oficial</a></li><li><a href="#preguntas-frecuentes">Preguntas frecuentes</a></li></ol>
+  </aside>
+
+  <article class="gd-article" id="gd-article">
+    <details class="gd-toc-m">
+      <summary>En esta gu&iacute;a</summary>
+      <ol><li><a href="#que-puedes-hacer-con-weref">Qué puedes hacer con WEREF</a></li><li><a href="#como-empezar">Cómo empezar</a></li><li><a href="#como-instalarla-en-el-movil">Cómo instalarla en el móvil</a></li><li><a href="#como-te-ayuda-a-preparar-el-examen">Cómo te ayuda a preparar el examen</a></li><li><a href="#asi-son-las-preguntas">Así son las preguntas</a></li><li><a href="#para-quien-es">Para quién es</a></li><li><a href="#contenido-no-oficial">Contenido no oficial</a></li><li><a href="#preguntas-frecuentes">Preguntas frecuentes</a></li></ol>
+    </details>
+    <section class="gd-sum" aria-labelledby="gd-sum-t">
+      <h2 id="gd-sum-t">Resumen r&aacute;pido</h2>
+      <ul><li>Es gratis y no pide tarjeta: tests por regla, liga, estadísticas, sala de repaso y tu academia personal.</li><li>Puedes hacer un test de cinco preguntas sin registrarte; con una cuenta guardas tu progreso.</li><li>No está en las tiendas de aplicaciones: se instala desde el navegador, en Android y en iPhone.</li><li>Está basada en las Reglas de Juego de la IFAB, pero no es material oficial.</li></ul>
+    </section>
     <p>WEREF es una app web gratuita para preparar el examen de árbitro de fútbol y repasar las Reglas de Juego. Funciona desde el navegador del móvil, la tablet o el ordenador, y puedes instalarla en la pantalla de inicio como cualquier otra app.</p>
 <h2 id="que-puedes-hacer-con-weref">Qué puedes hacer con WEREF</h2>
 <ul>
@@ -73,7 +100,11 @@
 <li><strong>Sincronización:</strong> tu progreso te acompaña en cualquier dispositivo, con tu cuenta.</li>
 </ul>
 <h2 id="como-empezar">Cómo empezar</h2>
-<p>1. Haz el test gratis de cinco preguntas para ver tu nivel. 2. Crea tu cuenta gratuita. No pedimos tarjeta. 3. Entrena regla a regla y revisa tus fallos en la Sala de Repaso.</p>
+<ol class="cx-steps">
+<li><b class="cx-st">Haz el test gratis</b><span>de cinco preguntas para ver tu nivel.</span></li>
+<li><b class="cx-st">Crea tu cuenta gratuita.</b><span>No pedimos tarjeta.</span></li>
+<li><b class="cx-st">Entrena regla a regla</b><span>y revisa tus fallos en la Sala de Repaso.</span></li>
+</ol>
 <p>Si prefieres leer antes de practicar, tienes una <a href="/reglas-de-juego/">guía de cada una de las 17 Reglas de Juego</a>, con los errores más frecuentes del examen y cinco preguntas de práctica.</p>
 <h2 id="como-instalarla-en-el-movil">Cómo instalarla en el móvil</h2>
 <p>WEREF no está en las tiendas de aplicaciones: se instala desde el navegador, y ocupa muy poco.</p>
@@ -91,6 +122,12 @@
 <li><strong>Mides tu progreso</strong> con estadísticas, para saber en qué reglas te falta nivel.</li>
 <li><strong>Mantienes la constancia</strong>: diez minutos al día suelen ser más eficaces que una tarde entera antes del examen.</li>
 </ul>
+<aside class="cx cx-tip"><p class="cx-t">Consejo de &aacute;rbitro</p><p>Fija una hora para tus diez minutos diarios, por ejemplo el trayecto al trabajo o antes de dormir, y no te saltes la Sala de Repaso: es donde más se aprende.</p></aside>
+<aside class="cx cx-err"><p class="cx-t">Error t&iacute;pico</p><p>Leer las reglas una vez y no practicar. Las Reglas de Juego se aprenden aplicándolas a situaciones concretas, y lo que has fallado una vez se vuelve a fallar si no lo repasas.</p></aside>
+<h2 id="asi-son-las-preguntas">Así son las preguntas</h2>
+<p>Dos preguntas reales del banco de WEREF para que veas el formato. Pulsa una opción: te dirá si has acertado y por qué.</p>
+<section class="pg-q qi" data-ok="A"><p class="pg-q-n">Pregunta de examen &middot; Regla 15</p><p class="pg-q-t">¿Se puede marcar un gol directamente de un saque de banda?</p><ol class="pg-q-o" type="A"><li>No, nunca.</li><li>Sí, pero sólo en la meta adversaria.</li><li>Sí, siempre que el saque de banda haya sido correctamente ejecutado.</li><li>Sí, en ambas metas.</li></ol><details class="pg-q-a"><summary>Ver la respuesta</summary><p><strong>Respuesta correcta: A.</strong> No se puede marcar gol directamente de un saque de banda.</p></details><p class="qi-src">Del banco de WEREF &middot; <a href="/reglas-de-juego/regla-15-saque-de-banda/">Gu&iacute;a de la Regla 15</a></p></section>
+<section class="pg-q qi" data-ok="B"><p class="pg-q-n">Pregunta de examen &middot; Regla 9</p><p class="pg-q-t">¿Cuándo el balón no está en juego?</p><ol class="pg-q-o" type="A"><li>Cuando toca en la mano o brazo de un jugador, exceptuando al guardameta en su propia área penal.</li><li>Cuando el juego ha sido detenido por el árbitro.</li><li>Cuando ha traspasado parcialmente la línea de meta, bien sea por aire o tierra.</li><li>Ninguna de las respuestas es correcta.</li></ol><details class="pg-q-a"><summary>Ver la respuesta</summary><p><strong>Respuesta correcta: B.</strong> El balón está fuera de juego cuando ha traspasado por completo una línea de meta o de banda, cuando el árbitro detiene el juego y en los casos de contacto con un miembro del equipo arbitral previstos en la regla.</p></details><p class="qi-src">Del banco de WEREF &middot; <a href="/reglas-de-juego/regla-9-balon-en-juego-y-fuera-de-juego/">Gu&iacute;a de la Regla 9</a></p></section>
 <h2 id="para-quien-es">Para quién es</h2>
 <p>Para quien empieza en el arbitraje, para quien está haciendo el curso de árbitro y para árbitros en activo que quieren repasar las reglas o preparar un examen. Si estás pensando en empezar, lee también <a href="/como-ser-arbitro-de-futbol/">cómo ser árbitro de fútbol</a> y <a href="/examen-arbitro-de-futbol/">cómo es el examen de árbitro</a>.</p>
 <h2 id="contenido-no-oficial">Contenido no oficial</h2>
@@ -104,11 +141,38 @@
 <details class="faq-item"><summary>¿Es contenido oficial?</summary><p>No. Es contenido no oficial basado en las Reglas de Juego de la IFAB.</p></details>
 </div>
 
+    <section class="gd-author" aria-label="Sobre el autor">
+      <span class="gd-av gd-av-l" aria-hidden="true">JS</span>
+      <div>
+        <p class="gd-author-n"><strong>Joel Santos</strong> &middot; &Aacute;rbitro de f&uacute;tbol en activo</p>
+        <p>Creador de WEREF. Escribe estas gu&iacute;as a partir de las Reglas de Juego de la IFAB para ayudarte a preparar el examen de &aacute;rbitro.</p>
+        <p class="gd-author-l"><a href="/contacto.html">Contacto</a><a href="https://x.com/weref_es" target="_blank" rel="noopener">WEREF en X</a><a href="https://www.instagram.com/weref_es/" target="_blank" rel="noopener">WEREF en Instagram</a></p>
+      </div>
+    </section>
+    <section class="pg-cta"><h2>Prueba la app ahora</h2><p>Crea tu cuenta gratis, sin tarjeta, o haz primero un test de 5 preguntas sin registrarte.</p><div class="pg-cta-btns"><a class="btn btn-yellow" href="/#registro">Crear cuenta gratis</a><a class="btn btn-secondary" href="/#quiz">Probar un test de 5 preguntas</a></div></section>
+    <p class="pg-note">Fuente: Reglas de Juego de la IFAB. Consulta el texto oficial en <a href="https://www.theifab.com/laws/latest/" target="_blank" rel="noopener">theifab.com</a>.<br>Contenido no oficial, basado en las Reglas de Juego de la IFAB. Comprueba siempre la edici&oacute;n vigente y el reglamento de tu competici&oacute;n.</p>
   </article>
-  <section class="pg-cta"><h2>Prueba la app ahora</h2><p>Crea tu cuenta gratis, sin tarjeta, o haz primero un test de 5 preguntas sin registrarte.</p><div class="pg-cta-btns"><a class="btn btn-yellow" href="/#registro">Crear cuenta gratis</a><a class="btn btn-secondary" href="/#quiz">Probar un test de 5 preguntas</a></div></section>
-  
-  <p class="pg-note">Fuente: Reglas de Juego de la IFAB. Consulta el texto oficial en <a href="https://www.theifab.com/laws/latest/" target="_blank" rel="noopener">theifab.com</a>.<br>Contenido no oficial, basado en las Reglas de Juego de la IFAB. Comprueba siempre la edición vigente y el reglamento de tu competición.</p>
+
+  <aside class="gd-side" aria-label="Para seguir">
+    <div class="gd-card">
+      <p class="gd-card-k">Ponte a prueba</p>
+      <p class="gd-card-t">5 preguntas de Reglas de Juego</p>
+      <p class="gd-card-d">Un minuto, gratis y sin registro.</p>
+      <a class="btn btn-yellow" href="/#quiz">Empezar el test</a>
+    </div>
+    <div class="gd-rel">
+      <p class="gd-aside-t">Gu&iacute;as relacionadas</p>
+      <ul><li><a href="/test-reglas-de-juego/"><span class="gd-rel-c">Examen</span><strong>Test de Reglas de Juego</strong><span class="gd-rel-m">3 min de lectura</span></a></li><li><a href="/examen-arbitro-de-futbol/"><span class="gd-rel-c">Examen</span><strong>Examen de árbitro de fútbol</strong><span class="gd-rel-m">10 min de lectura</span></a></li><li><a href="/como-ser-arbitro-de-futbol/"><span class="gd-rel-c">Empezar como &aacute;rbitro</span><strong>Cómo ser árbitro de fútbol</strong><span class="gd-rel-m">4 min de lectura</span></a></li></ul>
+      <a class="gd-all" href="/reglas-de-juego/">Las 17 Reglas de Juego &rarr;</a>
+      <a class="gd-all" href="/guias/">Todas las gu&iacute;as &rarr;</a>
+    </div>
+  </aside>
 </main>
+
+<div class="gd-bar">
+  <p>Ponte a prueba: <strong>5 preguntas</strong>, gratis</p>
+  <a class="btn btn-yellow btn-sm" href="/#quiz">Empezar</a>
+</div>
 
 <footer class="sh-foot">
   <div class="sh-wrap">

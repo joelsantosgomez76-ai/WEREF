@@ -7,6 +7,9 @@ h1: Cambios en las Reglas de Juego 2026/27
 kicker: Novedades de la temporada
 resumen: Qué ha cambiado la IFAB y qué es opcional.
 categoria: Novedades
+grupo: novedades
+entradilla: Qué ha cambiado la IFAB esta temporada, qué es obligatorio y qué decide cada competición, regla por regla.
+relacionadas: examen-arbitro-de-futbol, test-reglas-de-juego, como-ser-arbitro-de-futbol
 fecha: 2026-11-12
 cta_title: Practica las reglas actualizadas
 cta_text: Entrena con tests de cada regla en WEREF, gratis y sin tarjeta.
@@ -15,12 +18,33 @@ Cada temporada la IFAB modifica las Reglas de Juego, y los exámenes de árbitro
 
 Esta página no sustituye al texto oficial: consulta siempre la [lista oficial de cambios de la IFAB](https://theifab.com/law-changes/latest/) y las normas de tu competición.
 
+@resumen
+- Un jugador sustituido debe salir en un máximo de diez segundos.
+- Los saques de banda y de meta llevan una cuenta atrás de cinco segundos hecha por el árbitro.
+- Si el portero controla el balón con las manos más de ocho segundos, se concede un saque de esquina.
+- Cambian el balón a tierra y las situaciones que revisa el VAR, y algunas medidas son opcionales según la competición.
+@fin
+
+@cifras Las novedades con cifra, de un vistazo
+Novedad | Cifra | Dónde
+Salida del jugador sustituido | **10 s** | Regla 3
+Mínimo de jugadores para empezar y continuar | **7** | Regla 3
+Cuenta atrás en saques de banda y de meta | **5 s** | Reglas 15 y 16
+Portero con el balón en las manos | **8 s** | Saque de esquina al rival
+@fin
+
+@consejo Antes de aplicar una novedad en un partido, comprueba si tu competición la ha adoptado: varias medidas son opcionales, como las cámaras corporales o la revisión de saques de esquina.
+
 ## Regla 3: Los jugadores
 
 - Un jugador sustituido debe salir del campo en un máximo de **diez segundos**. Si no lo hace, el sustituto espera hasta la primera interrupción que ocurra pasado **un minuto de tiempo de juego** desde la reanudación. Mira la [Regla 3](/reglas-de-juego/regla-3-jugadores/).
 - Un partido no puede comenzar ni continuar si un equipo tiene menos de **siete jugadores**; el equipo responsable pierde el partido en principio, según la competición.
 - Hay ajustes en el número de suplentes de los amistosos de selecciones absolutas.
 - Las directrices «solo el capitán» serán obligatorias en todas las competiciones desde el 1 de julio de 2027.
+
+Una pregunta real sobre sustituciones, para comprobar que tienes claro cuándo un suplente es ya jugador:
+
+@test 3 4
 
 ## Regla 4: El equipamiento
 
@@ -45,6 +69,10 @@ Esta página no sustituye al texto oficial: consulta siempre la [lista oficial d
 
 - En el **balón a tierra** se prioriza al equipo que habría ganado la posesión, incluido el que habría sacado si el balón hubiera salido. Si el balón toca a un árbitro o a un agente externo, se deja caer en el lugar de ese contacto. Mira la [Regla 8](/reglas-de-juego/regla-8-inicio-y-reanudacion/).
 
+Una pregunta real sobre el balón a tierra, un clásico de examen:
+
+@test 8 1
+
 ## Reglas 10 y 14: Penaltis
 
 - Si el lanzador toca el balón dos veces de forma accidental (por ejemplo, con los dos pies a la vez), se repite si hay gol y, si no, se da por fallado en la tanda o se concede tiro libre indirecto en el partido. No puede jugar el balón una segunda vez de forma deliberada. Mira la [Regla 10](/reglas-de-juego/regla-10-determinar-el-resultado/) y la [Regla 14](/reglas-de-juego/regla-14-tiro-penal/).
@@ -60,6 +88,8 @@ Esta página no sustituye al texto oficial: consulta siempre la [lista oficial d
 
 - **Cuenta atrás de cinco segundos** en los saques de banda y de meta: el árbitro la hace con la mano levantada. Si no se ejecuta a tiempo, el saque de banda pasa a los adversarios y el saque de meta se convierte en un **saque de esquina** para ellos.
 - Un **portero que controla el balón con las manos más de ocho segundos** concede un saque de esquina. Mira las guías de la [Regla 15](/reglas-de-juego/regla-15-saque-de-banda/), la [Regla 16](/reglas-de-juego/regla-16-saque-de-meta/) y la [Regla 17](/reglas-de-juego/regla-17-saque-de-esquina/).
+
+@error Responder con la versión antigua de la regla. Cada temporada hay cambios: si has estudiado con apuntes de años anteriores, repasa esta lista y pregunta a tu federación qué edición de las Reglas de Juego entra en tu examen.
 
 ## Contenido no oficial
 

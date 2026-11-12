@@ -377,3 +377,9 @@ body.pg .pg-pager a{border:2px solid var(--w-ink); border-radius:var(--w-r-md);}
   .hm-card{display:none;}
 }
 @media (prefers-reduced-motion:reduce){ .hm *{transition:none !important; animation:none !important;} }
+@media (max-width:400px){
+  .sh-nav-in{gap:.5rem;}
+  .sh-brand{font-size:1.05rem; gap:.4rem;}
+  .sh-actions{gap:.4rem;}
+  .sh-actions .btn{padding-inline:.65rem; font-size:.8125rem;}
+}
