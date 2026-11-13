@@ -241,7 +241,6 @@ $cssTag = '/assets/css/landing.css?v=0'
 $outRel = @()   # paginas generadas (ruta relativa) para el CSS y el sitemap
 $sitemap = New-Object System.Collections.Generic.List[object]
 $sitemap.Add(@{ loc = $Base + '/'; lastmod = (GitDate 'index.html') })
-$sitemap.Add(@{ loc = $Base + '/contacto.html'; lastmod = (GitDate 'contacto.html') })
 
 function Cta-Html([string]$titulo, [string]$texto){
   return '<section class="pg-cta"><h2>' + (Esc $titulo) + '</h2><p>' + (Esc $texto) + '</p><div class="pg-cta-btns"><a class="btn btn-yellow" href="/#registro">Crear cuenta gratis</a><a class="btn btn-secondary" href="/#quiz">Probar un test de 5 preguntas</a></div></section>'
@@ -475,10 +474,110 @@ $sitemap.Add(@{ loc = $gUrl; lastmod = $gm.meta['fecha'] })
 Write-Host ("Indice de guias: {0} tarjetas" -f $cards.Count)
 if($script:verifList.Count){ Write-Host ('PENDIENTE DE VERIFICAR (' + $script:verifList.Count + '):'); foreach($v in $script:verifList){ Write-Host ('  - ' + $v) } }
 
+# --- paginas legales (content\legal\*.md): se copian literales; los corchetes [PENDIENTE]/[VERIFICAR] se resaltan ---
+$script:legalMarks = New-Object System.Collections.Generic.List[string]
+function InlineL([string]$s, [string]$doc){
+  $t = Esc $s
+  $codes = New-Object System.Collections.Generic.List[string]
+  $t = [regex]::Replace($t, '`([^`]+)`', { param($m) $codes.Add($m.Groups[1].Value); '@@C' + ($codes.Count - 1) + '@@' })
+  $t = [regex]::Replace($t, '\*\*(.+?)\*\*', '<strong>$1</strong>')
+  $t = [regex]::Replace($t, '\[([^\]]+)\]\((https?://[^)\s]+)\)', '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  $t = [regex]::Replace($t, '\[([^\]]+)\]\((/[^)\s]*)\)', '<a href="$2">$1</a>')
+  $t = [regex]::Replace($t, '\[([^\]\n]*)\](?!\()', { param($m) $script:legalMarks.Add($doc + ' | [' + $m.Groups[1].Value + ']'); '<mark class="lg-todo">[' + $m.Groups[1].Value + ']</mark>' })
+  $t = [regex]::Replace($t, '@@C(\d+)@@', { param($m) '<code>' + $codes[[int]$m.Groups[1].Value] + '</code>' })
+  return $t
+}
+function Parse-Legal([string]$text, [string]$doc){
+  $text = $text.Replace("`r`n", "`n")
+  $html = New-Object System.Text.StringBuilder
+  $title = ''; $updated = ''; $summary = ''
+  $toc = New-Object System.Collections.Generic.List[object]
+  $para = New-Object System.Collections.Generic.List[string]
+  $items = New-Object System.Collections.Generic.List[string]
+  $bq = New-Object System.Collections.Generic.List[string]
+  $tab = New-Object System.Collections.Generic.List[string]
+  $flushP = { if($para.Count){ [void]$html.AppendLine('<p>' + (InlineL ($para -join ' ') $doc) + '</p>'); $para.Clear() } }
+  $flushL = { if($items.Count){ [void]$html.AppendLine('<ul>'); foreach($i in $items){ [void]$html.AppendLine('<li>' + (InlineL $i $doc) + '</li>') }; [void]$html.AppendLine('</ul>'); $items.Clear() } }
+  $flushQ = {
+    if($bq.Count){
+      $li = ''; foreach($b in $bq){ if($b -match '^- (.+)$'){ $li += '<li>' + (InlineL $Matches[1] $doc) + '</li>' } }
+      $script:summaryOut = '<section class="gd-sum" aria-labelledby="gd-sum-t"><h2 id="gd-sum-t">Resumen en 30 segundos</h2><ul>' + $li + '</ul></section>'
+      $bq.Clear()
+    }
+  }
+  $flushT = {
+    if($tab.Count){
+      $rows = @(); foreach($r in $tab){ $c = ($r.Trim().Trim('|') -split '\|'); $rows += , @($c | ForEach-Object { $_.Trim() }) }
+      $head = $rows[0]; $hasHead = $false; foreach($h in $head){ if($h -ne ''){ $hasHead = $true } }
+      $t = '<div class="lg-tw"><table class="lg-t">'
+      if($hasHead){ $t += '<thead><tr>'; foreach($h in $head){ $t += '<th scope="col">' + (InlineL $h $doc) + '</th>' }; $t += '</tr></thead>' }
+      $t += '<tbody>'
+      for($ri = 2; $ri -lt $rows.Count; $ri++){
+        $t += '<tr>'
+        for($ci = 0; $ci -lt $rows[$ri].Count; $ci++){
+          $lab = ''; if($hasHead -and $ci -lt $head.Count){ $lab = ' data-label="' + (EscA $head[$ci]) + '"' }
+          if($ci -eq 0 -and -not $hasHead){ $t += '<th scope="row">' + (InlineL $rows[$ri][$ci] $doc) + '</th>' } else { $t += '<td' + $lab + '>' + (InlineL $rows[$ri][$ci] $doc) + '</td>' }
+        }
+        $t += '</tr>'
+      }
+      $t += '</tbody></table></div>'
+      [void]$html.AppendLine($t); $tab.Clear()
+    }
+  }
+  $script:summaryOut = ''
+  foreach($line in ($text -split "`n")){
+    if($line -match '^>\s?(.*)$'){ & $flushP; & $flushL; & $flushT; $bq.Add($Matches[1]); continue } else { & $flushQ }
+    if($line -match '^\|'){ & $flushP; & $flushL; $tab.Add($line); continue } else { & $flushT }
+    if($line -match '^# (.+)$'){ $title = $Matches[1].Trim(); continue }
+    if($line -match '^\*\*.ltima actualizaci.n:\*\*\s*(.*)$'){ $updated = InlineL $Matches[1] $doc; continue }
+    if($line.Trim() -eq '---'){ & $flushP; & $flushL; continue }
+    if($line -match '^## (.+)$'){ & $flushP; & $flushL; $id = Slug $Matches[1]; [void]$html.AppendLine('<h2 id="' + $id + '">' + (InlineL $Matches[1] $doc) + '</h2>'); $toc.Add(@{ id = $id; t = ($Matches[1] -replace '\*\*', '') }); continue }
+    if($line -match '^### (.+)$'){ & $flushP; & $flushL; [void]$html.AppendLine('<h3>' + (InlineL $Matches[1] $doc) + '</h3>'); continue }
+    if($line -match '^- (.+)$'){ & $flushP; $items.Add($Matches[1]); continue }
+    if($line.Trim() -eq ''){ & $flushP; & $flushL; continue }
+    & $flushL; $para.Add($line.Trim())
+  }
+  & $flushP; & $flushL; & $flushT; & $flushQ
+  return @{ title = $title; updated = $updated; summary = $script:summaryOut; html = $html.ToString(); toc = $toc }
+}
+
+$legalTpl = (RU (Join-Path $Site 'tools\templates\legal.html')).Replace('{{NAV}}', $nav.Replace('{{PROGRESS}}', '<div class="rp" aria-hidden="true"><i></i></div>')).Replace('{{FOOTER}}', $footer.Trim())
+$legalDocs = @()
+foreach($l in ((RU (Join-Path $Site 'content\legal\_docs.txt')) -split "`n")){ $l = $l.Trim(); if($l){ $p2 = $l -split '\|'; $legalDocs += [pscustomobject]@{ slug = $p2[0]; chip = $p2[1]; title = $p2[2]; desc = $p2[3] } } }
+foreach($d in $legalDocs){
+  $lg = Parse-Legal (RU (Join-Path $Site ('content\legal\' + $d.slug + '.md'))) $d.slug
+  $url = $Base + '/' + $d.slug + '/'
+  $crumbs = @(@{ name = 'Inicio'; url = $Base + '/' }, @{ name = $d.title; url = $url })
+  $toc = ''; foreach($t in $lg.toc){ $toc += '<li><a href="#' + $t.id + '">' + (Esc $t.t) + '</a></li>' }
+  $others = ''
+  foreach($o in $legalDocs){ if($o.slug -ne $d.slug){ $others += '<li><a href="/' + $o.slug + '/"><span class="lg-o-k">' + (Esc $o.chip) + '</span><strong>' + (Esc $o.title) + '</strong></a></li>' } }
+  $html = Fill $legalTpl @{
+    TITLE = (Esc ($d.title + ' | WEREF')); DESCRIPTION = (EscA $d.desc); CANONICAL = $url; BREADCRUMBS = (Crumb-Html $crumbs)
+    CHIP = (Esc $d.chip); H1 = (Esc $lg.title); UPDATED = $lg.updated; TOC = $toc; SUMMARY = $lg.summary; CONTENT = $lg.html; OTHERS = $others
+  }
+  WU (Join-Path $Site ($d.slug + '\index.html')) $html
+  $outRel += ($d.slug + '\index.html')
+  Write-Host ('Legal: ' + $d.slug)
+}
+
+# --- pagina de contacto (indexable) ---
+$ctTpl = (RU (Join-Path $Site 'tools\templates\contacto.html')).Replace('{{NAV}}', $nav.Replace('{{PROGRESS}}', '')).Replace('{{FOOTER}}', $footer.Trim())
+WU (Join-Path $Site 'contacto\index.html') $ctTpl
+$outRel += 'contacto\index.html'
+$sitemap.Add(@{ loc = $Base + '/contacto/'; lastmod = (Get-Date).ToString('yyyy-MM-dd') })
+
+# --- redirecciones desde las URLs .html antiguas (GitHub Pages no admite 301: meta refresh + canonical) ---
+foreach($rd in @(@('contacto.html', 'contacto'), @('politica-privacidad.html', 'politica-privacidad'), @('terminos-de-uso.html', 'terminos-de-uso'))){
+  $dest = '/' + $rd[1] + '/'
+  $stub = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Esta p&aacute;gina se ha movido | WEREF</title><link rel="canonical" href="' + $Base + $dest + '"><meta http-equiv="refresh" content="0; url=' + $dest + '"><meta name="viewport" content="width=device-width, initial-scale=1.0"><script>location.replace("' + $dest + '" + location.search + location.hash);</script></head><body><p>Esta p&aacute;gina se ha movido a <a href="' + $dest + '">we-ref.com' + $dest + '</a>.</p></body></html>' + "`n"
+  WU (Join-Path $Site $rd[0]) $stub
+}
+if($script:legalMarks.Count){ Write-Host ('MARCADORES EN TEXTOS LEGALES (' + $script:legalMarks.Count + '):'); foreach($m in $script:legalMarks){ Write-Host ('  ' + $m) } }
+
 # --- pagina 404 ---
 $nfList = '<li><a href="/">Inicio de WEREF</a></li><li><a href="/reglas-de-juego/">Las 17 Reglas de Juego explicadas</a></li>'
 foreach($p in $pillars){ $nfList += '<li><a href="/' + $p.slug + '/">' + (Esc $p.nombre) + '</a></li>' }
-$nfList += '<li><a href="/contacto.html">Contacto</a></li>'
+$nfList += '<li><a href="/contacto/">Contacto</a></li>'
 $nf = Fill $tpl @{
   TITLE = 'P&aacute;gina no encontrada | WEREF'; DESCRIPTION = 'La p&aacute;gina que buscas no existe o ha cambiado de direcci&oacute;n.'; ROBOTS = 'noindex, follow'; CANONICAL = ($Base + '/')
   JSONLD = ''; BREADCRUMBS = '<a href="/">Inicio</a>'; KICKER = 'Error 404'; H1 = 'No encontramos esa p&aacute;gina'

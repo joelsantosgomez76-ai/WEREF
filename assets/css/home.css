@@ -383,3 +383,25 @@ body.pg .pg-pager a{border:2px solid var(--w-ink); border-radius:var(--w-r-md);}
   .sh-actions{gap:.4rem;}
   .sh-actions .btn{padding-inline:.65rem; font-size:.8125rem;}
 }
+
+/* Enlace "Configurar cookies" del pie y banner de consentimiento (se usan en todas las páginas) */
+.sh-foot-link{padding:0; margin:0; background:none; border:0; font:inherit; font-size:var(--w-fs-small); color:var(--w-on-dark-2); text-align:left; cursor:pointer; text-decoration:underline; text-decoration-color:var(--w-yellow); text-underline-offset:.2em;}
+.sh-foot-link:hover{color:#fff;}
+.ck{position:fixed; left:0; right:0; bottom:0; z-index:90; padding:.9rem var(--w-gut) calc(.9rem + env(safe-area-inset-bottom)); background:var(--w-white); color:var(--w-text); border-top:3px solid var(--w-ink); box-shadow:0 -10px 30px -12px rgba(15,16,19,.35);}
+.ck[hidden]{display:none;}
+.ck-in{display:flex; align-items:center; gap:var(--w-s5); max-width:var(--w-wrap); margin-inline:auto;}
+.ck-main{flex:1; min-width:0;}
+.ck-t{margin:0 0 .15rem; font:700 .75rem/1.2 'JetBrains Mono',ui-monospace,monospace; letter-spacing:.14em; text-transform:uppercase;}
+.ck-d{margin:0; font-size:.9rem; line-height:1.5; color:var(--w-text);}
+.ck-d a{color:var(--w-ink); text-decoration:underline; text-decoration-color:var(--w-yellow); text-decoration-thickness:.16em;}
+.ck-conf{margin-top:.7rem; display:grid; gap:.4rem; max-width:26rem;}
+.ck-row{display:flex; justify-content:space-between; align-items:center; gap:1rem; margin:0; padding:.5rem .7rem; border:1px solid var(--w-line); border-radius:8px; font-size:.9rem;}
+.ck-row input{width:1.3rem; height:1.3rem; accent-color:var(--w-ink);}
+.ck-actions{display:flex; gap:.6rem; flex:none;}
+.ck-btn{padding:.7rem 1.1rem; font:700 .9rem/1 var(--w-font-body, 'Work Sans', sans-serif); color:var(--w-ink); background:var(--w-white); border:2px solid var(--w-ink); border-radius:10px; cursor:pointer; white-space:nowrap; transition:background .12s;}
+.ck-btn:hover{background:var(--w-yellow);}
+.ck-btn:focus-visible{outline:3px solid var(--w-yellow); outline-offset:2px;}
+@media (max-width:760px){ .ck-in{flex-direction:column; align-items:stretch; gap:.8rem;} .ck-actions{display:grid; grid-template-columns:repeat(3,1fr);} .ck-btn{padding:.75rem .4rem; white-space:normal;} }
+.ck label,.ck strong{text-transform:none; letter-spacing:0; font-family:var(--w-font-body, "Work Sans", sans-serif); font-size:.9rem; font-weight:700; color:var(--w-text); margin:0;}
+.ck .ck-row span{font-size:.875rem; color:var(--w-text-2);}
+.ck-conf[hidden]{display:none !important;}

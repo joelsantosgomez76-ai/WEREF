@@ -2,11 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://we-ref.com/</loc>
-    <lastmod>2026-11-12</lastmod>
-  </url>
-  <url>
-    <loc>https://we-ref.com/contacto.html</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-11-13</lastmod>
   </url>
   <url>
     <loc>https://we-ref.com/reglas-de-juego/regla-1-terreno-de-juego/</loc>
@@ -103,5 +99,9 @@
   <url>
     <loc>https://we-ref.com/guias/</loc>
     <lastmod>2026-11-12</lastmod>
+  </url>
+  <url>
+    <loc>https://we-ref.com/contacto/</loc>
+    <lastmod>2026-11-13</lastmod>
   </url>
 </urlset>

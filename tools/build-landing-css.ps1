@@ -101,7 +101,7 @@ foreach($p in $Pages){
   $n = [regex]::Replace($n, 'home\.css\?v=[A-Za-z0-9]+', 'home.css?v=' + $hashHome)
   if($n -ne $t){ [IO.File]::WriteAllText($f, $n, $utf8) }
 }
-foreach($asset in @(@('guia\.css', 'assets\css\guia.css', 'guia.css'), @('guia\.js', 'assets\js\guia.js', 'guia.js'))){
+foreach($asset in @(@('guia\.css', 'assets\css\guia.css', 'guia.css'), @('guia\.js', 'assets\js\guia.js', 'guia.js'), @('consent\.js', 'assets\js\consent.js', 'consent.js'), @('contacto\.js', 'assets\js\contacto.js', 'contacto.js'))){
   $ap = Join-Path $Site $asset[1]
   if(Test-Path $ap){
     $ah = ([BitConverter]::ToString($md5.ComputeHash([IO.File]::ReadAllBytes($ap))) -replace '-', '').Substring(0, 8).ToLower()

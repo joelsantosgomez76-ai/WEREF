@@ -1,0 +1,4 @@
+politica-privacidad|Privacidad|Política de Privacidad|Política de privacidad de WEREF: qué datos tratamos, para qué, con qué base legal, con quién los compartimos y cómo ejercer tus derechos.
+politica-cookies|Cookies|Política de Cookies|Política de cookies de WEREF: qué cookies y almacenamiento local usamos, para qué sirven y cómo cambiar tu decisión.
+terminos-de-uso|Términos|Términos de Uso|Términos de uso de WEREF: condiciones del servicio, uso permitido, WEREF League, tu contenido y tus derechos como usuario.
+aviso-legal|Aviso legal|Aviso Legal|Aviso legal de WEREF: titular del sitio web, objeto, contenido no oficial, propiedad intelectual y ley aplicable.

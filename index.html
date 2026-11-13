@@ -2,24 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<!-- Google Tag Manager: solo se carga si el usuario ha aceptado cookies no esenciales -->
-<script>
-(function(){
-  var GTM_ID = 'GTM-K68T9Z8S';
-  window.dataLayer = window.dataLayer || [];
-  window.loadGTM = function(){
-    if(window.__gtmLoaded) return;
-    window.__gtmLoaded = true;
-    dataLayer.push({'gtm.start': new Date().getTime(), event:'gtm.js'});
-    var f = document.getElementsByTagName('script')[0], j = document.createElement('script');
-    j.async = true;
-    j.src = 'https://www.googletagmanager.com/gtm.js?id=' + GTM_ID;
-    f.parentNode.insertBefore(j, f);
-  };
-  if(localStorage.getItem('werefCookieConsent') === 'all'){ window.loadGTM(); }
-})();
-</script>
-<!-- End Google Tag Manager -->
 <meta name="google-site-verification" content="8vQx5I-FfuwlzPyR9pSGhaBbo6pwOYY9zi8p5SRMpFc" />
 <title>WEREF · App para preparar el examen de árbitro de fútbol | Test Reglas de Juego</title>
 <meta name="description" content="App gratuita para árbitros de fútbol: más de 2.000 preguntas tipo test de las 17 Reglas de Juego IFAB, estadísticas y liga. Prepara tu examen arbitral.">
@@ -102,8 +84,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/landing.css?v=384cdfff">
-<link rel="stylesheet" href="assets/css/home.css?v=7a3d7717">
+<link rel="stylesheet" href="assets/css/landing.css?v=7c0c43e7">
+<link rel="stylesheet" href="assets/css/home.css?v=7679ed1b">
 <script>
   // hCaptcha solo se descarga cuando hace falta (al abrir el formulario o en la primera interacción),
   // para que la portada cargue más rápido.
@@ -454,9 +436,12 @@
       </nav>
       <nav class="sh-foot-col" aria-label="WEREF">
         <p class="sh-foot-h">WEREF</p>
-        <a href="/contacto.html">Contacto</a>
-        <a href="/politica-privacidad.html">Política de Privacidad</a>
-        <a href="/terminos-de-uso.html">Términos de Uso</a>
+        <a href="/contacto/">Contacto</a>
+        <a href="/politica-privacidad/">Política de Privacidad</a>
+        <a href="/politica-cookies/">Política de Cookies</a>
+        <a href="/terminos-de-uso/">Términos de Uso</a>
+        <a href="/aviso-legal/">Aviso Legal</a>
+        <button type="button" class="sh-foot-link" data-cookie-settings>Configurar cookies</button>
       </nav>
     </div>
     <div class="sh-foot-bottom">
@@ -500,7 +485,7 @@
         </svg>
         Continuar con Google
       </button>
-      <div style="text-align:center; color:var(--muted); font-size:11.5px; margin-top:8px;">Al continuar con Google aceptas nuestra <a href="politica-privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a> y <a href="terminos-de-uso.html" target="_blank" rel="noopener">Términos de Uso</a>.</div>
+      <div style="text-align:center; color:var(--muted); font-size:11.5px; margin-top:8px;">Al continuar con Google aceptas nuestra <a href="/politica-privacidad/" target="_blank" rel="noopener">Política de Privacidad</a> y <a href="/terminos-de-uso/" target="_blank" rel="noopener">Términos de Uso</a>.</div>
       <div style="text-align:center; color:var(--muted); font-size:12px; margin:14px 0;">o con tu correo</div>
     </div>
 
@@ -567,7 +552,7 @@
       <div id="auth-consent-rows" style="display:none;">
         <label class="radio-row" style="margin:14px 0 0; text-transform:none; font-weight:400; color:var(--ink); font-size:13px;">
           <input type="checkbox" id="auth-consent" style="width:auto;">
-          <span>He leído y acepto la <a href="politica-privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a> y los <a href="terminos-de-uso.html" target="_blank" rel="noopener">Términos de Uso</a>.</span>
+          <span>He leído y acepto la <a href="/politica-privacidad/" target="_blank" rel="noopener">Política de Privacidad</a> y los <a href="/terminos-de-uso/" target="_blank" rel="noopener">Términos de Uso</a>.</span>
         </label>
         <label class="radio-row" style="margin:4px 0 0; text-transform:none; font-weight:400; color:var(--muted); font-size:13px;">
           <input type="checkbox" id="auth-marketing" style="width:auto;">
@@ -1072,31 +1057,7 @@ document.getElementById('quiz-start-btn').addEventListener('click', ()=>{
 document.getElementById('quiz-register-btn').addEventListener('click', ()=>openModal('register'));
 </script>
 
-<div id="cookie-banner" class="cookie-banner" style="display:none;">
-  <div class="cookie-banner-text">Usamos cookies necesarias para el funcionamiento de la web (verificación anti-spam al registrarte) y, solo si lo aceptas, cookies analíticas (Google Analytics) para entender cómo se usa WEREF y mejorarlo. <a href="politica-privacidad.html#cookies" target="_blank" rel="noopener">Más información</a>.</div>
-  <div class="cookie-banner-actions">
-    <button type="button" class="btn btn-ghost" id="cookie-reject-btn">Solo necesarias</button>
-    <button type="button" class="btn btn-primary" id="cookie-accept-btn">Aceptar todas</button>
-  </div>
-</div>
-<script>
-(function(){
-  var KEY = 'werefCookieConsent';
-  if(localStorage.getItem(KEY)) return;
-  var banner = document.getElementById('cookie-banner');
-  if(!banner) return;
-  banner.style.display = 'flex';
-  document.getElementById('cookie-accept-btn').addEventListener('click', function(){
-    localStorage.setItem(KEY, 'all');
-    banner.style.display = 'none';
-    if(window.loadGTM) window.loadGTM();
-  });
-  document.getElementById('cookie-reject-btn').addEventListener('click', function(){
-    localStorage.setItem(KEY, 'essential');
-    banner.style.display = 'none';
-  });
-})();
-</script>
+<script src="/assets/js/consent.js?v=431831b6" defer></script>
 <script>if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("/sw.js").catch(function(){}); }); }</script>
 </body>
 </html>

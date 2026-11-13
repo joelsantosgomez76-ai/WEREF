@@ -22,4 +22,9 @@ como-ser-arbitro-de-futbol\index.html
 cambios-reglas-de-juego-2026-27\index.html
 test-reglas-de-juego\index.html
 guias\index.html
+politica-privacidad\index.html
+politica-cookies\index.html
+terminos-de-uso\index.html
+aviso-legal\index.html
+contacto\index.html
 404.html
