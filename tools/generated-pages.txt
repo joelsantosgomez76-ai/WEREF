@@ -27,4 +27,9 @@ politica-cookies\index.html
 terminos-de-uso\index.html
 aviso-legal\index.html
 contacto\index.html
+entrar\index.html
+registro\index.html
+recuperar-contrasena\index.html
+verifica-tu-correo\index.html
+bienvenida\index.html
 404.html

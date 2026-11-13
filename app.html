@@ -26,7 +26,7 @@
 
 <script src="https://unpkg.com/@supabase/supabase-js@2.117.3/dist/umd/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" crossorigin="anonymous"></script>
 <script src="assets/js/supabase-init.js"></script>
-<script src="assets/js/auth.js?v=3"></script>
+<script src="assets/js/auth.js?v=4"></script>
 <script src="assets/js/storage-adapter.js?v=2"></script>
 <script src="assets/js/questions-assistants.js?v=1"></script>
 <script src="assets/js/app.js?v=shell75"></script>
@@ -105,6 +105,12 @@ function showUsernamePrompt(){
   CURRENT_USER_EMAIL = session.user.email;
   CURRENT_USER_ID = session.user.id;
 
+  // Con Google (o si el usuario no se guardó al registrarse) puede faltar el usuario o la fecha de nacimiento:
+  // se piden en un paso intermedio antes de entrar.
+  try{
+    const miss = await accountMissing();
+    if(miss.username || miss.birthdate){ window.location.href = '/registro/?completar=1&redirect=' + encodeURIComponent('/app.html'); return; }
+  }catch(e){}
   const { data: unameRow } = await supabaseClient.from('usernames').select('username').eq('user_id', CURRENT_USER_ID).maybeSingle();
   if(!unameRow){
     showUsernamePrompt();

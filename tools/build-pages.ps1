@@ -574,6 +574,13 @@ foreach($rd in @(@('contacto.html', 'contacto'), @('politica-privacidad.html', '
 }
 if($script:legalMarks.Count){ Write-Host ('MARCADORES EN TEXTOS LEGALES (' + $script:legalMarks.Count + '):'); foreach($m in $script:legalMarks){ Write-Host ('  ' + $m) } }
 
+# --- paginas de acceso (noindex): /entrar/, /registro/, /recuperar-contrasena/, /verifica-tu-correo/, /bienvenida/ ---
+$authTpl = RU (Join-Path $Site 'tools\templates\auth.html')
+foreach($ap in @(@('entrar', 'login', 'Iniciar sesi&oacute;n'), @('registro', 'register', 'Crear cuenta'), @('recuperar-contrasena', 'recover', 'Recuperar contrase&ntilde;a'), @('verifica-tu-correo', 'verify', 'Revisa tu correo'), @('bienvenida', 'welcome', 'Bienvenida'))){
+  $ah = Fill $authTpl @{ TITLE = $ap[2]; MODE = $ap[1]; CANONICAL = ($Base + '/' + $ap[0] + '/') }
+  WU (Join-Path $Site ($ap[0] + '\index.html')) $ah
+  $outRel += ($ap[0] + '\index.html')
+}
 # --- pagina 404 ---
 $nfList = '<li><a href="/">Inicio de WEREF</a></li><li><a href="/reglas-de-juego/">Las 17 Reglas de Juego explicadas</a></li>'
 foreach($p in $pillars){ $nfList += '<li><a href="/' + $p.slug + '/">' + (Esc $p.nombre) + '</a></li>' }

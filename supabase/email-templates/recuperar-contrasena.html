@@ -1,0 +1,28 @@
+<!-- Supabase > Authentication > Email Templates > "Reset password"
+     Asunto sugerido: Restablece tu contraseña de WEREF -->
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Restablece tu contraseña de WEREF</title></head>
+<body style="margin:0;padding:0;background:#F6F4EE;font-family:Arial,Helvetica,sans-serif;color:#17181C;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F4EE;padding:32px 12px;">
+  <tr><td align="center">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:2px solid #0F1013;border-radius:18px;overflow:hidden;">
+      <tr><td style="background:#0F1013;padding:22px 28px;">
+        <span style="font-family:Oswald,Arial Narrow,Arial,sans-serif;font-size:26px;font-weight:700;letter-spacing:1px;color:#ffffff;">WEREF</span>
+        <span style="display:inline-block;width:12px;height:17px;background:#FFC83D;border-radius:3px;margin-left:8px;"></span>
+      </td></tr>
+      <tr><td style="padding:32px 28px 8px;">
+        <h1 style="margin:0 0 12px;font-family:Oswald,Arial Narrow,Arial,sans-serif;font-size:30px;line-height:1.1;text-transform:uppercase;color:#0F1013;">Nueva contraseña</h1>
+        <p style="margin:0 0 20px;font-size:16px;line-height:1.55;color:#17181C;">Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de WEREF. Pulsa el botón para elegir una nueva.</p>
+        <p style="margin:0 0 26px;"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#FFC83D;color:#0F1013;text-decoration:none;font-weight:700;font-size:16px;padding:15px 28px;border:2px solid #0F1013;border-radius:12px;">Crear nueva contraseña</a></p>
+        <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#5A5C66;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+        <p style="margin:0 0 24px;font-size:12px;line-height:1.5;word-break:break-all;"><a href="{{ .ConfirmationURL }}" style="color:#0F1013;">{{ .ConfirmationURL }}</a></p>
+      </td></tr>
+      <tr><td style="padding:0 28px 28px;">
+        <p style="margin:0;font-size:12.5px;line-height:1.55;color:#5A5C66;border-top:1px solid #DAD6CB;padding-top:16px;">Si no has pedido este cambio, ignora este correo: tu contraseña actual seguirá funcionando.<br>WEREF · Formación Arbitral — contenido no oficial basado en las Reglas de Juego de la IFAB.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>
