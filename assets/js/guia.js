@@ -35,6 +35,16 @@
   }
 
   // 2 · preguntas interactivas (marcadas con data-ok): el HTML ya trae la respuesta en un <details>
+  var allQ = [].slice.call(document.querySelectorAll('.qi[data-ok]')), done = 0, hits = 0;
+  var showScore = function(){
+    var art = document.getElementById('gd-article');
+    if(!art || !art.getAttribute('data-rule') || done < allQ.length || art.querySelector('.qz-score')) return;
+    var n = art.getAttribute('data-rule'), cta = art.getAttribute('data-cta') || '/#registro';
+    var msg = hits === allQ.length ? '¡Perfecto! Te sabes esta regla.' : (hits >= Math.ceil(allQ.length * 0.6) ? 'Vas bien, pero repasa lo que has fallado.' : 'Repasa la regla y vuelve a intentarlo.');
+    var box = document.createElement('div'); box.className = 'qz-score'; box.setAttribute('role', 'status');
+    box.innerHTML = '<p class="qz-n">' + hits + '<small>/' + allQ.length + '</small></p><div><p class="qz-t">Tu resultado</p><p class="qz-d">' + msg + '</p><a class="btn btn-yellow" href="' + cta + '">Haz el test completo de la Regla ' + n + '</a></div>';
+    var last = allQ[allQ.length - 1]; last.parentNode.insertBefore(box, last.nextSibling);
+  };
   [].forEach.call(document.querySelectorAll('.qi[data-ok]'), function(q){
     var ok = q.getAttribute('data-ok');
     var list = q.querySelector('.pg-q-o');
@@ -55,6 +65,7 @@
           if(letters[k] === ok) x.classList.add('is-ok');
         });
         var good = letters[i] === ok;
+        done++; if(good) hits++;
         if(!good) b.classList.add('is-ko');
         var res = document.createElement('p');
         res.className = 'qi-res ' + (good ? 'is-ok' : 'is-ko');
@@ -62,6 +73,7 @@
         res.textContent = good ? '¡Correcto!' : 'No es esa. La respuesta correcta es la ' + ok + '.';
         list.parentNode.insertBefore(res, list.nextSibling);
         var d = q.querySelector('details'); if(d) d.setAttribute('open', '');
+        showScore();
       });
     });
     q.classList.add('is-live');

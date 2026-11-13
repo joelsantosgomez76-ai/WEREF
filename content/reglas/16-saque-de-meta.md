@@ -4,10 +4,29 @@ num: 16
 nombre: El saque de meta
 title: Regla 16: El saque de meta – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 16 del fútbol, el saque de meta: cuándo se concede, procedimiento, posición de los rivales, cuenta atrás de cinco segundos e infracciones, con 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cómo se ejecuta el saque de meta: dónde se coloca el balón, cuándo está en juego y qué pasa si se retrasa.
+relacionadas: 15, 17, 11
 ---
 La Regla 16 es breve, pero esconde detalles muy preguntados: dónde se ejecuta, cuándo está el balón en juego y qué pasa si el equipo retrasa el saque. Aquí lo tienes ordenado.
 
+@resumen
+- Se concede cuando todo el balón sobrepasa la línea de meta y el último en tocarlo fue del equipo atacante, sin gol.
+- Lo patea un jugador del equipo defensor desde cualquier punto del área de meta, con el balón inmóvil.
+- El balón está en juego cuando es pateado y se mueve claramente; no hace falta que salga del área penal.
+- Los adversarios están fuera del área penal hasta que el balón esté en juego.
+- Si se retrasa, el árbitro cuenta **cinco segundos**; si no se ejecuta a tiempo, saque de esquina para los adversarios.
+@fin
+
+@cifras Cifras clave de la Regla 16
+Dónde | Cifra | Qué recordar
+Dónde se saca | **Área de meta** | Desde cualquier punto del área de meta.
+Adversarios | **Fuera del área penal** | Hasta que el balón esté en juego.
+Cuenta atrás | **5 s** | Si no se saca a tiempo, saque de esquina para el rival.
+Gol directo | **Solo al rival** | En la propia portería, saque de esquina.
+@fin
 ## Cuándo se concede
 
 Se concede un saque de meta cuando **todo el balón** sobrepasa la línea de meta, por el suelo o por el aire, no se marca gol y el último jugador que lo tocó era del **equipo atacante**.
@@ -20,6 +39,8 @@ Se concede un saque de meta cuando **todo el balón** sobrepasa la línea de met
 - Los adversarios deben estar **fuera del área penal** hasta que el balón esté en juego.
 
 Si hay adversarios dentro del área penal al ejecutarse el saque porque no tuvieron tiempo de salir, el árbitro deja continuar el juego. En cambio, si un adversario que estaba dentro del área o que entra antes de que el balón esté en juego toca el balón o lo disputa, el saque se repite.
+
+@figura saque-meta
 
 ## Gol directo de un saque de meta
 
@@ -38,6 +59,14 @@ Se puede marcar gol directamente de un saque de meta, pero **solo contra el equi
 - Un atacante entra deliberadamente en el área penal antes de que se ejecute el saque y toca el balón antes de que esté en juego: se repite el saque. No es motivo de amonestación, salvo que lo haga de forma persistente.
 - Un rival que realmente no tuvo tiempo de salir del área puede interceptar el balón una vez que esté en juego, en un saque rápido.
 - Un atacante en posición de fuera de juego recibe el balón directamente de un saque de meta: no hay infracción, porque en un saque de meta no hay fuera de juego.
+
+@caso
+SIT: Un atacante en posición de fuera de juego recibe el balón directamente de un saque de meta.
+DEC: No hay infracción.
+POR: En un saque de meta no existe fuera de juego.
+@fin
+
+@error Olvidar que los rivales deben estar fuera del área penal, y no solo fuera del área de meta.
 
 ## Errores frecuentes en el examen
 

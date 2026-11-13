@@ -4,10 +4,28 @@ num: 13
 nombre: Los tiros libres
 title: Regla 13: Los tiros libres – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 13 del fútbol, los tiros libres: directos e indirectos, posición, distancia, barrera, infracciones y 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cómo se ejecutan los tiros libres directos e indirectos: distancias, barrera, señal del árbitro y qué pasa si el balón entra en la portería.
+relacionadas: 12, 11, 17
 ---
 La Regla 13 explica cómo se ejecutan los tiros libres, directos e indirectos. Hay números que se repiten en todos los exámenes (9,15 m y 1 m) y detalles sobre la señal del árbitro que conviene tener claros.
 
+@resumen
+- El balón está inmóvil y en juego cuando es pateado y se mueve claramente; el ejecutor no puede volver a tocarlo hasta que lo toque otro jugador.
+- Los adversarios están al menos a **9,15 m**; si tres o más forman una barrera, los atacantes están a **1 m** o más de ella.
+- En el tiro libre indirecto el árbitro levanta el brazo hasta que se ejecuta y el balón toca a otro jugador o sale del campo.
+- Un indirecto que entra directamente en la portería rival es saque de meta; un tiro libre que entra en la propia portería, saque de esquina.
+@fin
+
+@cifras Cifras clave de la Regla 13
+Dónde | Cifra | Qué recordar
+Adversarios | **9,15 m** | Distancia mínima al balón, salvo sobre su línea de meta entre los postes.
+Atacantes y barrera | **1 m** | Distancia mínima a una barrera de tres o más defensores.
+Barrera | **3 o más** | Defensores que forman una barrera.
+Indirecto a puerta | **Saque de meta** | Si entra directamente en la portería rival sin tocar a nadie.
+@fin
 ## Tiros libres directos e indirectos
 
 Los dos tipos se conceden al equipo contrario del jugador, suplente, jugador sustituido o expulsado, o miembro del cuerpo técnico que comete la infracción.
@@ -38,6 +56,8 @@ Los dos tipos se conceden al equipo contrario del jugador, suplente, jugador sus
 
 **La barrera.** Si tres o más defensores forman una barrera, los atacantes deben estar al menos a **1 m** de ella hasta que el balón esté en juego.
 
+@figura tiro-libre
+
 ## Infracciones y sanciones
 
 - **Un adversario está a menos de 9,15 m:** se repite el tiro, salvo que se aplique ventaja. Si el tiro se ejecuta rápido y un adversario que estaba a menos de 9,15 m lo intercepta, el juego continúa. Si un adversario retrasa a propósito un tiro rápido, es amonestado.
@@ -50,6 +70,14 @@ Los dos tipos se conceden al equipo contrario del jugador, suplente, jugador sus
 - Se ejecuta un tiro libre rápido y un adversario que estaba a menos de 9,15 m intercepta el balón: el juego continúa.
 - El balón de un tiro libre indirecto entra directamente en la portería rival sin tocar a nadie: saque de meta.
 - Un defensor toca dos veces el balón en su propio tiro libre y detiene un ataque prometedor: tiro libre indirecto y amonestación.
+
+@caso
+SIT: Se ejecuta rápido un tiro libre y un adversario que estaba a menos de 9,15 m intercepta el balón.
+DEC: El juego continúa.
+POR: El tiro libre puede ejecutarse rápido: si el adversario que estaba a menos de 9,15 m lo intercepta, no se repite.
+@fin
+
+@error Confundir los 9,15 m de distancia general con el 1 m de los atacantes a la barrera.
 
 ## Errores frecuentes en el examen
 

@@ -4,10 +4,29 @@ num: 15
 nombre: El saque de banda
 title: Regla 15: El saque de banda – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 15 del fútbol, el saque de banda: cuándo se concede, cómo se ejecuta, distancia de los rivales, cuenta atrás de cinco segundos e infracciones, con 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cómo se ejecuta el saque de banda: postura, distancias, cuenta atrás de cinco segundos y qué pasa si no se hace bien.
+relacionadas: 16, 17, 9
 ---
 El saque de banda es la reanudación más frecuente del partido, y por eso la Regla 15 se pregunta tanto: la postura del jugador, las distancias y qué pasa si el saque no se hace bien. También incluye la cuenta atrás de cinco segundos para evitar retrasos.
 
+@resumen
+- Se concede cuando todo el balón sobrepasa la línea de banda; saca el equipo contrario al del último jugador que lo tocó.
+- El jugador está de cara al campo, con una parte de cada pie sobre la línea o fuera, y lanza con las dos manos desde detrás y por encima de la cabeza.
+- Los adversarios están al menos a **2 m** y el balón está en juego cuando entra en el campo.
+- No se puede marcar gol directamente: en la portería rival, saque de meta; en la propia, saque de esquina.
+- El árbitro hace una cuenta atrás de **cinco segundos**; si no se ejecuta a tiempo, saca el equipo contrario.
+@fin
+
+@cifras Cifras clave de la Regla 15
+Dónde | Cifra | Qué recordar
+Adversarios | **2 m** | Distancia mínima al punto del saque.
+Cuenta atrás | **5 s** | Con la mano levantada; si no se saca a tiempo, pasa al rival.
+Pies | **Una parte de cada uno** | Sobre la línea de banda o fuera.
+Gol directo | **No** | En la portería rival, saque de meta; en la propia, saque de esquina.
+@fin
 ## Cuándo se concede
 
 - Cuando **todo el balón** sobrepasa la línea de banda, por el suelo o por el aire. El saque es para los adversarios del último jugador que tocó el balón.
@@ -24,6 +43,8 @@ Lo ejecuta un jugador del equipo al que se le concede. Si la causa es un retraso
 - El balón está en juego cuando **entra en el campo**.
 
 Si el balón toca el suelo antes de entrar, el mismo equipo repite el saque desde la misma posición. Si el saque no se hace correctamente, lo ejecuta el equipo contrario.
+
+@figura saque-banda
 
 ## Gol directo de un saque de banda
 
@@ -47,6 +68,14 @@ No se puede marcar gol directamente de un saque de banda:
 - Se ejecuta un saque de banda y el balón va directamente a la propia portería, y el portero no lo detiene: saque de esquina para los adversarios.
 - Un jugador del equipo contrario coge el balón y saca antes de que el árbitro intervenga: el equipo que debía sacar lo repite, sin sanción.
 - No existe fuera de juego en un saque de banda: un jugador que recibe el balón directamente no puede ser sancionado por ello.
+
+@caso
+SIT: Un portero recibe con las manos el balón de un saque de banda directo de un compañero, dentro de su área.
+DEC: Tiro libre indirecto para los adversarios, sin sanción disciplinaria.
+POR: Es una de las infracciones del portero con las manos dentro de su área, cuando el balón viene de un saque de banda de un compañero.
+@fin
+
+@error Confundir los 2 m del saque de banda con los 9,15 m de otras reanudaciones.
 
 ## Errores frecuentes en el examen
 

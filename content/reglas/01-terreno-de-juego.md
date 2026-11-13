@@ -4,10 +4,31 @@ num: 1
 nombre: El terreno de juego
 title: Regla 1: El terreno de juego – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 1 del fútbol, el terreno de juego: medidas, líneas, áreas y porterías, errores frecuentes en el examen y 5 preguntas para practicar.
-fecha: 2026-11-11
+fecha: 2026-11-13
+publicada: 2026-11-11
+plantilla: v2
+entradilla: Medidas, líneas, áreas y porterías del campo, con los márgenes que más se preguntan y un esquema con todas las distancias.
+relacionadas: 2, 13, 14
 ---
 La Regla 1 describe el escenario del partido: el terreno de juego, sus líneas, sus áreas y las porterías. Parece la más sencilla, pero en los exámenes de árbitro suele traer preguntas de medidas y de detalles concretos. Esta guía resume lo esencial.
 
+@resumen
+- El campo es un rectángulo de líneas continuas de **12 cm como máximo**; la línea de banda siempre es más larga que la de meta.
+- Las medidas tienen margen: banda de 90 a 120 m y meta de 45 a 90 m (en partidos internacionales, 100–110 m y 64–75 m).
+- Áreas y marcas: área de meta a 5,5 m, área penal a 16,5 m, punto penal a 11 m y círculo central y arco del área de 9,15 m de radio.
+- Portería: 7,32 m entre postes y 2,44 m hasta el larguero, siempre bien anclada al suelo.
+@fin
+
+@cifras Cifras clave de la Regla 1
+Dónde | Cifra | Qué recordar
+Línea de banda | **90–120 m** | En partidos internacionales, 100–110 m.
+Línea de meta | **45–90 m** | Internacional: 64–75 m. Siempre más corta que la banda.
+Área de meta | **5,5 m** | Desde el interior de los postes, hacia dentro del campo.
+Punto penal | **11 m** | Desde el punto medio entre los postes.
+Área penal | **16,5 m** | Se traza igual que la de meta, pero con 16,5 m.
+Círculo y arco | **9,15 m** | Radio del círculo central y del arco del área penal.
+Portería | **7,32 × 2,44 m** | Entre postes y del suelo al larguero.
+@fin
 ## La superficie
 
 El campo puede ser de hierba natural o, si la competición lo permite, totalmente artificial; también se admiten sistemas híbridos que combinan ambas. Una superficie artificial tiene que ser verde. En los partidos internacionales de selecciones y de competiciones de clubes sobre césped artificial, además, debe cumplir el programa de calidad de la FIFA, salvo dispensa de la IFAB.
@@ -36,6 +57,8 @@ En una superficie artificial se pueden marcar otras líneas si son de otro color
 - **Banderines:** uno en cada esquina, de al menos 1,5 m y con la parte superior no puntiaguda. Los de la línea de medio campo son opcionales y, si se colocan, van al menos 1 m fuera de la línea de banda.
 - **Área técnica:** se extiende 1 m a cada lado de la zona de asientos y hasta 1 m de la línea de banda.
 
+@figura campo-completo
+
 ## Las porterías
 
 Se colocan en el centro de cada línea de meta. Entre el interior de los postes hay **7,32 m** y desde el suelo hasta el borde inferior del larguero, **2,44 m**. Postes y larguero son blancos y tienen el mismo ancho y grosor (12 cm como máximo). Las redes no deben estorbar al portero. Todas las porterías, también las portátiles, tienen que estar firmemente ancladas al suelo.
@@ -47,6 +70,14 @@ Si el larguero se desplaza o se rompe, se detiene el juego hasta repararlo o rec
 La tecnología de línea de meta es opcional: la decide la competición. Solo confirma si hubo gol y avisa a los árbitros en menos de un segundo. El árbitro debe comprobarla antes del partido; si no supera la prueba, no se usa y se informa a las autoridades competentes.
 
 La publicidad comercial no se permite en el terreno de juego, en el suelo dentro de la red de las porterías, en el área técnica ni a menos de 1 m de las líneas del campo, desde que los equipos salen al campo hasta el descanso y desde que vuelven hasta el final. Tampoco puede haberla en porterías, redes ni banderines.
+
+@caso
+SIT: Se rompe un larguero durante el partido y alguien propone sustituirlo por una cuerda para no perder tiempo.
+DEC: No vale: se detiene el juego hasta repararlo o recolocarlo y se reanuda con balón a tierra. Si no se puede arreglar, se suspende el partido.
+POR: El larguero no puede sustituirse por una cuerda ni por ningún material flexible o peligroso.
+@fin
+
+@error Mezclar 5,5 m (área de meta), 11 m (punto penal) y 16,5 m (área penal), o dar medidas fijas donde hay márgenes.
 
 ## Errores frecuentes en el examen
 

@@ -4,11 +4,34 @@ num: 12
 nombre: Faltas e incorrecciones
 title: Regla 12: Faltas e incorrecciones – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 12 del fútbol: faltas, mano, portero y los ocho segundos, amonestaciones, expulsiones y ocasión manifiesta de gol, con 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Qué es una falta, cómo se sanciona y cuándo corresponde una tarjeta, en un cuadro ordenado para estudiar.
+relacionadas: 11, 13, 14
 ---
 La Regla 12 es la más larga y la más preguntada: qué es una falta, cómo se sanciona y cuándo corresponde una tarjeta. Esta guía recoge lo imprescindible, ordenado para estudiarlo.
 
+@resumen
+- Una falta con contacto e imprudencia se sanciona con tiro libre directo y tiene tres grados: descuidada (sin tarjeta), temeraria (amarilla) y con fuerza excesiva (roja).
+- Marcar con la mano o el brazo, aunque sea sin querer, anula el gol; el portero tiene las mismas limitaciones fuera de su área.
+- Obstruir sin contacto, jugar de forma peligrosa o protestar se sanciona con tiro libre indirecto.
+- Si el portero controla el balón con las manos más de **ocho segundos**, saque de esquina para los adversarios.
+- Dos amonestaciones distintas son dos tarjetas amarillas y suponen la expulsión.
+@fin
+
+@cifras Cifras clave de la Regla 12
+Dónde | Cifra | Qué recordar
+Falta descuidada | **Sin tarjeta** | Tiro libre, sin sanción disciplinaria.
+Falta temeraria | **Amarilla** | Amonestación.
+Fuerza excesiva | **Roja** | Expulsión.
+Portero | **8 s** | Más de ocho segundos con las manos: saque de esquina.
+Límite del brazo | **Axila** | Línea inferior de la axila, a efectos de la mano.
+Amonestaciones | **2** | Dos amonestaciones distintas son la expulsión.
+@fin
 Los tiros libres y los penaltis por infracción solo se conceden cuando el balón está en juego.
+
+@figura sanciones
 
 ## Tiro libre directo
 
@@ -76,6 +99,14 @@ Se expulsa a un jugador por:
 - Entrar en la sala de operaciones del VAR.
 
 Para valorar una ocasión manifiesta de gol se tienen en cuenta la distancia a la portería, la dirección general de la jugada, la probabilidad de mantener o recuperar el balón y la posición y el número de defensores y atacantes. Si la infracción ocurre en el área propia y se concede penal, la sanción es **amonestación** si fue un intento de jugar el balón o una disputa por él, y **expulsión** en el resto (sujetar, tirar, empujar, sin posibilidad de jugar el balón).
+
+@caso
+SIT: Un defensor sujeta a un atacante dentro de su área para impedir una ocasión manifiesta de gol, sin posibilidad de jugar el balón.
+DEC: Tiro penal y expulsión del defensor.
+POR: Si la infracción en el área propia es sujetar, tirar o empujar sin posibilidad de jugar el balón, se expulsa aunque se conceda penal. La amonestación solo corresponde si fue un intento de jugar el balón o una disputa.
+@fin
+
+@error Dar una sola tarjeta cuando se cometen dos infracciones amonestables: dos amonestaciones distintas son dos tarjetas.
 
 ## Errores frecuentes en el examen
 

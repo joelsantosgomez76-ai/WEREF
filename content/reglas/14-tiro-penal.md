@@ -4,10 +4,28 @@ num: 14
 nombre: El tiro penal
 title: Regla 14: El tiro penal – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 14 del fútbol, el tiro penal: cuándo se concede, procedimiento, posición del portero, infracciones y 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cómo se coloca y se ejecuta un tiro penal, qué debe hacer el portero y qué ocurre cuando alguien comete una infracción.
+relacionadas: 10, 12, 13
 ---
 La Regla 14 explica cómo se ejecuta un tiro penal y qué pasa cuando alguien se equivoca. En el examen aparece mucho con la posición del portero, las distancias y las infracciones del lanzador.
 
+@resumen
+- Se concede por una infracción de tiro libre directo cometida dentro del propio área, y se puede marcar gol directamente.
+- El balón está inmóvil en el punto penal; el portero, sobre la línea de meta, entre los postes y de cara al lanzador.
+- Los demás jugadores están dentro del campo, fuera del área, detrás del punto penal y al menos a **9,15 m**.
+- El lanzador patea hacia delante; al golpear, el portero debe tener al menos una parte de un pie sobre la línea, en línea con ella o detrás.
+@fin
+
+@cifras Cifras clave de la Regla 14
+Dónde | Cifra | Qué recordar
+Punto penal | **11 m** | Distancia desde la línea de meta.
+Resto de jugadores | **9,15 m** | Fuera del área y detrás del punto penal.
+Portero | **Un pie** | Al menos una parte sobre la línea, en línea con ella o detrás.
+Gol directo | **Sí** | Se puede marcar directamente del penal.
+@fin
 ## Cuándo se concede
 
 Se concede un tiro penal cuando un jugador comete, dentro de su propia área, una infracción que se sanciona con tiro libre directo, o una infracción fuera del campo como parte del juego. Se puede marcar gol directamente del tiro.
@@ -29,6 +47,8 @@ Se concede un tiro penal cuando un jugador comete, dentro de su propia área, un
 - El lanzador no puede jugar el balón por segunda vez hasta que lo toque otro jugador.
 
 El tiro termina cuando el balón se detiene, sale del juego o el árbitro detiene el juego por una infracción. Si el tiro se señala al final de un tiempo, el tiempo se prolonga hasta que se complete (Regla 7).
+
+@figura penal
 
 ## Infracciones y sanciones
 
@@ -52,6 +72,14 @@ El tiro termina cuando el balón se detiene, sale del juego o el árbitro detien
 - Un compañero toma el penal en lugar del jugador identificado: tiro libre indirecto y amonestación para quien lo lanzó.
 - Si hay que repetir el tiro, se puede cambiar de lanzador siempre que el nuevo esté claramente identificado.
 
+@caso
+SIT: El lanzador hace un amago ilegal después de la carrera y luego golpea el balón.
+DEC: Tiro libre indirecto para los defensores y amonestación al lanzador.
+POR: El amago ilegal después de la carrera es una de las infracciones del lanzador que se sanciona con tiro libre indirecto en cualquier caso, haya gol o no.
+@fin
+
+@error Pensar que el portero debe tener los dos pies sobre la línea: basta una parte de un pie, tocándola, en línea con ella o detrás.
+
 ## Errores frecuentes en el examen
 
 - Pensar que el portero debe tener los dos pies sobre la línea: basta una parte de un pie, tocándola, en línea con ella o detrás.
@@ -64,7 +92,7 @@ El tiro termina cuando el balón se detiene, sale del juego o el árbitro detien
 Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
 
 @pregunta
-Q: En la ejecución de un tiro penal, ¿Cuándo se amonesta al ejecutor por realizar una finta antirreglamentaria?
+Q: En la ejecución de un tiro penal, ¿cuándo se amonesta al ejecutor por realizar una finta antirreglamentaria?
 A: Sólo si el guardameta se ve afectado por dicha finta y el tiro penal acaba en gol.
 B: Sólo si el guardameta se ve afectado por dicha finta.
 C: Sólo si acaba en gol.

@@ -4,10 +4,29 @@ num: 8
 nombre: El inicio y la reanudación del juego
 title: Regla 8: El inicio y la reanudación del juego – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 8 del fútbol: saque inicial y balón a tierra, con sorteo, distancias, quién recibe el balón a tierra y 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cómo empieza el partido y cómo se reanuda con balón a tierra, con las dos distancias que se confunden: 9,15 m y 4 m.
+relacionadas: 2, 9, 7
 ---
 La Regla 8 explica cómo empieza el partido y cómo se reanuda cuando el árbitro lo para sin que corresponda ninguna otra reanudación. Hay dos protagonistas: el saque inicial y el balón a tierra. Los dos tienen detalles que se preguntan mucho.
 
+@resumen
+- El saque inicial empieza los dos tiempos y reanuda tras un gol; los rivales están a 9,15 m y el balón está en juego cuando se patea y se mueve claramente.
+- Se puede marcar gol directamente de un saque inicial en la portería rival.
+- El balón a tierra reanuda cuando el árbitro detiene el juego y no corresponde otra reanudación; los demás jugadores están a 4 m y el balón está en juego al tocar el suelo.
+- No se puede marcar gol directamente de un balón a tierra: el balón debe tocar al menos a dos jugadores.
+- Dentro del área penal, el balón a tierra es para el portero del equipo defensor.
+@fin
+
+@cifras Cifras clave de la Regla 8
+Dónde | Cifra | Qué recordar
+Saque inicial | **9,15 m** | Distancia de los rivales al balón.
+Balón a tierra | **4 m** | Distancia de los demás jugadores.
+Gol en balón a tierra | **2 jugadores** | Deben tocar el balón al menos dos jugadores.
+Marca central | **Inmóvil** | El balón del saque inicial, parado sobre la marca central.
+@fin
 ## El saque inicial
 
 El saque inicial empieza los dos tiempos, los dos tiempos de la prórroga y reanuda el juego después de un gol.
@@ -47,6 +66,14 @@ Es la reanudación cuando el árbitro detiene el juego y no corresponde ninguna 
 
 - El árbitro detiene el juego por una lesión sin infracción, y el balón estaba en el centro del campo en posesión del equipo A: balón a tierra para un jugador del equipo A, a 4 m de distancia de los demás.
 - El balón revienta dentro del área penal: balón a tierra para el portero del equipo defensor.
+
+@caso
+SIT: El árbitro detiene el juego por una lesión sin infracción mientras el balón está dentro del área penal.
+DEC: Balón a tierra para el portero del equipo defensor, dentro de su área.
+POR: Si el balón está dentro del área penal, se deja caer para el portero del equipo defensor.
+@fin
+
+@error Confundir las distancias: 9,15 m en el saque inicial y 4 m en el balón a tierra.
 
 ## Errores frecuentes en el examen
 

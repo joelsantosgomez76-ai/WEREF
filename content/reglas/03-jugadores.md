@@ -4,10 +4,29 @@ num: 3
 nombre: Los jugadores
 title: Regla 3: Los jugadores – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 3 del fútbol, los jugadores: número mínimo, sustituciones, procedimiento de cambio, cambio de portero y personas extra en el campo, con 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cuántos jugadores y sustitutos, cómo se hace un cambio paso a paso y qué ocurre con el portero y los expulsados.
+relacionadas: 4, 5, 12
 ---
 La Regla 3 explica quiénes juegan y cómo se hacen los cambios. En el examen suele aparecer con números (cuántos jugadores, cuántas sustituciones) y con el procedimiento exacto de una sustitución. Esta guía recoge lo que más se pregunta.
 
+@resumen
+- Cada equipo tiene como máximo **11 jugadores** (uno, portero) y no se puede empezar ni continuar con menos de **7**.
+- En competiciones oficiales hay hasta cinco sustitutos, con tres ocasiones de cambio más el descanso.
+- El sustituido sale por el punto más cercano en un máximo de diez segundos; el sustituto entra por la línea de medio campo, en una interrupción y con permiso.
+- El sustituto es jugador desde que entra en el terreno de juego, y no antes.
+@fin
+
+@cifras Cifras clave de la Regla 3
+Dónde | Cifra | Qué recordar
+Jugadores | **11** | Máximo por equipo, uno de ellos portero.
+Mínimo | **7** | Con menos no se empieza ni se continúa.
+Sustitutos | **5** | Máximo en competiciones oficiales, con tres ocasiones más el descanso.
+Salida | **10 s** | Para que el sustituido esté fuera del campo.
+Entrada | **Medio campo** | Por donde entra el sustituto.
+@fin
 ## Número de jugadores
 
 Cada equipo tiene como máximo **11 jugadores**, y uno de ellos debe ser el portero. Un partido no puede comenzar ni continuar si algún equipo tiene **menos de 7 jugadores**. No cuentan para ese mínimo los jugadores que estén temporalmente fuera por una expulsión temporal o por una breve salida del campo prevista en los protocolos.
@@ -51,6 +70,14 @@ Si entra en el campo una persona que no debe estar (un suplente, un delegado o u
 
 Cada equipo tiene un capitán en el campo, identificado con un brazalete. No tiene ningún privilegio especial, pero comparte la responsabilidad del comportamiento de su equipo.
 
+@caso
+SIT: Un jugador va a ser sustituido, sale del campo y el árbitro indica al suplente que entre. Antes de entrar, el suplente ejecuta un saque de banda.
+DEC: No es correcto: el suplente no puede ejecutar la reanudación.
+POR: El suplente solo pasa a ser jugador cuando entra en el terreno de juego; hasta entonces no puede ejecutar ninguna reanudación.
+@fin
+
+@error Pensar que cada equipo tiene cinco ocasiones de cambio: son tres, más el descanso.
+
 ## Errores frecuentes en el examen
 
 - Confundir el mínimo de 7 jugadores con el de 11 jugadores del equipo completo.
@@ -64,7 +91,7 @@ Cada equipo tiene un capitán en el campo, identificado con un brazalete. No tie
 Cinco preguntas del banco de WEREF. En la app tienes muchas más de esta regla, con corrección y estadísticas de tu progreso.
 
 @pregunta
-Q: Si un jugador cambia de puesto con el guardameta sin la autorización previa del árbitro, ¿Es necesario detener el juego?
+Q: Si un jugador cambia de puesto con el guardameta sin la autorización previa del árbitro, ¿es necesario detener el juego?
 A: Sí, amonestando a ambos jugadores por conducta antideportiva.
 B: No, amonestando a ambos jugadores por retardar la reanudación del juego.
 C: No, amonestando a ambos en la siguiente interrupción.

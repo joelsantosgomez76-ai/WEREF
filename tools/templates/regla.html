@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<meta name="robots" content="{{ROBOTS}}">
+<link rel="canonical" href="{{CANONICAL}}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta property="og:url" content="{{CANONICAL}}">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="WEREF">
+<meta property="og:image" content="https://we-ref.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{TITLE}}">
+<meta name="twitter:description" content="{{DESCRIPTION}}">
+<meta name="twitter:image" content="https://we-ref.com/assets/og-image.png">
+{{JSONLD}}
+<link rel="icon" type="image/png" sizes="48x48" href="/assets/favicon-48.png?v=3">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon-192.png?v=3">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png?v=2">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#16181D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/landing.css?v=0">
+<link rel="stylesheet" href="/assets/css/home.css?v=0">
+<link rel="stylesheet" href="/assets/css/guia.css?v=0">
+<script src="/assets/js/guia.js?v=0" defer></script>
+</head>
+<body class="hm gd rg">
+
+{{NAV}}
+
+<header class="gd-hero rg-hero">
+  <svg class="gd-field" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="#fff" stroke-width="2"><rect x="40" y="40" width="1120" height="440"/><line x1="600" y1="40" x2="600" y2="480"/><circle cx="600" cy="260" r="92"/><rect x="40" y="130" width="170" height="260"/><rect x="990" y="130" width="170" height="260"/></g></svg>
+  <div class="sh-wrap gd-hero-in">
+    <nav class="pg-crumbs" aria-label="Migas de pan">{{BREADCRUMBS}}</nav>
+    <div class="rg-hero-grid">
+      <p class="rg-num" aria-hidden="true"><span>Regla</span><b>{{NUM}}</b><span>de 17</span></p>
+      <div class="rg-hero-txt">
+        <h1>{{H1}}</h1>
+        <p class="gd-lede">{{ENTRADILLA}}</p>
+        <ul class="rg-chips">{{CHIPS}}</ul>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="sh-wrap gd-grid">
+  <aside class="gd-toc" aria-label="&Iacute;ndice de la regla">
+    <p class="gd-aside-t">En esta regla</p>
+    <ol>{{TOC}}</ol>
+    <p class="gd-aside-t rg-pick-t">Las 17 reglas</p>
+    <ol class="rg-pick">{{PICKER}}</ol>
+  </aside>
+
+  <article class="gd-article rg-article" id="gd-article" data-rule="{{NUM}}" data-cta="/#registro">
+    <details class="gd-toc-m">
+      <summary>En esta regla</summary>
+      <ol>{{TOC}}</ol>
+      <ol class="rg-pick">{{PICKER}}</ol>
+    </details>
+    <section class="gd-sum" aria-labelledby="gd-sum-t">
+      <h2 id="gd-sum-t">Lo esencial en 30 segundos</h2>
+      {{RESUMEN}}
+    </section>
+    {{CONTENT}}
+    {{CTA}}
+    {{PAGER}}
+    <p class="pg-note">Fuente: Reglas de Juego de la IFAB. Consulta el texto oficial en <a href="https://www.theifab.com/laws/latest/" target="_blank" rel="noopener">theifab.com</a>.<br>Contenido no oficial, basado en las Reglas de Juego de la IFAB. Comprueba siempre la edici&oacute;n vigente y el reglamento de tu competici&oacute;n.</p>
+  </article>
+
+  <aside class="gd-side" aria-label="Para seguir">
+    <div class="gd-card">
+      <p class="gd-card-k">Test de la Regla {{NUM}}</p>
+      <p class="gd-card-t">{{NQ}} preguntas en la app</p>
+      <p class="gd-card-d">Con correcci&oacute;n y estad&iacute;sticas de tu progreso. Gratis y sin tarjeta.</p>
+      <a class="btn btn-yellow" href="/#registro">Hacer el test completo</a>
+    </div>
+    <div class="gd-rel">
+      <p class="gd-aside-t">Reglas relacionadas</p>
+      <ul>{{RELATED}}</ul>
+    </div>
+    <div class="rg-mini">
+      <p class="gd-aside-t">Cifras clave</p>
+      {{CIFRAS}}
+    </div>
+    <a class="gd-all" href="/reglas-de-juego/">Las 17 Reglas de Juego &rarr;</a>
+    <a class="gd-all" href="/guias/">Todas las gu&iacute;as &rarr;</a>
+  </aside>
+</main>
+
+<div class="gd-bar">
+  <p>Test de la Regla {{NUM}}: <strong>{{NQ}} preguntas</strong></p>
+  <a class="btn btn-yellow btn-sm" href="/#registro">Empezar</a>
+</div>
+
+{{FOOTER}}
+
+</body>
+</html>

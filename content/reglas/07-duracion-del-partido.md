@@ -4,13 +4,35 @@ num: 7
 nombre: La duración del partido
 title: Regla 7: La duración del partido – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 7 del fútbol, la duración del partido: tiempos, descanso, tiempo añadido, paradas de hidratación y suspensión, con 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Duración de los tiempos, descanso, tiempo añadido y suspensión del partido, con las cifras que más se repiten en los exámenes.
+relacionadas: 5, 8, 10
 ---
 La Regla 7 trata del reloj: cuánto dura un partido, qué tiempo se añade y qué pasa si hay que suspenderlo. Es corta, pero llena de cifras y detalles que se repiten en los exámenes.
 
+@resumen
+- Un partido son **dos tiempos iguales de 45 minutos**; solo se acortan con acuerdo previo y si la competición lo permite.
+- El descanso es de **hasta 15 minutos**.
+- Al final de cada tiempo se añade el tiempo perdido; el árbitro puede aumentar el mínimo que muestra el cuarto árbitro, pero no reducirlo.
+- Un penal señalado al final de un tiempo se ejecuta aunque el tiempo haya terminado.
+- La prórroga son dos períodos iguales de no más de 15 minutos.
+@fin
+
+@cifras Cifras clave de la Regla 7
+Dónde | Cifra | Qué recordar
+Tiempos | **2 × 45 min** | Iguales.
+Descanso | **Hasta 15 min** | La duración exacta la fija la competición.
+Prórroga | **2 × 15 min** | Como máximo, períodos iguales.
+Hidratación | **1 min o menos** | Pausa de hidratación.
+Refrigeración | **90 s – 3 min** | Pausa de refrigeración.
+@fin
 ## Los períodos de juego
 
 Un partido se juega en **dos tiempos iguales de 45 minutos**. Solo se puede acortar su duración si el árbitro y los dos equipos lo acuerdan antes de empezar y la competición lo permite.
+
+@figura tiempo
 
 ## El descanso
 
@@ -49,6 +71,14 @@ El árbitro también puede detener, suspender o terminar el partido si el terren
 
 - Una parada larga dura más que el tiempo de juego que queda: el tiempo añadido será el que queda por jugar, no la duración total de la parada.
 - Se celebran goles durante el tiempo: ese tiempo perdido también se suma al final del tiempo.
+
+@caso
+SIT: Se señala un tiro penal justo cuando termina el segundo tiempo.
+DEC: Se prolonga el tiempo hasta que se complete el penal.
+POR: Si hay gol y no hay infracción, vale, y el árbitro termina el partido sin nuevo saque inicial.
+@fin
+
+@error Pensar que el árbitro puede reducir el tiempo añadido que muestra el cuarto árbitro: solo puede aumentarlo.
 
 ## Errores frecuentes en el examen
 
@@ -93,7 +123,7 @@ EXP: El descanso dura hasta un máximo de 15 minutos, aunque los dos equipos pid
 @fin
 
 @pregunta
-Q: El anuncio de los minutos a añadir, ¿Expresa el tiempo exacto que queda de partido?
+Q: El anuncio de los minutos a añadir, ¿expresa el tiempo exacto que queda de partido?
 A: Sí, una vez indicado el mismo, no se puede modificar.
 B: No, simplemente indica la cantidad mínima de tiempo que el árbitro va a añadir al final del período.
 C: Sí, pero no debe ser más de cinco minutos.

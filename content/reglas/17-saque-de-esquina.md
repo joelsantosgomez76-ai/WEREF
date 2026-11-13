@@ -4,10 +4,28 @@ num: 17
 nombre: El saque de esquina
 title: Regla 17: El saque de esquina – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 17 del fútbol, el saque de esquina: cuándo se concede, procedimiento, distancia de los rivales, infracciones y 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cuándo se concede un saque de esquina, dónde se coloca el balón, a qué distancia deben estar los rivales y qué infracciones hay.
+relacionadas: 16, 15, 12
 ---
 La Regla 17 cierra las Reglas de Juego. Tiene pocas reglas, pero en los exámenes aparece mucho: quién saca, dónde se coloca el balón, a qué distancia deben estar los rivales y en qué casos se concede un saque de esquina.
 
+@resumen
+- Se concede cuando todo el balón sobrepasa la línea de meta tras tocar a un defensor, sin gol; también por los ocho segundos del portero o por retrasar un saque de meta.
+- El balón se coloca, inmóvil, en el área de esquina más cercana y lo patea un jugador del equipo atacante; el banderín no se puede mover.
+- Los adversarios están al menos a **9,15 m** del arco de esquina hasta que el balón esté en juego.
+- Se puede marcar gol directamente, pero solo contra el equipo contrario.
+@fin
+
+@cifras Cifras clave de la Regla 17
+Dónde | Cifra | Qué recordar
+Adversarios | **9,15 m** | Del arco de esquina, hasta que el balón esté en juego.
+Portero | **8 s** | Controlar el balón con las manos más tiempo: saque de esquina.
+Área de esquina | **1 m** | Radio del cuarto de círculo donde se coloca el balón.
+Gol directo | **Solo al rival** | En propia puerta, otro saque de esquina para los adversarios.
+@fin
 ## Cuándo se concede
 
 Se concede un saque de esquina en estos casos:
@@ -27,6 +45,8 @@ Se concede un saque de esquina en estos casos:
 
 Se puede marcar gol directamente de un saque de esquina, pero solo contra el equipo contrario. Si el balón entra directamente en la propia portería del que lo ejecuta, se concede otro saque de esquina a los adversarios.
 
+@figura esquina
+
 ## Infracciones y sanciones
 
 - **El ejecutor toca el balón otra vez** antes de que lo toque otro jugador: tiro libre indirecto.
@@ -40,6 +60,14 @@ Se puede marcar gol directamente de un saque de esquina, pero solo contra el equ
 - Un defensor empuja a un atacante mientras se prepara el saque de esquina: puede recibir una advertencia, una amonestación o una expulsión según la gravedad, pero el juego se reanuda con el saque de esquina, porque no se puede conceder penal antes de que el balón esté en juego.
 - Una entrada temeraria ocurre cuando el balón ya había salido por la línea de meta: se amonesta al jugador y se reanuda con el saque de esquina.
 - Un atacante recibe el balón directamente de un saque de esquina en posición de fuera de juego: no hay infracción, porque no existe fuera de juego en esta reanudación.
+
+@caso
+SIT: Un atacante recibe el balón directamente de un saque de esquina estando en posición de fuera de juego.
+DEC: No hay infracción.
+POR: En esta reanudación no existe fuera de juego.
+@fin
+
+@error Creer que se puede mover el banderín de esquina para facilitar el saque.
 
 ## Errores frecuentes en el examen
 

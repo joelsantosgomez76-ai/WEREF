@@ -4,10 +4,28 @@ num: 10
 nombre: Determinar el resultado de un partido
 title: Regla 10: Determinar el resultado de un partido – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 10 del fútbol: el gol, el ganador, la prórroga y los tiros desde el punto penal, con procedimiento, sanciones y 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cuándo hay gol, cómo se decide un partido empatado y el procedimiento de la tanda de penaltis, paso a paso.
+relacionadas: 14, 7, 12
 ---
 La Regla 10 dice cuándo hay gol, quién gana y cómo se decide un partido que termina empatado cuando hace falta un ganador. La tanda de penaltis es la parte que más se pregunta, con muchos detalles de procedimiento.
 
+@resumen
+- Hay gol cuando **todo el balón** pasa por encima de la línea, entre los postes y por debajo del larguero, sin infracción previa de quien marca.
+- Si el portero lanza el balón con la mano directamente a la portería rival, no hay gol: saque de meta.
+- Para decidir un partido solo se permiten los goles fuera de casa, la prórroga y los tiros desde el punto penal, solos o combinados.
+- En la tanda cada equipo lanza cinco tiros alternados, con jugadores distintos, y las amonestaciones del partido no se arrastran.
+@fin
+
+@cifras Cifras clave de la Regla 10
+Dónde | Cifra | Qué recordar
+Prórroga | **2 × 15 min** | Dos períodos iguales de no más de 15 minutos.
+Tanda | **5 tiros** | Por equipo, alternados.
+Lanzadores | **Todos** | Deben lanzar todos los elegibles antes de que alguien repita.
+Menos de siete jugadores | **No se suspende** | La tanda continúa aunque un equipo tenga menos de siete.
+@fin
 ## El gol
 
 Hay gol cuando **todo el balón** pasa por encima de la línea de meta, entre los postes y por debajo del larguero, siempre que el equipo que marca no haya cometido una infracción.
@@ -55,6 +73,14 @@ Se ejecutan **después de terminado el partido**. Los jugadores expulsados duran
 - Infracciones simultáneas de portero y lanzador: tiro fallado y lanzador amonestado.
 - Doble toque accidental del lanzador: si el balón entra, se repite; si no, se da por fallado.
 - La tanda **no se suspende** si un equipo se queda con menos de siete jugadores.
+
+@caso
+SIT: Termina el partido y, al empezar la tanda, un equipo tiene más jugadores elegibles que el otro.
+DEC: Debe reducirse al mismo número e informar al árbitro del nombre y el número de los excluidos.
+POR: Los excluidos no pueden lanzar, y las amonestaciones del partido no pasan a la tanda.
+@fin
+
+@error Dar gol cuando el balón ha cruzado la línea solo en parte: tiene que pasar todo el balón.
 
 ## Errores frecuentes en el examen
 

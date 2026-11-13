@@ -4,10 +4,28 @@ num: 9
 nombre: El balón en juego y fuera de juego
 title: Regla 9: El balón en juego y fuera de juego – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 9 del fútbol: cuándo el balón está en juego y cuándo está fuera de juego, contactos con el árbitro y casos prácticos, con 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Cuándo está el balón en juego y cuándo no, con los casos de rebote y de contacto con el árbitro que más se preguntan.
+relacionadas: 8, 11, 15
 ---
 La Regla 9 responde a una pregunta básica: ¿está el balón en juego o no? Parece obvio, pero en el examen aparecen casos con rebotes, contactos con el árbitro y sanciones cuando el balón ya ha salido. Aquí tienes lo esencial.
 
+@resumen
+- El balón está fuera de juego cuando traspasa **por completo** una línea de meta o de banda, cuando el árbitro detiene el juego y en tres casos de contacto con el equipo arbitral.
+- Si toca a un miembro del equipo arbitral y sigue dentro, solo se detiene en tres casos: ataque prometedor, gol directo o cambio de posesión. Se reanuda con balón a tierra.
+- Si rebota en un poste, el larguero o un banderín de esquina y sigue dentro del campo, el balón sigue en juego.
+- Basta con que una parte del balón esté sobre la línea para que siga en juego.
+@fin
+
+@cifras Cifras clave de la Regla 9
+Dónde | Cifra | Qué recordar
+Salida del balón | **Todo el balón** | Debe traspasar por completo la línea, por el suelo o por el aire.
+Contacto con el equipo arbitral | **3 casos** | Ataque prometedor, gol directo o cambio de posesión.
+Reanudación en esos casos | **Balón a tierra** | Cuando el balón sigue dentro del campo.
+Poste, larguero o banderín | **En juego** | Si el balón sigue dentro del campo.
+@fin
 ## Cuándo el balón está fuera de juego
 
 El balón está fuera de juego cuando:
@@ -23,6 +41,8 @@ El balón está en juego en el resto de los momentos, incluidos estos:
 - Cuando toca a un miembro del equipo arbitral y no se da ninguno de los tres casos anteriores.
 - Cuando rebota en un **poste, en el larguero o en un banderín de esquina** y sigue dentro del campo.
 
+@figura balon-juego
+
 ## Toques de personas que no son jugadores
 
 Si un miembro del cuerpo técnico, un suplente, un jugador sustituido o expulsado, o uno que esté fuera temporalmente toca un balón que sigue en juego pero sale claramente del campo, sin intención de interferir de forma injusta, se concede un **tiro libre indirecto** para los rivales, desde donde tocó el balón. No hay sanción disciplinaria, salvo que haya salido reiteradamente de su zona técnica.
@@ -34,6 +54,14 @@ Si un miembro del cuerpo técnico, un suplente, un jugador sustituido o expulsad
 - **Un equipo inicia un ataque prometedor tras tocar el balón al árbitro:** se detiene el juego y se reanuda con balón a tierra.
 - **Una entrada temeraria ocurre cuando el balón ya había salido por la banda:** se amonesta al infractor y se reanuda con el saque de banda que correspondía. Como el balón estaba fuera de juego, no se concede tiro libre.
 - **Un defensor realiza una falta dentro del área y el árbitro pita antes de que el balón entre en la portería:** no hay gol; se concede tiro penal. El árbitro debería haber valorado antes la ventaja.
+
+@caso
+SIT: Un disparo toca al árbitro dentro del área penal del equipo defensor y entra directamente en la portería.
+DEC: Se anula el gol y se reanuda con balón a tierra para el portero defensor.
+POR: El balón tocó al árbitro, siguió dentro del campo y entró directamente en la portería: es uno de los tres casos en los que el balón queda fuera de juego.
+@fin
+
+@error Creer que el balón sale cuando solo toca la línea: tiene que traspasarla por completo.
 
 ## Errores frecuentes en el examen
 
@@ -68,7 +96,7 @@ EXP: El balón sigue en juego si rebota en un poste, en el larguero o en un band
 @fin
 
 @pregunta
-Q: Si el guardameta tiene el balón controlado entre sus manos, ¿cuándo esta el balón en juego?
+Q: Si el guardameta tiene el balón controlado entre sus manos, ¿cuándo está el balón en juego?
 A: Cuando lo patea.
 B: Cuando es jugado por un compañero o un adversario.
 C: El balón esta en juego en todo momento.

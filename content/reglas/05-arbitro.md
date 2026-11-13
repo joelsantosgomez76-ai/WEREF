@@ -4,10 +4,30 @@ num: 5
 nombre: El árbitro
 title: Regla 5: El árbitro – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 5 del fútbol, el árbitro: autoridad, decisiones, ventaja, medidas disciplinarias, lesiones, VAR y equipamiento, con 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Qué autoridad tiene el árbitro, cuándo aplica la ventaja y cómo se gestionan las lesiones, el VAR y las interferencias externas.
+relacionadas: 6, 12, 8
 ---
 La Regla 5 define al árbitro: qué autoridad tiene, qué puede y qué no puede hacer, y cuándo ayuda la tecnología. Es una regla larga y de las más preguntadas, sobre todo en situaciones de lesiones, tarjetas y VAR.
 
+@resumen
+- El árbitro tiene plena autoridad y sus decisiones sobre hechos del juego, incluido el gol, son **definitivas**.
+- No puede cambiar una decisión de reanudación una vez que el juego se ha reanudado.
+- La ventaja permite seguir si el equipo que no cometió la infracción se beneficia; si no llega en pocos segundos, se sanciona la falta.
+- Lesión leve: el juego sigue. Lesión grave: se detiene. Un jugador atendido fuera solo vuelve un minuto después de reanudado el juego.
+- Con VAR, la decisión final es siempre del árbitro.
+@fin
+
+@cifras Cifras clave de la Regla 5
+Dónde | Cifra | Qué recordar
+Lesión leve | **Sigue el juego** | Hasta que el balón salga.
+Lesión grave | **Se detiene** | Y se asegura de que el jugador sale.
+Vuelta tras atención | **1 min** | Después de reanudado el juego.
+Situaciones del VAR | **4** | Gol, penal, expulsión directa y confusión de identidad.
+Autoridad | **Inspección → salida** | Desde la inspección previa hasta que abandona el campo.
+@fin
 ## Autoridad
 
 Cada partido lo dirige un árbitro con plena autoridad para hacer cumplir las Reglas de Juego en relación con ese partido.
@@ -57,6 +77,14 @@ Obligatorio: silbato o silbatos, reloj o relojes, tarjetas roja y amarilla y lib
 ## Responsabilidad
 
 Los miembros del equipo arbitral no son responsables de lesiones, daños materiales ni otras pérdidas derivadas de decisiones tomadas según las Reglas o los procedimientos normales del partido.
+
+@caso
+SIT: Un árbitro asistente le dice que se equivocó en un saque de banda que ya se ha ejecutado y que debía ser para el otro equipo.
+DEC: Se mantiene lo ya reanudado.
+POR: El árbitro no puede cambiar una decisión de reanudación una vez que el juego se ha reanudado.
+@fin
+
+@error Pensar que el VAR decide: ayuda, pero la decisión es siempre del árbitro.
 
 ## Errores frecuentes en el examen
 

@@ -4,10 +4,28 @@ num: 4
 nombre: El equipamiento de los jugadores
 title: Regla 4: El equipamiento de los jugadores – Test y explicación para árbitros | WEREF
 description: Resumen de la Regla 4 del fútbol, el equipamiento de los jugadores: prendas obligatorias, seguridad, colores, mensajes y sanciones, con errores frecuentes y 5 preguntas de práctica.
-fecha: 2026-11-12
+fecha: 2026-11-13
+publicada: 2026-11-12
+plantilla: v2
+entradilla: Qué prendas son obligatorias, qué se considera peligroso y qué hace el árbitro ante una infracción de equipamiento.
+relacionadas: 3, 5, 12
 ---
 La Regla 4 dice qué puede ponerse un jugador y qué no. Mezcla seguridad, colores y mensajes en la ropa, y suele dar preguntas de situación: qué hace el árbitro cuando alguien lleva algo que no debe. Aquí tienes lo esencial.
 
+@resumen
+- Son **cinco prendas** obligatorias: camiseta con mangas, pantalón corto, medias, espinilleras y calzado.
+- Lo peligroso se retira y taparlo con cinta no vale; los complementos no peligrosos pueden llevarse si están bien cubiertos y sujetos.
+- Las espinilleras van cubiertas por las medias, y la cinta sobre las medias es del mismo color que ellas.
+- Si un jugador pierde el calzado y marca antes de reponerlo, el gol es válido.
+@fin
+
+@cifras Cifras clave de la Regla 4
+Dónde | Cifra | Qué recordar
+Prendas | **5** | Camiseta, pantalón, medias, espinilleras y calzado.
+Cinta sobre medias | **Mismo color** | Que la parte de la media que cubre.
+Algo peligroso | **Se retira** | Taparlo con cinta no vale.
+Mallas | **Color del pantalón** | Y el mismo color para todos los compañeros.
+@fin
 ## Seguridad
 
 Los jugadores no pueden usar ni llevar nada peligroso. Lo peligroso debe retirarse, y **taparlo con cinta no vale**. Los complementos (collares, pulseras, pendientes y similares) que no sean peligrosos pueden llevarse si están **bien cubiertos y sujetos con seguridad**. Si algo es peligroso o no, lo decide el árbitro. La edición 2026/27 cambió este apartado, así que consulta siempre el texto vigente.
@@ -57,6 +75,14 @@ El equipamiento no puede llevar eslóganes, mensajes ni imágenes políticas, re
 Ante una infracción de equipamiento no hace falta parar el juego. El árbitro puede mandar al jugador a salir para corregirla; si no, saldrá cuando el juego se detenga. Para volver a entrar, un miembro del equipo arbitral revisa el equipamiento y el jugador **espera el permiso del árbitro**, que puede darse con el balón en juego.
 
 Si entra sin permiso, se le amonesta. Si el árbitro detiene el juego por ello, reanuda con un tiro libre directo (o penal) desde donde hubo interferencia, o con un tiro libre indirecto desde donde estaba el balón si no hubo interferencia.
+
+@caso
+SIT: Un jugador pierde sin querer una bota durante una jugada y marca gol antes de que el balón salga del juego.
+DEC: El gol es válido.
+POR: Debe reponer el calzado lo antes posible y, como tarde, la próxima vez que el balón salga del juego; si juega el balón o marca antes, no se anula.
+@fin
+
+@error Creer que algo peligroso se arregla tapándolo con cinta: hay que quitarlo.
 
 ## Errores frecuentes en el examen
 
