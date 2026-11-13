@@ -86,8 +86,8 @@
         passwordField('au-pass', 'Contraseña', 'new-password', true) +
         field('au-user', 'Nombre de usuario', 'text', 'autocomplete="username" maxlength="32" autocapitalize="none" spellcheck="false" required') +
         field('au-birth', 'Fecha de nacimiento', 'date', 'autocomplete="bday" max="' + maxBirth() + '" required') +
-        '<label class="au-check"><input type="checkbox" id="au-terms"><span>He leído y acepto los <a href="/terminos-de-uso/" target="_blank" rel="noopener">Términos de Uso</a> y la <a href="/politica-privacidad/" target="_blank" rel="noopener">Política de Privacidad</a>.</span></label><p class="au-msg bad" data-m="au-terms" hidden></p>' +
-        '<label class="au-check opt"><input type="checkbox" id="au-news"><span>Quiero recibir novedades de WEREF por correo (opcional).</span></label>' +
+        '<label class="au-check"><input type="checkbox" id="au-terms"><span>He leído y acepto los <a href="/terminos-de-uso/" target="_blank" rel="noopener">Términos de Uso</a> y la <a href="/politica-privacidad/" target="_blank" rel="noopener">Política de Privacidad</a>. <span class="au-req" title="Obligatorio">*</span></span></label><p class="au-msg bad" data-m="au-terms" hidden></p>' +
+        '<label class="au-check opt"><input type="checkbox" id="au-news"><span>Quiero recibir novedades de WEREF: cambios en las reglas, nuevas funciones y consejos para el examen.</span></label>' +
         '<div class="au-hc-box" data-hc></div><button type="submit" class="au-submit"><span class="au-spin" aria-hidden="true"></span><span data-st>Crear cuenta</span></button><div data-status></div></form>' +
         '<p class="au-note">Protegido por hCaptcha · <a href="https://www.hcaptcha.com/privacy" target="_blank" rel="noopener">Privacidad</a> · <a href="https://www.hcaptcha.com/terms" target="_blank" rel="noopener">Términos</a></p>' +
         '<div class="au-switch">¿Ya tienes cuenta? <button type="button" class="au-link" data-go="login">Inicia sesión</button></div>';

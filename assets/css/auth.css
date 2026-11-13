@@ -104,3 +104,5 @@ body.au-page .au-back:hover{color:var(--au-ink); text-decoration:underline;}
   .au-backdrop .au-main{max-height:100dvh;}
 }
 @media (prefers-reduced-motion:reduce){ .au *{transition:none !important; animation:none !important;} }
+.au-req{color:var(--au-red); font-weight:700;}
+.au-check.opt{color:var(--au-text);}
