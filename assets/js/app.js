@@ -1059,6 +1059,9 @@ const COUNTRY_FLAGS = {
   'Ucrania':'🇺🇦','Uruguay':'🇺🇾','Venezuela':'🇻🇪'
 };
 
+// Clasificacion: se lee de la vista leaderboard_public (sin user_id ni datos de mas). Si la vista aun no existe, se usa la tabla.
+let LB_SRC = 'leaderboard_public';
+
 async function upsertLeaderboardScore(mode, score){
   try{
     const { data: userRes } = await supabaseClient.auth.getUser();
@@ -1083,9 +1086,10 @@ async function loadLeaderboard(mode){
   STATE.myStanding = null;
   STATE.leaderboardParticipants = null;
   try{
-    const { data, error } = await supabaseClient.from('leaderboard_scores').select('*').eq('mode', mode).order('score', { ascending: false }).limit(25);
+    const { data, error } = await supabaseClient.from(LB_SRC).select('*').eq('mode', mode).order('score', { ascending: false }).limit(25);
+    if(error && LB_SRC === 'leaderboard_public'){ LB_SRC = 'leaderboard_scores'; return loadLeaderboard(mode); }
     if(!error && data) STATE.leaderboard = data;
-    const { count: totalCount } = await supabaseClient.from('leaderboard_scores').select('user_id', { count: 'exact', head: true }).eq('mode', mode);
+    const { count: totalCount } = await supabaseClient.from(LB_SRC).select('score', { count: 'exact', head: true }).eq('mode', mode);
     STATE.leaderboardParticipants = totalCount||0;
     render();
   }catch(e){}
@@ -1096,18 +1100,18 @@ async function loadMyLeaderboardStanding(mode){
   try{
     const { data: mine } = await supabaseClient.from('leaderboard_scores').select('*').eq('mode', mode).eq('user_id', CURRENT_USER_ID).maybeSingle();
     if(!mine){ STATE.myStanding = false; render(); return; }
-    const { count } = await supabaseClient.from('leaderboard_scores').select('user_id', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
+    const { count } = await supabaseClient.from(LB_SRC).select('score', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
     const myRank = (count||0) + 1;
     let nextAbove = null;
     if(myRank > 1){
-      const { data: aboveRows } = await supabaseClient.from('leaderboard_scores').select('score,username').eq('mode', mode).gt('score', mine.score).order('score', { ascending: true }).limit(1);
+      const { data: aboveRows } = await supabaseClient.from(LB_SRC).select('score,username').eq('mode', mode).gt('score', mine.score).order('score', { ascending: true }).limit(1);
       if(aboveRows && aboveRows[0]) nextAbove = aboveRows[0];
     }
     let milestoneRank = null, milestoneScore = null;
     if(myRank > 25) milestoneRank = 25;
     else if(myRank > 10) milestoneRank = 10;
     if(milestoneRank){
-      const { data: msRows } = await supabaseClient.from('leaderboard_scores').select('score').eq('mode', mode).order('score', { ascending: false }).range(milestoneRank-1, milestoneRank-1);
+      const { data: msRows } = await supabaseClient.from(LB_SRC).select('score').eq('mode', mode).order('score', { ascending: false }).range(milestoneRank-1, milestoneRank-1);
       if(msRows && msRows[0]) milestoneScore = msRows[0].score;
     }
     STATE.myStanding = Object.assign({}, mine, { rank: myRank, nextAbove, milestoneRank, milestoneScore });
@@ -1122,7 +1126,7 @@ async function loadLeagueSummary(){
     try{
       const { data: mine } = await supabaseClient.from('leaderboard_scores').select('score').eq('mode', mode).eq('user_id', CURRENT_USER_ID).maybeSingle();
       if(mine){
-        const { count } = await supabaseClient.from('leaderboard_scores').select('user_id', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
+        const { count } = await supabaseClient.from(LB_SRC).select('score', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
         results[mode] = (count||0) + 1;
       } else {
         results[mode] = null;
@@ -1854,7 +1858,7 @@ function leaderboardView(){
     return `<span class="lg-avatar ${cls || ''}" style="--h:${h};">${esc(n.charAt(0).toUpperCase())}</span>`;
   };
   const pod = (r, i) => {
-    const isMe = r.user_id === CURRENT_USER_ID;
+    const isMe = (r.is_me !== undefined) ? r.is_me : (r.user_id === CURRENT_USER_ID);
     return `<div class="lg-pod p${i+1}${isMe?' me':''}">
       ${i===0 ? '<div class="lg-crown">👑</div>' : ''}
       <div class="lg-pod-av">${avatar(r.username, 'xl')}<span class="lg-pod-flag">${COUNTRY_FLAGS[r.country] || '🏳️'}</span></div>
@@ -1868,7 +1872,7 @@ function leaderboardView(){
 
   const rows = list.slice(3).map((r,k) => {
     const i = k + 3;
-    const isMe = r.user_id === CURRENT_USER_ID;
+    const isMe = (r.is_me !== undefined) ? r.is_me : (r.user_id === CURRENT_USER_ID);
     const pct = Math.max(4, Math.round((Number(r.score) || 0) / topScore * 100));
     return `
     <div class="lg-row${isMe?' me':''}" style="animation-delay:${Math.min(k*0.03,0.4)}s;">
