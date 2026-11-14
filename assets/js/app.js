@@ -3766,8 +3766,8 @@ function questionDots(quiz){
     const clickable = !quiz.instantFeedback || !!sel || timedOut;
     const label = 'Pregunta ' + (i+1) + ', ' + state;
     return clickable
-      ? `<button type="button" class="${cls}" data-action="goto-question" data-idx="${i}" aria-label="${label}"></button>`
-      : `<div class="${cls}" role="img" aria-label="${label}"></div>`;
+      ? `<button type="button" class="${cls}" data-action="goto-question" data-idx="${i}" aria-label="${label}">${i+1}</button>`
+      : `<div class="${cls}" role="img" aria-label="${label}">${i+1}</div>`;
   }).join('');
   const legend = quiz.instantFeedback
     ? `<span><b>${okN}</b> acertadas</span><span><b>${badN}</b> falladas</span><span><b>${pendingN}</b> pendientes</span>`
@@ -3820,12 +3820,7 @@ function quizView(){
       </div>
     </div>
     ${(isLifeMode(quiz.mode) && quiz.hearts<=0) ? `<div class="qz-alert">${quiz.mode==='suddendeath' ? '¡Eliminado! Un fallo y se acabó la partida.' : '¡Te has quedado sin vidas! Fin de la partida.'}</div>` : ''}
-    ${(function(){
-      const url = q.domain === 'law' ? ruleGuideUrl(q.rule) : '';
-      const link = url ? `<a class="qz-rule-link" href="${url}" target="_blank" rel="noopener">${ic('book')} Ver la Regla ${q.rule} en la guía</a>` : '';
-      if(!q.explanation && !link) return '';
-      return `<div class="qz-expl">${q.explanation ? `<strong>Explicación:</strong> ${esc(q.explanation)}` : ''}${link ? `<div>${link}</div>` : ''}</div>`;
-    })()}`;
+    ${q.explanation ? `<div class="qz-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
   }
   const reportBtn = STATE.reportedIds[q.id]
     ? `<button class="flag-btn reported" data-action="report-question" data-qid="${q.id}" data-tooltip="Ya has avisado de un posible error en esta pregunta. Nuestro equipo la revisará.">${ic('check')} Error reportado, ¡gracias!</button>`
@@ -3885,7 +3880,7 @@ function quizView(){
       <article class="qz-card">
         <h2 class="qz-text">${esc(q.question)}</h2>
         <div class="qz-options" role="group" aria-label="Respuestas">${optsHtml}</div>
-        <p class="qz-hint"><kbd>1</kbd>–<kbd>4</kbd> o <kbd>A</kbd>–<kbd>D</kbd> para responder · <kbd>Enter</kbd> para continuar</p>
+        ${quiz.idx === 0 ? '<p class="qz-hint"><kbd>1</kbd>–<kbd>4</kbd> o <kbd>A</kbd>–<kbd>D</kbd> para responder · <kbd>Enter</kbd> para continuar</p>' : ''}
         ${feedback}
         ${quiz.mode!=='training' ? (reveal ? actionLinksRow : '') : actionLinksRow}
       </article>
@@ -4012,7 +4007,6 @@ function resultView(){
     <summary><span>Preguntas falladas</span><span class="count">${fails.length}</span><span class="chev">${ic('chevron')}</span></summary>
     <div class="rs-fails-list">${fails.map(f => {
       const q = f.q;
-      const url = q.domain === 'law' ? ruleGuideUrl(q.rule) : '';
       const opts = q.options.map((o, idx) => {
         const letter = letters[idx];
         if(letter === q.correct) return `<div class="rs-ans ok"><b>${letter.toUpperCase()}</b><span><small>Respuesta correcta</small>${esc(o)}</span></div>`;
@@ -4023,7 +4017,7 @@ function resultView(){
         <div class="rs-fail-tag">Pregunta ${f.n} · ${scopeLabel(q)}${f.sel ? '' : ' · sin responder'}</div>
         <div class="rs-fail-q">${esc(q.question)}</div>
         ${opts}
-        ${(q.explanation || url) ? `<div class="qz-expl">${q.explanation ? `<strong>Explicación:</strong> ${esc(q.explanation)}` : ''}${url ? `<div><a class="qz-rule-link" href="${url}" target="_blank" rel="noopener">${ic('book')} Ver la Regla ${q.rule} en la guía</a></div>` : ''}</div>` : ''}
+        ${q.explanation ? `<div class="qz-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
       </article>`;
     }).join('')}</div>
   </details>` : '';
