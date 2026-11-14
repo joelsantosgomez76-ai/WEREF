@@ -289,7 +289,13 @@ async function loadBaseBank(){
   if(BANK.ready) return true;
   const admin = await bankIsAdmin();
   let wantServer = BANK_ROLLOUT_ALL ? !admin : false;
-  try{ if(admin && localStorage.getItem('weref_bank_server') === '1') wantServer = true; }catch(e){}
+  try{
+    // Solo administradores: app.html?bank=1 activa el modo servidor para probarlo; ?bank=0 lo desactiva.
+    const qp = new URLSearchParams(location.search).get('bank');
+    if(admin && qp === '1') localStorage.setItem('weref_bank_server', '1');
+    if(admin && qp === '0') localStorage.removeItem('weref_bank_server');
+    if(admin && localStorage.getItem('weref_bank_server') === '1') wantServer = true;
+  }catch(e){}
   if(wantServer){
     try{
       const data = await bankInvoke({ action: 'index' });
