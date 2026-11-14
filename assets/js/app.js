@@ -5697,7 +5697,7 @@ async function loadProfileNudge(){
 function profileNudgeHtml(){
   if(!STATE.profileNudge) return '';
   return `<section class="profile-nudge" role="region" aria-label="Completa tu perfil">
-    <div class="pn-text"><strong>Cuéntanos más sobre ti</strong><span>Opcional · 1 minuto. Así podemos adaptar WEREF a lo que buscas.</span></div>
+    <div class="pn-text"><strong>Cuéntanos más sobre ti</strong><span>Opcional · 1 minuto. Así podemos conocerte mejor y mejorar WEREF.</span></div>
     <a class="btn btn-yellow pn-btn" href="/bienvenida/?perfil=1">Completar</a>
     <button type="button" class="pn-x" data-action="profile-nudge-close" aria-label="Cerrar este aviso">&times;</button>
   </section>`;

@@ -321,8 +321,6 @@
     { k: 'situacion', t: '¿Cuál es tu situación?', o: [['quiero_ser', 'Quiero ser árbitro'], ['en_formacion', 'Estoy en formación'], ['arbitro_activo', 'Soy árbitro en activo'], ['entrenador_jugador', 'Soy entrenador o jugador'], ['otro', 'Otra']] },
     { k: 'federacion', t: '¿De qué federación territorial eres?', o: same(FEDS), grid: true },
     { k: 'categoria', t: '¿En qué categoría arbitras?', only: 'arbitro_activo', o: same(['Fútbol base', 'Territorial / autonómico', 'Nacional', 'Otra']) },
-    { k: 'objetivo', t: '¿Qué objetivo tienes?', o: [['examen_acceso', 'Aprobar el examen de acceso'], ['prueba_ascenso', 'Prueba de ascenso'], ['repasar', 'Repasar las reglas'], ['curiosidad', 'Curiosidad']] },
-    { k: 'fecha_examen', t: '¿Cuándo es tu examen?', date: true },
     { k: 'canal', t: '¿Cómo nos has conocido?', o: same(['Amigos o compañeros', 'Instagram', 'X (Twitter)', 'Google', 'Mi federación o curso', 'Otro']) }
   ];
 

@@ -46,7 +46,7 @@ Si has aceptado recibir novedades y cuándo lo hiciste.
 Dirección IP, tipo de navegador y registros de acceso que generan automáticamente nuestros proveedores técnicos por motivos de seguridad. Si aceptas las cookies analíticas, también datos de navegación agregados (consulta la [Política de Cookies](/politica-cookies/)).
 
 **g) Datos del cuestionario opcional "Cuéntanos más sobre ti"**
-Si decides responderlo: tu situación (por ejemplo, si quieres ser árbitro o ya arbitras), tu federación territorial (o tu país y tu ciudad si estás fuera de España), la categoría en la que arbitras, tu objetivo de estudio, la fecha de tu examen y cómo nos has conocido. Es totalmente opcional: puedes saltar cualquier pregunta, cerrar el cuestionario cuando quieras y cambiar o borrar tus respuestas escribiendo a info@we-ref.com.
+Si decides responderlo: tu situación (por ejemplo, si quieres ser árbitro o ya arbitras), tu federación territorial (o tu país y tu ciudad si estás fuera de España), la categoría en la que arbitras y cómo nos has conocido. Es totalmente opcional: puedes saltar cualquier pregunta, cerrar el cuestionario cuando quieras y cambiar o borrar tus respuestas escribiendo a info@we-ref.com.
 
 **h) Registro de tus aceptaciones y de tu actividad básica**
 La fecha y la versión de los Términos de Uso y de la Política de Privacidad que aceptas, si has aceptado recibir novedades, y las fechas de tu registro, de la verificación de tu correo y de tu último acceso.
@@ -64,7 +64,7 @@ No te pedimos datos especialmente protegidos (salud, ideología, etc.). Te pedim
 | Proteger la web frente a bots, fraude y ataques | f | Interés legítimo en la seguridad del servicio (art. 6.1.f RGPD) |
 | Enviarte novedades sobre WEREF | Correo y nombre | Tu consentimiento (art. 6.1.a RGPD y art. 21 LSSI), que puedes retirar cuando quieras |
 | Medir el uso de la web para mejorarla (Google Analytics) | Datos de navegación | Tu consentimiento a través del panel de cookies |
-| Personalizar tu plan de estudio y mejorar el servicio | g | Ejecución del contrato: adaptar el servicio que has solicitado (art. 6.1.b RGPD). Responder es voluntario |
+| Conocer mejor a quienes usan WEREF y mejorar el servicio | g | Ejecución del contrato: adaptar el servicio que has solicitado (art. 6.1.b RGPD). Responder es voluntario |
 | Poder demostrar qué aceptaste y cuándo | h | Obligación de poder acreditar el consentimiento (art. 7.1 RGPD) e interés legítimo (art. 6.1.f RGPD) |
 | Saber cuántas personas se registran y usan WEREF, para mejorarlo | h | Interés legítimo en conocer el uso del servicio (art. 6.1.f RGPD), con datos que no usamos para publicidad |
 
