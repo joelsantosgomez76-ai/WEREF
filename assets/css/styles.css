@@ -3761,3 +3761,12 @@ a.btn{text-decoration:none; display:inline-flex; align-items:center; justify-con
   .pg-cta{padding:24px 18px;}
   .pg-cta-btns .btn, .pg-pager a{width:100%; text-align:center;}
 }
+
+/* Aviso opcional para completar el perfil (portada de la app) */
+.profile-nudge{display:flex; align-items:center; gap:14px; margin:14px 0; padding:12px 14px 12px 16px; background:#FFF6D6; border:2px solid #0F1013; border-radius:14px; box-shadow:3px 3px 0 #0F1013;}
+.profile-nudge .pn-text{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; font-size:13px; color:#46474E;}
+.profile-nudge .pn-text strong{font-size:15px; color:#0F1013;}
+.profile-nudge .pn-btn{flex:none; text-decoration:none; padding:9px 16px; font-size:13.5px;}
+.profile-nudge .pn-x{flex:none; width:32px; height:32px; border:0; border-radius:50%; background:rgba(15,16,19,.08); color:#0F1013; font-size:20px; line-height:1; cursor:pointer;}
+.profile-nudge .pn-x:hover{background:rgba(15,16,19,.16);}
+@media (max-width:520px){ .profile-nudge{flex-wrap:wrap;} .profile-nudge .pn-text{flex-basis:calc(100% - 46px);} .profile-nudge .pn-btn{order:3; width:100%; text-align:center;} }

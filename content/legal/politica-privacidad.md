@@ -26,8 +26,8 @@ No tenemos un delegado de protección de datos porque no estamos obligados a ell
 ## 2. Qué datos tratamos
 
 **a) Datos de tu cuenta**
-- Obligatorios: correo electrónico, contraseña, nombre, nombre de usuario, país y fecha de nacimiento.
-- Opcionales: ciudad y código postal.
+- Obligatorios: correo electrónico, contraseña, nombre de usuario y fecha de nacimiento.
+- Si entras con Google, recibimos de Google tu correo y tu nombre; el nombre de usuario y la fecha de nacimiento te los pedimos nosotros.
 - La contraseña la gestiona nuestro proveedor de autenticación y se guarda cifrada. Nosotros no la vemos nunca.
 
 **b) Datos de tu actividad en la app**
@@ -45,6 +45,12 @@ Si has aceptado recibir novedades y cuándo lo hiciste.
 **f) Datos técnicos**
 Dirección IP, tipo de navegador y registros de acceso que generan automáticamente nuestros proveedores técnicos por motivos de seguridad. Si aceptas las cookies analíticas, también datos de navegación agregados (consulta la [Política de Cookies](/politica-cookies/)).
 
+**g) Datos del cuestionario opcional "Cuéntanos más sobre ti"**
+Si decides responderlo: tu situación (por ejemplo, si quieres ser árbitro o ya arbitras), tu federación territorial (o tu país y tu ciudad si estás fuera de España), la categoría en la que arbitras, tu objetivo de estudio, la fecha de tu examen y cómo nos has conocido. Es totalmente opcional: puedes saltar cualquier pregunta, cerrar el cuestionario cuando quieras y cambiar o borrar tus respuestas escribiendo a info@we-ref.com.
+
+**h) Registro de tus aceptaciones y de tu actividad básica**
+La fecha y la versión de los Términos de Uso y de la Política de Privacidad que aceptas, si has aceptado recibir novedades, y las fechas de tu registro, de la verificación de tu correo y de tu último acceso.
+
 No te pedimos datos especialmente protegidos (salud, ideología, etc.). Te pedimos que no los incluyas en tus mensajes ni en los archivos que subas.
 
 ## 3. Para qué los usamos y con qué base legal
@@ -58,12 +64,17 @@ No te pedimos datos especialmente protegidos (salud, ideología, etc.). Te pedim
 | Proteger la web frente a bots, fraude y ataques | f | Interés legítimo en la seguridad del servicio (art. 6.1.f RGPD) |
 | Enviarte novedades sobre WEREF | Correo y nombre | Tu consentimiento (art. 6.1.a RGPD y art. 21 LSSI), que puedes retirar cuando quieras |
 | Medir el uso de la web para mejorarla (Google Analytics) | Datos de navegación | Tu consentimiento a través del panel de cookies |
+| Personalizar tu plan de estudio y mejorar el servicio | g | Ejecución del contrato: adaptar el servicio que has solicitado (art. 6.1.b RGPD). Responder es voluntario |
+| Poder demostrar qué aceptaste y cuándo | h | Obligación de poder acreditar el consentimiento (art. 7.1 RGPD) e interés legítimo (art. 6.1.f RGPD) |
+| Saber cuántas personas se registran y usan WEREF, para mejorarlo | h | Interés legítimo en conocer el uso del servicio (art. 6.1.f RGPD), con datos que no usamos para publicidad |
 
 Puedes retirar tu consentimiento en cualquier momento, y hacerlo no afecta a lo que ya hayamos tratado antes. No tomamos decisiones automatizadas con efectos jurídicos sobre ti. El ranking de la liga solo ordena puntuaciones.
 
 ## 4. Qué ven otros usuarios
 
 En la WEREF League, los demás usuarios pueden ver tu **nombre de usuario**, tus **puntos y tu posición** y tu **país o ciudad**. Tu nombre real, tu correo, tu fecha de nacimiento, tu código postal, tus estadísticas detalladas y tus archivos de Mi Academia **no son visibles** para nadie más.
+
+Las respuestas del cuestionario "Cuéntanos más sobre ti" no son visibles para ningún otro usuario.
 
 Por eso te recomendamos que tu nombre de usuario no te identifique si prefieres que no te reconozcan.
 
@@ -94,6 +105,8 @@ También podemos tener que comunicar datos a autoridades públicas cuando una le
 | Cuenta, actividad y archivos de Mi Academia | Mientras tu cuenta esté activa. Si la eliminas, los borramos en un máximo de 30 días. |
 | Cuentas inactivas | Si no inicias sesión durante [24] meses, te avisaremos por correo y, si no respondes, eliminaremos la cuenta. |
 | Mensajes de contacto | 12 meses desde nuestra última respuesta |
+| Respuestas del cuestionario opcional | Mientras tu cuenta esté activa |
+| Registro de aceptaciones y fechas de actividad | Mientras tu cuenta esté activa y, después, durante el plazo en que puedan reclamarse responsabilidades |
 | Consentimiento para newsletter | Hasta que te des de baja, más la prueba del consentimiento durante el plazo de prescripción de posibles reclamaciones |
 | Registros técnicos de seguridad | Según la configuración de cada proveedor, normalmente pocos días o semanas |
 | Datos de Google Analytics | [14] meses |

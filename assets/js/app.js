@@ -3461,6 +3461,7 @@ function homeView(){
   return `
   ${hero}
   ${typeof installBannerHtml === 'function' ? installBannerHtml() : ''}
+  ${typeof profileNudgeHtml === 'function' ? profileNudgeHtml() : ''}
   ${kpis}
   <div class="home-cols">
     <div class="home-left">
@@ -5398,6 +5399,7 @@ function onAction(e){
   }
   else if(action==='report-question'){ reportQuestion(el.dataset.qid); }
   else if(action==='dismiss-reports'){ if(!isDevUser()) return; dismissReports(el.dataset.qid); }
+  else if(action==='profile-nudge-close'){ dismissProfileNudge(); }
   else if(action==='achievements'){ STATE.view='achievements'; render(); }
   else if(action==='profile'){ STATE.view='profile'; STATE.profileData=null; render(); loadProfileData(); }
   else if(action==='profile-edit'){ STATE.view='profileEdit'; render(); }
@@ -5683,3 +5685,24 @@ function adminIdleCheck(){
 }
 setInterval(adminIdleCheck, 60 * 1000);
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') adminIdleCheck(); });
+
+/* ---- Aviso opcional para completar el perfil (se puede cerrar con la X) ---- */
+async function loadProfileNudge(){
+  try{
+    const { data } = await supabaseClient.from('profiles_onboarding').select('completado_at,saltado').eq('user_id', CURRENT_USER_ID).maybeSingle();
+    STATE.profileNudge = !(data && (data.completado_at || data.saltado));
+    if(STATE.profileNudge) render();
+  }catch(e){ STATE.profileNudge = false; }
+}
+function profileNudgeHtml(){
+  if(!STATE.profileNudge) return '';
+  return `<section class="profile-nudge" role="region" aria-label="Completa tu perfil">
+    <div class="pn-text"><strong>Cuéntanos más sobre ti</strong><span>Opcional · 1 minuto. Así podemos adaptar WEREF a lo que buscas.</span></div>
+    <a class="btn btn-yellow pn-btn" href="/bienvenida/?perfil=1">Completar</a>
+    <button type="button" class="pn-x" data-action="profile-nudge-close" aria-label="Cerrar este aviso">&times;</button>
+  </section>`;
+}
+async function dismissProfileNudge(){
+  STATE.profileNudge = false; render();
+  try{ await supabaseClient.from('profiles_onboarding').upsert({ user_id: CURRENT_USER_ID, saltado: true }, { onConflict: 'user_id' }); }catch(e){}
+}

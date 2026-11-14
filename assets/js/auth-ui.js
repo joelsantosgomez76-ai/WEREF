@@ -314,5 +314,85 @@
     var first = host.querySelector('input'); if(first) setTimeout(function(){ first.focus(); }, 50);
   }
 
-  window.AuthUI = { mount: mount, openModal: openModal };
+  /* ---- Cuestionario opcional "Cuéntanos más sobre ti": una pregunta por pantalla, se guarda al momento ---- */
+  var FEDS = ['Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Canarias', 'Cantabria', 'Castilla-La Mancha', 'Castilla y León', 'Cataluña', 'Ceuta', 'Extremadura', 'Galicia', 'Madrid', 'Melilla', 'Murcia', 'Navarra', 'La Rioja', 'Comunidad Valenciana', 'País Vasco', 'Fuera de España'];
+  function same(a){ return a.map(function(x){ return [x, x]; }); }
+  var QS = [
+    { k: 'situacion', t: '¿Cuál es tu situación?', o: [['quiero_ser', 'Quiero ser árbitro'], ['en_formacion', 'Estoy en formación'], ['arbitro_activo', 'Soy árbitro en activo'], ['entrenador_jugador', 'Soy entrenador o jugador'], ['otro', 'Otra']] },
+    { k: 'federacion', t: '¿De qué federación territorial eres?', o: same(FEDS), grid: true },
+    { k: 'categoria', t: '¿En qué categoría arbitras?', only: 'arbitro_activo', o: same(['Fútbol base', 'Territorial / autonómico', 'Nacional', 'Otra']) },
+    { k: 'objetivo', t: '¿Qué objetivo tienes?', o: [['examen_acceso', 'Aprobar el examen de acceso'], ['prueba_ascenso', 'Prueba de ascenso'], ['repasar', 'Repasar las reglas'], ['curiosidad', 'Curiosidad']] },
+    { k: 'fecha_examen', t: '¿Cuándo es tu examen?', date: true },
+    { k: 'canal', t: '¿Cómo nos has conocido?', o: same(['Amigos o compañeros', 'Instagram', 'X (Twitter)', 'Google', 'Mi federación o curso', 'Otro']) }
+  ];
+
+  function onboard(root, opts){
+    opts = opts || {};
+    var redirect = safeRedirect(opts.redirect, '/app.html'), uid = null, ans = {}, idx = 0, abroad = false;
+    function steps(){ return QS.filter(function(q){ return !q.only || ans.situacion === q.only; }); }
+    function go(u){ window.location.href = u; }
+    function save(patch, extra){
+      var row = { user_id: uid, saltado: false }; var k; for(k in patch) row[k] = patch[k]; for(k in (extra || {})) row[k] = extra[k];
+      return supabaseClient.from('profiles_onboarding').upsert(row, { onConflict: 'user_id' });
+    }
+    function shell(inner, n, total){
+      var pct = Math.round(n / total * 100);
+      root.innerHTML = '<div class="au"><div class="au-card" role="region" aria-label="Cuéntanos más sobre ti">' + aside() + '<div class="au-main"><button type="button" class="au-close" data-x aria-label="Cerrar y volver a la app">&times;</button><div class="au-body">' +
+        '<div class="au-prog" role="progressbar" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + n + '"><i style="width:' + pct + '%"></i></div><p class="au-prog-t">Pregunta ' + n + ' de ' + total + ' · opcional</p>' + inner + '</div></div></div></div>';
+      root.querySelector('[data-x]').addEventListener('click', function(){ go(redirect); });
+    }
+    function nav(first){
+      return '<div class="au-nav">' + (first ? '<span></span>' : '<button type="button" class="au-ghost" data-back>Atrás</button>') + '<button type="button" class="au-link" data-skip>Saltar</button></div>';
+    }
+    function next(){ idx++; draw(); }
+    function wireNav(){
+      var b = root.querySelector('[data-back]'); if(b) b.addEventListener('click', function(){ abroad = false; idx = Math.max(0, idx - 1); draw(); });
+      var s = root.querySelector('[data-skip]'); if(s) s.addEventListener('click', function(){ abroad = false; next(); });
+    }
+    function done(){
+      root.innerHTML = '<div class="au"><div class="au-card">' + aside() + '<div class="au-main"><div class="au-body"><h1 class="au-title">¡Gracias!</h1><p class="au-sub">Hemos guardado tus respuestas. Te llevamos a la app…</p></div></div></div></div>';
+      save({}, { completado_at: new Date().toISOString(), paso_actual: QS.length }).then(function(){ return supabaseClient.rpc('touch_milestone', { p_name: 'onboarding' }); }).then(function(){}, function(){});
+      setTimeout(function(){ go(redirect); }, 1300);
+    }
+    function draw(){
+      var st = steps(); if(idx >= st.length){ done(); return; }
+      var q = st[idx], inner = '<h1 class="au-title">' + esc(q.t) + '</h1>';
+      if(q.date){
+        var min = new Date().toISOString().slice(0, 10);
+        inner += '<p class="au-sub">Elige la fecha o salta la pregunta si todavía no la sabes.</p><div class="au-field"><input type="date" id="ob-date" min="' + min + '" value="' + esc(ans.fecha_examen || '') + '"></div>' +
+          '<button type="button" class="au-submit" data-date>Guardar y continuar</button><div class="au-switch"><button type="button" class="au-link" data-unknown>Aún no lo sé</button></div>' + nav(idx === 0);
+        shell(inner, idx + 1, st.length);
+        root.querySelector('[data-date]').addEventListener('click', function(){ var v = root.querySelector('#ob-date').value; if(!v) return; ans.fecha_examen = v; save({ fecha_examen: v, paso_actual: idx + 1 }).then(next, next); });
+        root.querySelector('[data-unknown]').addEventListener('click', next);
+        wireNav(); return;
+      }
+      if(abroad){
+        inner = '<h1 class="au-title">¿Dónde vives?</h1><p class="au-sub">Dinos tu país y tu ciudad.</p>' + field('ob-pais', 'País', 'text', 'maxlength="80" autocomplete="country-name"') + field('ob-ciudad', 'Ciudad', 'text', 'maxlength="80" autocomplete="address-level2"') +
+          '<button type="button" class="au-submit" data-pc>Guardar y continuar</button>' + nav(false);
+        shell(inner, idx + 1, st.length);
+        root.querySelector('[data-pc]').addEventListener('click', function(){ var p = root.querySelector('#ob-pais').value.trim(), c = root.querySelector('#ob-ciudad').value.trim(); abroad = false; save({ pais: p || null, ciudad: c || null, paso_actual: idx + 1 }).then(next, next); });
+        wireNav(); return;
+      }
+      inner += '<div class="au-opts' + (q.grid ? ' grid' : '') + '">' + q.o.map(function(x){ return '<button type="button" class="au-opt' + (ans[q.k] === x[0] ? ' is-on' : '') + '" data-v="' + esc(x[0]) + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>' + nav(idx === 0);
+      shell(inner, idx + 1, st.length);
+      [].forEach.call(root.querySelectorAll('.au-opt'), function(b){
+        b.addEventListener('click', function(){
+          var v = b.getAttribute('data-v'); ans[q.k] = v; var patch = {}; patch[q.k] = v; patch.paso_actual = idx + 1;
+          if(q.k === 'federacion' && v === 'Fuera de España'){ abroad = true; save(patch).then(draw, draw); return; }
+          save(patch).then(next, next);
+        });
+      });
+      wireNav();
+    }
+    supabaseClient.auth.getUser().then(function(r){
+      uid = r.data && r.data.user && r.data.user.id;
+      if(!uid){ go('/entrar/?redirect=' + encodeURIComponent('/bienvenida/?perfil=1')); return; }
+      return supabaseClient.from('profiles_onboarding').select('situacion,federacion,categoria,objetivo,fecha_examen,canal').eq('user_id', uid).maybeSingle().then(function(res){
+        var d = res && res.data; if(d){ for(var k in d){ if(d[k]) ans[k] = d[k]; } }
+        draw();
+      }, draw);
+    });
+  }
+
+  window.AuthUI = { mount: mount, openModal: openModal, onboard: onboard };
 })();

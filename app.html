@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=118">
+<link rel="stylesheet" href="assets/css/styles.css?v=119">
 </head>
 <body>
 <div id="app">
@@ -29,7 +29,7 @@
 <script src="assets/js/auth.js?v=4"></script>
 <script src="assets/js/storage-adapter.js?v=2"></script>
 <script src="assets/js/questions-assistants.js?v=1"></script>
-<script src="assets/js/app.js?v=shell75"></script>
+<script src="assets/js/app.js?v=shell76"></script>
 <script src="assets/js/committee.js?v=62"></script>
 <script src="assets/js/qrcode.min.js?v=1"></script>
 <script src="assets/js/attendance.js?v=10"></script>
@@ -46,6 +46,7 @@ let CURRENT_USERNAME = null;
 function startApp(){
   loadStorage();
   if(typeof loadCommitteeStatus==="function") loadCommitteeStatus();
+  if(typeof loadProfileNudge==="function") loadProfileNudge();
   if(typeof attCheckinFromLink==="function") attCheckinFromLink();
   if(typeof liveJoinFromLink==="function") liveJoinFromLink();
   if(isDevUser()){ loadQuestionReports(); loadSuggestions(); }
