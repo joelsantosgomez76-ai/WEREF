@@ -49,8 +49,19 @@ function installIcon(name){
 }
 
 /* Tarjeta de Inicio */
+/* El aviso de Inicio se enseña como máximo una vez por semana (dentro de la misma sesión sigue visible). */
+function installWeeklyOk(){
+  try{
+    if(sessionStorage.getItem('weref_install_session')) return true;
+    const last = Number(localStorage.getItem('weref_install_shown') || 0);
+    if(last && Date.now() - last < 7 * 86400000) return false;
+    localStorage.setItem('weref_install_shown', String(Date.now()));
+    sessionStorage.setItem('weref_install_session', '1');
+    return true;
+  }catch(e){ return true; }
+}
 function installBannerHtml(){
-  if(!installAvailable() || installHidden()) return '';
+  if(!installAvailable() || installHidden() || !installWeeklyOk()) return '';
   const direct = !!INSTALL.deferred;
   return `<section class="inst-banner" aria-label="Instalar la app">
     <button type="button" class="inst-x" data-action="install-dismiss" aria-label="Ahora no">✕</button>

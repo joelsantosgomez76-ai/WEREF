@@ -3383,7 +3383,68 @@ function academiaView(){
   `;
 }
 
+/* ---------------- INICIO ----------------
+   Datos que usa (todos ya existentes, nada nuevo en la base de datos):
+   · racha ............ computeStreak() + STATE.storage.activeDays (días con actividad)
+   · acierto reciente .. recentPerformance(20) sobre STATE.storage.testHistory
+   · progreso global ... overallStats()
+   · puntos y rango .... computePoints(), currentRank(), nextRankInfo()
+   · liga .............. STATE.leagueSummary (loadLeagueSummary) → mejor posición entre los 3 modos
+   · coronas ........... STATE.storage.crownLevels[regla] (0-4)
+   · examen ............ próximo evento de tipo "exam" en STATE.storage.calendarEvents
+   · fallos pendientes . lawStats('failed')
+   · regla más floja ... weakestRuleRecent(20)
+   · comité ............ COMMITTEE.status / COMMITTEE.myTests */
+const LAW_SHORT = {1:'Terreno de juego', 2:'El balón', 3:'Los jugadores', 4:'Equipamiento', 5:'El árbitro', 6:'Equipo arbitral', 7:'Duración del partido', 8:'Inicio y reanudación', 9:'Balón en juego', 10:'Resultado', 11:'Fuera de juego', 12:'Faltas y conducta', 13:'Tiros libres', 14:'Tiro penal', 15:'Saque de banda', 16:'Saque de meta', 17:'Saque de esquina'};
+const IH_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10.3 3.9-8.4 14.5A2 2 0 0 0 3.6 21.4h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+const IH_CROWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19h18l1.2-11-5.2 4.2L12 4.5 7 12.2 1.8 8z" fill="currentColor"/></svg>';
+const IH_WEEK = ['L','M','X','J','V','S','D'];
+
+/* Los 7 días de la semana actual (lunes a domingo) y si hubo actividad cada día. */
+function ihWeekDots(){
+  const days = activeDaysSet();
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  return IH_WEEK.map((l, i) => {
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    return { l, on: days.has(dayKey(d.getTime())), today: dayKey(d.getTime()) === dayKey(now.getTime()), future: d.getTime() > now.getTime() };
+  });
+}
+
+/* Estado de una regla: sin empezar / en progreso / dominada (mismo criterio que la insignia "Maestro de Regla"). */
+function ihRuleState(i){
+  const s = lawStats(i);
+  const crown = (STATE.storage.crownLevels || {})[i] || 0;
+  const state = s.attempted === 0 ? 'new' : (s.total > 0 && s.attempted === s.total && s.accuracyPct >= 90) ? 'mastered' : 'progress';
+  return { s, crown, state };
+}
+
+/* Las 3 reglas más flojas: con al menos 5 respuestas y menos de 75 % de acierto. */
+function ihWeakSet(){
+  const rows = [];
+  for(let i = 1; i <= 17; i++){
+    const s = lawStats(i);
+    if(s.attempted >= 5 && s.accuracyPct < 75) rows.push({ i, acc: s.accuracyPct, n: s.attempted });
+  }
+  rows.sort((a, b) => a.acc - b.acc || b.n - a.n);
+  return new Set(rows.slice(0, 3).map(r => r.i));
+}
+
+/* Datos asíncronos de Inicio: se piden una sola vez y mientras tanto se pintan skeletons. */
+function ihEnsureData(){
+  if(STATE.leagueSummary === null && !STATE.homeLeagueBusy){
+    STATE.homeLeagueBusy = true;
+    setTimeout(() => { Promise.resolve(loadLeagueSummary()).finally(() => { STATE.homeLeagueBusy = false; }); }, 0);
+  }
+  const cst = (typeof COMMITTEE !== 'undefined') ? COMMITTEE.status : null;
+  if(cst && cst.is_member && COMMITTEE.myTests === null && !STATE.homeCmBusy){
+    STATE.homeCmBusy = true;
+    setTimeout(() => { Promise.resolve(cmLoadMyTests()).then(() => { if(STATE.view === 'home') render(); }).finally(() => { STATE.homeCmBusy = false; }); }, 0);
+  }
+}
+
 function homeView(){
+  ihEnsureData();
   const os = overallStats();
   const points = computePoints();
   const rank = currentRank(points);
@@ -3398,187 +3459,187 @@ function homeView(){
   const hour = new Date().getHours();
   const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
   const ic = (n) => shellIcon(n);
+  const SKEL = '<span class="skel" style="display:inline-block;width:56px;height:1em;vertical-align:middle"></span>';
+  const isNew = os.attempted === 0 && streak === 0 && (STATE.storage.testHistory || []).length === 0;
 
-  const heroTitle = today >= goal ? '¡Objetivo de hoy cumplido!'
+  /* ---- 1 · banner principal ---- */
+  const heroTitle = isNew ? 'Empieza con el test de nivel'
+    : today >= goal ? '¡Objetivo de hoy cumplido!'
     : today > 0 ? `Llevas ${today} de ${goal} preguntas hoy`
     : 'Prepárate para tu próximo examen';
-  const heroSub = next
-    ? `${rank.name} · ${points} puntos · te faltan ${next.remaining} para ser ${next.name}`
-    : `${rank.name} · ${points} puntos · has alcanzado el rango máximo`;
-  const heroPrimary = weak
-    ? `<button class="btn btn-yellow" data-action="open-law" data-law="${weak.rule}">${ic('play')} Reforzar Regla ${weak.rule}</button>`
-    : `<button class="btn btn-yellow" data-action="train-config">${ic('play')} Empezar a entrenar</button>`;
-
-  const hero = `
-  <section class="home-hero">
-    <div>
-      <div class="home-eyebrow">${greeting}${name ? ', ' + esc(name) : ''}</div>
-      <h1>${heroTitle}</h1>
-      <p>${heroSub}</p>
-      <div class="home-hero-actions">
-        ${heroPrimary}
-        <button class="btn home-btn-light" data-action="start-daily-goal" data-count="10">${ic('zap')} Test rápido · 10 preguntas</button>
-      </div>
-    </div>
-    <button class="home-hero-rank" data-action="achievements" title="Ver tu rango e insignias">
-      <div class="ring">${ringSVG(next ? next.progressPct : 100, 84, 7)}<div class="pct" style="font-size:14px;">${points}</div></div>
-      <div><div class="rank-name">${esc(rank.name)}</div><div class="rank-sub">${next ? next.progressPct + '% hacia ' + esc(next.name) : 'Rango máximo'}</div></div>
-    </button>
+  const heroPrimary = isNew
+    ? `<button class="btn btn-primary" data-action="start-daily-goal" data-count="10">${ic('play')} Hacer el test · 10 preguntas</button>`
+    : weak
+      ? `<button class="btn btn-primary" data-action="open-law" data-law="${weak.rule}">${ic('play')} Reforzar Regla ${weak.rule}</button>`
+      : `<button class="btn btn-primary" data-action="train-config">${ic('play')} Empezar a entrenar</button>`;
+  const heroSecondary = isNew
+    ? `<button class="btn ih-btn-ghost" data-action="train-config">Crear test personalizado</button>`
+    : `<button class="btn ih-btn-ghost" data-action="start-daily-goal" data-count="10">${ic('zap')} Test rápido · 10 preguntas</button>`;
+  const week = ihWeekDots();
+  const stats = isNew
+    ? `<p class="ih-new-note">Responde 10 preguntas y empezaremos a medir tu racha, tu acierto y tu progreso.</p>`
+    : `<div class="ih-strip">
+      <button class="ih-stat ih-streak" data-action="streak-calendar" aria-label="Racha de ${streak} ${streak === 1 ? 'día' : 'días'}. Abrir calendario">
+        <span class="ih-stat-label">${ic('flame')} Racha</span>
+        <span class="ih-week" aria-hidden="true">${week.map(d => `<i class="${d.on ? 'on' : ''} ${d.today ? 'today' : ''} ${d.future ? 'future' : ''}">${d.l}</i>`).join('')}</span>
+        <span class="ih-stat-val">${streak}<small> ${streak === 1 ? 'día' : 'días'}</small></span>
+      </button>
+      <button class="ih-stat ih-opt" data-action="recent-performance">
+        <span class="ih-stat-label">${ic('target')} Acierto reciente</span>
+        <span class="ih-stat-val">${rp ? rp.pct + '<small>%</small>' : '—'}</span>
+      </button>
+      <button class="ih-stat ih-opt" data-action="stats">
+        <span class="ih-stat-label">${ic('chart')} Progreso</span>
+        <span class="ih-stat-val">${os.completionPct}<small>%</small></span>
+      </button>
+    </div>`;
+  const hero = `<section class="ih-hero">
+    <div class="ih-eyebrow">${greeting}${name ? ', ' + esc(name) : ''}</div>
+    <h1>${heroTitle}</h1>
+    <div class="ih-hero-actions">${heroPrimary}${heroSecondary}</div>
+    ${stats}
   </section>`;
 
-  const kpis = `
-  <div class="home-kpis">
-    <button class="kpi" data-action="stats">
-      <div class="kpi-top">${ic('chart')} Progreso</div>
-      <div class="kpi-val">${os.completionPct}<small>%</small></div>
-      <div class="kpi-bar"><div style="width:${os.completionPct}%"></div></div>
-      <div class="kpi-sub">${os.attempted} de ${os.total} preguntas</div>
-    </button>
-    <button class="kpi" data-action="recent-performance">
-      <div class="kpi-top">${ic('target')} Acierto reciente</div>
-      <div class="kpi-val" ${rp ? `style="color:${scoreColor(rp.pct)};"` : ''}>${rp ? rp.pct + '<small>%</small>' : '—'}</div>
-      <div class="kpi-sub">${rp ? 'en tus últimos 20 tests' : 'Completa un test para verlo'}</div>
-    </button>
-    <button class="kpi" data-action="streak-calendar">
-      <div class="kpi-top">${ic('flame')} Racha</div>
-      <div class="kpi-val">${streak}<small> ${streak === 1 ? 'día' : 'días'}</small></div>
-      <div class="kpi-sub">${streak === 0 ? 'Empieza hoy tu racha' : `Mejor racha: ${Math.max(streak, STATE.storage.maxStreak || 0)} días`}</div>
-    </button>
-    <div class="kpi">
-      <div class="kpi-top">${ic('check')} Objetivo de hoy</div>
-      <div class="kpi-val">${today}<small> / ${goal}</small></div>
-      <div class="kpi-bar"><div style="width:${goalPct}%; ${goalPct >= 100 ? 'background:var(--green-ok);' : ''}"></div></div>
-      <div class="kpi-sub">${goalPct >= 100 ? '¡Cumplido!' : `Te faltan ${goal - today} preguntas`}</div>
-    </div>
-  </div>`;
-
-  /* Reglas de Juego */
-  let cards = '';
-  for(let i = 1; i <= 17; i++){
-    const s = lawStats(i);
-    const crownLevel = (STATE.storage.crownLevels || {})[i] || 0;
-    cards += `<button class="law-card" data-action="open-law" data-law="${i}">
-      ${crownBadge(crownLevel)}
-      <div class="law-icon">${LAW_ICONS[i]}</div>
-      <div class="law-num">${i}</div>
-      <div class="law-name">${esc(LAW_NAMES[i])}</div>
-      <div class="law-meta">
-        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${s.completionPct}%"></div></div>
-        <div class="law-pct">${s.completionPct}%</div>
-      </div>
-      <div class="law-sub">${lawSubLine(s)}</div>
-    </button>`;
+  /* ---- 2 · tarjeta "Tu nivel" ---- */
+  const R = 38, C = 2 * Math.PI * R, ringPct = next ? next.progressPct : 100;
+  const ring = `<svg viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="${R}" fill="none" stroke="var(--c-line)" stroke-width="8"/><circle cx="44" cy="44" r="${R}" fill="none" stroke="var(--c-progress)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${(C * (1 - ringPct / 100)).toFixed(2)}" transform="rotate(-90 44 44)"/></svg>`;
+  const modeNames = { hearts: 'Corazones', suddendeath: 'Muerte Súbita', timeattack: 'Contrarreloj' };
+  let leagueVal;
+  const ls = STATE.leagueSummary;
+  if(!ls) leagueVal = SKEL;
+  else {
+    const ranked = Object.keys(ls).filter(k => ls[k] !== null && ls[k] !== undefined).map(k => ({ k, r: ls[k] })).sort((a, b) => a.r - b.r);
+    leagueVal = ranked.length ? `<b>#${ranked[0].r}</b> <small>${modeNames[ranked[0].k] || ''}</small>` : '<small>Sin clasificar</small>';
   }
-
-  /* Salas especiales: van en la misma cuadrícula que las 17 reglas */
-  const gs = lawStats('glossary');
-  const hs = lawStats('hard');
-  const fs2 = lawStats('failed');
-  const failRatio = os.attempted > 0 ? Math.round(fs2.total / os.attempted * 100) : 0;
-  cards += `<button class="law-card law-card-failed" data-action="open-law" data-law="failed">
-      <div class="law-icon">${ic('repeat')}</div>
-      <div class="law-num">R</div>
-      <div class="law-name">Sala de Repaso</div>
-      <div class="hard-tag">Preguntas falladas</div>
-      <div class="law-meta">
-        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${failRatio}%; background:var(--yellow-ink);"></div></div>
-        <div class="law-pct">${failRatio}%</div>
-      </div>
-      <div class="law-sub">${fs2.total === 0 ? '<span class="law-sub-muted">¡Nada pendiente!</span>' : fs2.total + (fs2.total === 1 ? ' pregunta por repasar' : ' preguntas por repasar')}</div>
-    </button>
-    <button class="law-card law-card-hard" data-action="open-law" data-law="hard">
-      <div class="law-icon">${ic('shield')}</div>
-      <div class="law-num">VAR</div>
-      <div class="law-name">Sala VAR</div>
-      <div class="hard-tag">Modo difícil</div>
-      <div class="law-meta">
-        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${hs.completionPct}%; background:var(--red);"></div></div>
-        <div class="law-pct">${hs.completionPct}%</div>
-      </div>
-      <div class="law-sub">${hs.total === 0 ? '<span class="law-sub-muted">Todavía no hay ninguna</span>' : lawSubLine(hs)}</div>
-    </button>
-    <button class="law-card" data-action="open-law" data-law="glossary">
-      <div class="law-icon">${ic('glossary')}</div>
-      <div class="law-num">G</div>
-      <div class="law-name">Preguntas Glosario</div>
-      <div class="law-meta">
-        <div class="law-bar-bg"><div class="law-bar-fill" style="width:${gs.completionPct}%"></div></div>
-        <div class="law-pct">${gs.completionPct}%</div>
-      </div>
-      <div class="law-sub">${lawSubLine(gs)}</div>
-    </button>`;
-
-  /* Columna derecha */
   const todayISO = todayKeyISO();
-  const nextEvent = (STATE.storage.calendarEvents || [])
-    .filter(ev => ev.date >= todayISO)
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
-  let eventHtml;
-  if(nextEvent){
-    const t = CALENDAR_EVENT_TYPES[nextEvent.type] || CALENDAR_EVENT_TYPES.other;
-    const daysUntil = Math.round((new Date(nextEvent.date + 'T00:00:00') - new Date(todayISO + 'T00:00:00')) / 86400000);
-    const whenLabel = daysUntil === 0 ? 'Es hoy' : daysUntil === 1 ? 'Es mañana' : `Faltan ${daysUntil} días`;
-    eventHtml = `<button class="qcard home-card-btn" data-action="streak-calendar">
-      <div class="home-card-title">${ic('calendar')} Próximo evento</div>
-      <div class="home-card-text"><strong>${t.icon} ${esc(nextEvent.title)}</strong></div>
-      <div class="home-card-text">${formatEventDate(nextEvent.date)}</div>
-      <div class="home-card-text" style="color:${t.color}; font-weight:700;">${whenLabel}</div>
-      <div class="home-card-link">Ver calendario →</div>
-    </button>`;
+  const nextExam = (STATE.storage.calendarEvents || []).filter(ev => ev.type === 'exam' && ev.date >= todayISO).sort((a, b) => a.date.localeCompare(b.date))[0];
+  let examRow;
+  if(nextExam){
+    const d = Math.round((new Date(nextExam.date + 'T00:00:00') - new Date(todayISO + 'T00:00:00')) / 86400000);
+    examRow = `<button class="ih-row" data-action="streak-calendar"><span class="ih-row-l">${ic('calendar')} Examen</span><span class="ih-row-r"><b>${d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : d + ' días'}</b> <small>${esc(formatEventDate(nextExam.date))}</small></span></button>`;
   } else {
-    eventHtml = `<button class="qcard home-card-btn" data-action="streak-calendar">
-      <div class="home-card-title">${ic('calendar')} Calendario de estudio</div>
-      <div class="home-card-text" style="color:var(--muted);">Apunta tus exámenes y fechas importantes para no perder el ritmo.</div>
-      <div class="home-card-link">Abrir calendario →</div>
-    </button>`;
+    examRow = `<button class="ih-row" data-action="streak-calendar"><span class="ih-row-l">${ic('calendar')} Examen</span><span class="ih-row-r ih-add">Añade la fecha de tu examen</span></button>`;
   }
+  const level = isNew
+    ? `<aside class="ih-level" aria-label="Tu nivel">
+        <h2>Tu nivel</h2>
+        <div class="ih-newblock"><strong>Empieza con el test de nivel</strong><span>Con tus primeras 10 respuestas verás aquí tus puntos y tu rango.</span>
+        <button class="btn btn-secondary" data-action="start-daily-goal" data-count="10">Hacer el test</button></div>
+        ${examRow}
+      </aside>`
+    : `<aside class="ih-level" aria-label="Tu nivel">
+        <h2>Tu nivel</h2>
+        <button class="ih-level-main" data-action="achievements" aria-label="Tu rango: ${esc(rank.name)}, ${points} puntos. Ver insignias">
+          <span class="ih-ring">${ring}<b>${points}</b></span>
+          <span class="ih-rank"><strong>${esc(rank.name)}</strong><small>${next ? '→ ' + esc(next.name) + ' · faltan ' + next.remaining : 'Rango máximo'}</small></span>
+        </button>
+        <button class="ih-row" data-action="dailyChallenge"><span class="ih-row-l">${ic('trophy')} WEREF League</span><span class="ih-row-r">${leagueVal}</span></button>
+        ${examRow}
+        <button class="ih-link" data-action="streak-calendar">Ver calendario →</button>
+      </aside>`;
 
-  const weakHtml = weak
-    ? `<button class="qcard home-card-btn" data-action="open-law" data-law="${weak.rule}">
-        <div class="home-card-title">${ic('target')} Recomendación para hoy</div>
-        <div class="home-card-text"><strong>Regla ${weak.rule} · ${esc(LAW_NAMES[weak.rule])}</strong></div>
-        <div class="home-card-text" style="color:${scoreColor(weak.pct)}; font-weight:700;">${weak.pct}% de acierto: es tu regla más floja</div>
-        <div class="home-card-link">Practicar ahora →</div>
-      </button>`
-    : `<div class="qcard">
-        <div class="home-card-title">${ic('target')} Recomendación para hoy</div>
-        <div class="home-card-text" style="color:var(--muted);">Completa algunos tests y aquí te diré qué regla conviene reforzar.</div>
-      </div>`;
-
+  /* ---- 3 · Hoy te toca ---- */
+  const failed = lawStats('failed').total;
   const cst = (typeof COMMITTEE !== 'undefined') ? COMMITTEE.status : null;
-  const committeeHtml = (cst && (cst.is_admin || cst.is_member))
-    ? `<button class="qcard home-card-btn" data-action="committee-open">
-        <div class="home-card-title">${ic('users')} CTA BAGES</div>
-        <div class="home-card-text" style="color:var(--muted);">${cst.is_admin ? 'Tests y mensajes del comité. Se preparan en el Panel de Formación.' : 'Tests mensuales del comité de árbitros.'}</div>
-        <div class="home-card-link">Entrar →</div>
-      </button>`
-    : '';
+  let cmOpen = 0;
+  if(cst && cst.is_member && Array.isArray(COMMITTEE.myTests)){
+    const done = new Set((COMMITTEE.myAttempts || []).map(a => a.test_id));
+    cmOpen = COMMITTEE.myTests.filter(t => Date.parse(t.opens_at) <= Date.now() && !done.has(t.id)).length;
+  }
+  const todo = [];
+  if(!isNew){
+    todo.push(`<button class="ih-todo" data-action="open-law" data-law="failed">
+      <span class="ih-todo-ic">${ic('repeat')}</span>
+      <span class="ih-todo-t">Sala de Repaso</span>
+      <span class="ih-todo-big">${failed}</span>
+      <span class="ih-todo-d">${failed === 0 ? '¡Nada pendiente!' : failed === 1 ? 'pregunta por repasar' : 'preguntas por repasar'}</span>
+    </button>`);
+    todo.push(weak
+      ? `<button class="ih-todo" data-action="start-quiz" data-law="${weak.rule}" data-mode="short">
+          <span class="ih-todo-ic">${ic('target')}</span>
+          <span class="ih-todo-t">Tu punto débil</span>
+          <span class="ih-todo-name">Regla ${weak.rule} · ${esc(LAW_SHORT[weak.rule])}</span>
+          <span class="ih-todo-d">10 preguntas para mejorarla</span>
+        </button>`
+      : `<button class="ih-todo" data-action="start-daily-goal" data-count="10">
+          <span class="ih-todo-ic">${ic('target')}</span>
+          <span class="ih-todo-t">Tu punto débil</span>
+          <span class="ih-todo-name">Aún lo estamos midiendo</span>
+          <span class="ih-todo-d">Haz unos tests y te diremos qué regla reforzar</span>
+        </button>`);
+  } else {
+    todo.push(`<button class="ih-todo" data-action="open-law" data-law="1">
+      <span class="ih-todo-ic">${ic('book')}</span>
+      <span class="ih-todo-t">Empieza por el principio</span>
+      <span class="ih-todo-name">Regla 1 · ${esc(LAW_SHORT[1])}</span>
+      <span class="ih-todo-d">Estudia una regla y practícala</span>
+    </button>`);
+  }
+  todo.push(`<button class="ih-todo ih-todo-main" data-action="start-daily-goal" data-count="10">
+    <span class="ih-todo-ic">${ic('zap')}</span>
+    <span class="ih-todo-t">${isNew ? 'Test rápido' : 'Reto del día'}</span>
+    <span class="ih-todo-name">${isNew ? '10 preguntas al azar' : today >= goal ? '¡Objetivo cumplido!' : `Llevas ${today} de ${goal}`}</span>
+    ${isNew ? '' : `<span class="ih-todo-bar" aria-hidden="true"><i style="width:${goalPct}%"></i></span>`}
+    <span class="ih-todo-d">Test rápido · 10 preguntas</span>
+  </button>`);
+  if(cmOpen > 0){
+    todo.push(`<button class="ih-todo ih-todo-sm" data-action="committee-open">
+      <span class="ih-todo-ic">${ic('users')}</span>
+      <span class="ih-todo-t">CTA BAGES</span>
+      <span class="ih-todo-d">${cmOpen === 1 ? 'Tienes 1 test abierto' : 'Tienes ' + cmOpen + ' tests abiertos'}</span>
+    </button>`);
+  }
+  const todaySection = `<section class="ih-section ih-s-today" aria-labelledby="ih-h-today">
+    <div class="ih-head"><h2 id="ih-h-today">Hoy te toca</h2></div>
+    <div class="ih-today">${todo.join('')}</div>
+  </section>`;
 
-  const suggestHtml = `<div class="home-panel" style="text-align:center;">
-    <div style="font-weight:700; font-size:14px; color:var(--pitch); margin-bottom:4px;">Construyamos WEREF juntos</div>
-    <div style="font-size:12.5px; color:var(--muted); margin-bottom:12px;">¿Una idea o algo que mejorar? Cuéntanoslo.</div>
-    <button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="open-suggest">Enviar una sugerencia</button>
-  </div>`;
+  /* ---- 4 · las 17 reglas ---- */
+  const weakSet = ihWeakSet();
+  const filter = STATE.homeFilter || 'all';
+  const rows = [];
+  for(let i = 1; i <= 17; i++) rows.push(Object.assign({ i }, ihRuleState(i), { weak: weakSet.has(i) }));
+  const counts = { all: 17, weak: rows.filter(r => r.weak).length, new: rows.filter(r => r.state === 'new').length, mastered: rows.filter(r => r.state === 'mastered').length };
+  const chips = [['all', 'Todas'], ['weak', 'Flojas'], ['new', 'Sin empezar'], ['mastered', 'Dominadas']].map(([k, label]) =>
+    `<button type="button" class="ih-chip ${filter === k ? 'on' : ''}" data-action="home-filter" data-filter="${k}" aria-pressed="${filter === k}">${label}${k === 'all' ? '' : ' <b>' + counts[k] + '</b>'}</button>`).join('');
+  const stLabel = { new: 'Sin empezar', progress: 'En progreso', mastered: 'Dominada' };
+  const shown = rows.filter(r => filter === 'all' || (filter === 'weak' && r.weak) || (filter === 'new' && r.state === 'new') || (filter === 'mastered' && r.state === 'mastered'));
+  const cards = shown.map(r => `<button class="ih-rule st-${r.state} ${r.weak ? 'is-weak' : ''}" data-action="open-law" data-law="${r.i}" aria-label="Regla ${r.i}, ${esc(LAW_SHORT[r.i])}. ${stLabel[r.state]}, ${r.s.completionPct}% completado${r.crown ? ', ' + r.crown + ' de 4 coronas' : ''}${r.weak ? '. Es una de tus reglas más flojas' : ''}">
+    <span class="ih-rule-top"><b>${r.i}</b>${r.weak ? `<span class="ih-warn" title="Una de tus reglas más flojas">${IH_WARN}</span>` : ''}</span>
+    <span class="ih-rule-name">${esc(LAW_SHORT[r.i])}</span>
+    <span class="ih-crowns" aria-hidden="true">${[1,2,3,4].map(n => `<i class="${n <= r.crown ? 'on' : ''}">${IH_CROWN}</i>`).join('')}</span>
+    <span class="ih-prog" aria-hidden="true"><i style="width:${r.s.completionPct}%"></i></span>
+  </button>`).join('');
+  const rulesSection = `<section class="ih-section ih-s-rules" aria-labelledby="ih-h-rules">
+    <div class="ih-head"><h2 id="ih-h-rules">Las 17 reglas</h2><div class="ih-chips" role="group" aria-label="Filtrar reglas">${chips}</div></div>
+    ${shown.length ? `<div class="ih-rules">${cards}</div>` : `<div class="ih-empty">${filter === 'weak' ? 'Aún no hay reglas flojas. ¡Sigue así!' : filter === 'mastered' ? 'Todavía no has dominado ninguna regla.' : 'No hay reglas en esta lista.'}</div>`}
+  </section>`;
+
+  /* ---- 5 · modos especiales ---- */
+  const hs = lawStats('hard');
+  const gs = lawStats('glossary');
+  const modesSection = `<section class="ih-section ih-s-modes" aria-labelledby="ih-h-modes">
+    <div class="ih-head"><h2 id="ih-h-modes">Modos especiales</h2></div>
+    <div class="ih-modes">
+      <button class="ih-mode" data-action="open-law" data-law="failed"><span class="ih-mode-ic">${ic('repeat')}</span><strong>Sala de Repaso</strong><span>Vuelve a las preguntas que has fallado hasta dominarlas.</span></button>
+      <button class="ih-mode ih-mode-var" data-action="open-law" data-law="hard"><span class="ih-mode-ic">${ic('shield')}</span><strong>Sala VAR</strong><span>Las preguntas más difíciles de la plataforma.</span><em>${hs.total === 0 ? 'Todavía no hay ninguna' : hs.total + ' preguntas'}</em></button>
+      <button class="ih-mode" data-action="open-law" data-law="glossary"><span class="ih-mode-ic">${ic('glossary')}</span><strong>Glosario</strong><span>Términos y definiciones de las Reglas de Juego.</span><em>${gs.total} preguntas</em></button>
+      <button class="ih-mode" data-action="train-config"><span class="ih-mode-ic">${ic('settings')}</span><strong>Test personalizado</strong><span>Elige reglas, número de preguntas, tiempo y modo.</span></button>
+    </div>
+  </section>`;
+
+  const install = (typeof installBannerHtml === 'function') ? installBannerHtml() : '';
+  const nudge = (typeof profileNudgeHtml === 'function') ? profileNudgeHtml() : '';
 
   return `
-  ${hero}
-  ${typeof installBannerHtml === 'function' ? installBannerHtml() : ''}
-  ${typeof profileNudgeHtml === 'function' ? profileNudgeHtml() : ''}
-  ${kpis}
-  <div class="home-cols">
-    <div class="home-left">
-      <div class="home-section-head">
-        <h2>Reglas de Juego</h2>
-        <button class="btn btn-secondary" style="padding:8px 14px; font-size:12.5px;" data-action="train-config">+ Crear test personalizado</button>
-      </div>
-      <div class="law-grid">${cards}</div>
-    </div>
-    <aside class="home-right">
-      ${weakHtml}
-      ${eventHtml}
-      ${committeeHtml}
-      ${suggestHtml}
-    </aside>
+  <div class="ih">
+    <div class="ih-top">${hero}${level}</div>
+    ${nudge}
+    ${todaySection}
+    ${rulesSection}
+    ${modesSection}
+    ${install}
+    <p class="ih-foot">¿Una idea o algo que mejorar? <button type="button" data-action="open-suggest">Cuéntanoslo</button></p>
   </div>
   `;
 }
@@ -5485,6 +5546,7 @@ function onAction(e){
 
   if(action==='logout'){ stopTimer(); if(typeof handleLogout==='function') handleLogout(); }
   else if(action==='home'){ stopTimer(); STATE.view='home'; render(); }
+  else if(action==='home-filter'){ STATE.homeFilter = el.dataset.filter || 'all'; render(); }
   else if(action==='menu'){ STATE.view='menu'; render(); }
   else if(action==='open-law'){ STATE.lawId=law; STATE.view='law'; render(); }
   else if(action==='start-quiz'){ startQuiz(law, el.dataset.mode); }
@@ -5886,8 +5948,8 @@ async function loadProfileNudge(){
 function profileNudgeHtml(){
   if(!STATE.profileNudge) return '';
   return `<section class="profile-nudge" role="region" aria-label="Completa tu perfil">
-    <div class="pn-text"><strong>Cuéntanos más sobre ti</strong><span>Opcional · 1 minuto. Así podemos conocerte mejor y mejorar WEREF.</span></div>
-    <a class="btn btn-yellow pn-btn" href="/bienvenida/?perfil=1">Completar</a>
+    <div class="pn-text"><strong>Cuéntanos más sobre ti</strong><span>Opcional · 1 minuto</span></div>
+    <a class="pn-link" href="/bienvenida/?perfil=1">Completar</a>
     <button type="button" class="pn-x" data-action="profile-nudge-close" aria-label="Cerrar este aviso">&times;</button>
   </section>`;
 }
