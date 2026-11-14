@@ -1,0 +1,84 @@
+/* =============================================================================
+   WEREF · tokens de diseño de la APP (app.html)
+   Único sitio donde se definen colores, espaciado, radios, sombras y escala tipográfica.
+   Se carga DESPUÉS de styles.css: los nombres antiguos (--pitch, --accent, --green-ok...) pasan a ser
+   alias de estos tokens, así que cualquier pantalla que ya los use hereda el sistema sin tocarla.
+
+   REGLA DE COLOR (paleta funcional)
+     Amarillo = acción principal      Naranja = progreso
+     Verde    = SOLO respuesta correcta
+     Rojo     = SOLO respuesta incorrecta y acciones destructivas
+     Todo lo demás: neutros.
+   ============================================================================= */
+:root{
+  /* ---- neutros ---- */
+  --c-black:#0A0B0E;
+  --c-pitch:#16181D;
+  --c-pitch-2:#22262E;
+  --c-ink:#17181C;
+  --c-muted:#5F6068;            /* texto secundario sobre claro: contraste AA (6:1) */
+  --c-line:#E7E5E2;
+  --c-line-strong:#C9CDD3;
+  --c-paper:#FAFAF8;
+  --c-paper-2:#F4F3EF;
+  --c-card:#FFFFFF;
+  --c-on-dark:#FFFFFF;
+  --c-on-dark-2:rgba(255,255,255,.72);
+
+  /* ---- acción principal (amarillo) ---- */
+  --c-action:#FFC93C;
+  --c-action-hover:#FFD45E;
+  --c-action-ink:#1A1400;       /* texto sobre amarillo: contraste > 12:1 */
+
+  /* ---- progreso (naranja) ---- */
+  --c-progress:#FF6A2B;
+  --c-progress-dark:#E0541A;
+  --c-progress-ink:#B53A0A;     /* naranja usable como TEXTO sobre claro (AA) */
+
+  /* ---- respuesta correcta (verde, solo aquí) ---- */
+  --c-ok:#17794F;
+  --c-ok-bg:#EAF7EF;
+  --c-ok-line:#BFE6CF;
+
+  /* ---- respuesta incorrecta y destructivo (rojo, solo aquí) ---- */
+  --c-bad:#C42222;
+  --c-bad-bg:#FDECEC;
+  --c-bad-line:#F3C4C4;
+
+  /* ---- espaciado (base 4) ---- */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px;
+
+  /* ---- radios ---- */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px; --r-pill:999px;
+
+  /* ---- sombras ---- */
+  --sh-1:0 1px 2px rgba(20,20,22,.06), 0 2px 8px rgba(20,20,22,.06);
+  --sh-2:0 4px 18px rgba(20,20,22,.10);
+  --sh-focus:0 0 0 3px rgba(255,201,60,.55);
+
+  /* ---- escala tipográfica ---- */
+  --fs-xs:12px; --fs-sm:13.5px; --fs-base:15px; --fs-md:17px; --fs-lg:20px; --fs-xl:24px; --fs-2xl:28px; --fs-3xl:40px; --fs-display:64px;
+  --ff-display:'Oswald', sans-serif;
+  --ff-body:'Work Sans', system-ui, sans-serif;
+  --ff-mono:'JetBrains Mono', monospace;
+
+  /* ---- movimiento ---- */
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --t-fast:.12s; --t-base:.2s;
+
+  /* ---- alias de los nombres antiguos (styles.css los sigue usando) ---- */
+  --pitch:var(--c-pitch);
+  --pitch-dark:var(--c-black);
+  --accent:var(--c-progress);
+  --accent-dark:var(--c-progress-dark);
+  --chalk:var(--c-paper);
+  --chalk-card:var(--c-card);
+  --ink:var(--c-ink);
+  --muted:var(--c-muted);
+  --line:var(--c-line);
+  --yellow:var(--c-action);
+  --red:var(--c-bad);
+  --green-ok:var(--c-ok);
+  --radius:var(--r-lg);
+  --shadow:var(--sh-1);
+}

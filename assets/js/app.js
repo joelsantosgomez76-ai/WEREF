@@ -66,6 +66,19 @@ async function reportQuestion(qid){
   }catch(e){ /* aviso ya mostrado igualmente; el fallo de red no debe bloquear al usuario */ }
 }
 
+/* Modal de confirmación antes de enviar el aviso de error (guarda en question_reports con el id de la pregunta). */
+async function reportQuestionDialog(qid){
+  if(STATE.reportedIds[qid]) return;
+  const ok = await appConfirm({
+    icon: 'flag',
+    title: 'Reportar error en esta pregunta',
+    message: 'Avisaremos al equipo para que la revise: enunciado, respuestas o explicación. No se mostrará tu nombre.',
+    confirmText: 'Enviar aviso',
+    cancelText: 'Cancelar'
+  });
+  if(ok) reportQuestion(qid);
+}
+
 async function loadQuestionReports(quiet){
   if(!isDevUser()) return;
   try{
@@ -1285,8 +1298,8 @@ const PROFILE_COUNTRIES = ['Alemania','Andorra','Argelia','Argentina','Australia
 
 const CALENDAR_EVENT_TYPES = {
   exam: { label: 'Examen teórico', icon: '📝', color: '#D62828', bg: '#FBE0E0' },
-  physical: { label: 'Prueba física', icon: '🏃', color: '#1D6FE0', bg: '#DFEBFC' },
-  meeting: { label: 'Reunión de comité', icon: '👥', color: '#8033D6', bg: '#EDE0FB' },
+  physical: { label: 'Prueba física', icon: '🏃', color: '#17181C', bg: '#ECEEF1' },
+  meeting: { label: 'Reunión de comité', icon: '👥', color: '#5F6068', bg: '#ECEEF1' },
   other: { label: 'Otro', icon: '📌', color: '#C98A00', bg: '#FBEECB' }
 };
 
@@ -1493,7 +1506,7 @@ function startTimeAttackMode(){
   });
 }
 
-const CROWN_COLORS = ['', '#B87333', '#9AA0A6', '#E3A008', '#4FC3D9'];
+const CROWN_COLORS = ['', '#B87333', '#9AA0A6', '#E3A008', '#FF6A2B'];
 function crownColor(level){ return CROWN_COLORS[Math.min(level,4)] || '#B87333'; }
 function crownBadge(level){
   if(!level) return '';
@@ -1556,20 +1569,16 @@ function overallStats(){
 }
 
 function accuracyBadge(pct){
-  let color = 'var(--red)', bg = '#FDECEC';
-  if(pct >= 85){ color = 'var(--green-ok)'; bg = '#EAF7EF'; }
-  else if(pct >= 60){ color = 'var(--yellow-ink)'; bg = '#FFF6DE'; }
-  return `<span class="acc-badge" style="background:${bg}; color:${color};">${pct}%</span>`;
+  /* Paleta funcional: verde y rojo solo para respuestas correctas/incorrectas; un porcentaje es un dato neutro. */
+  return `<span class="acc-badge" style="background:var(--c-paper-2); color:var(--c-ink);">${pct}%</span>`;
 }
 
 function scoreColor(pct){
-  if(pct >= 85) return 'var(--green-ok)';
-  if(pct >= 60) return 'var(--yellow-ink)';
-  return 'var(--red)';
+  return 'var(--c-ink)';
 }
 
 function completionBadge(pct){
-  return `<span class="acc-badge" style="background:#F5E6E8; color:var(--pitch);">${pct}% completado</span>`;
+  return `<span class="acc-badge" style="background:#ECEEF1; color:var(--pitch);">${pct}% completado</span>`;
 }
 
 function lawSubLine(s){
@@ -1852,7 +1861,8 @@ function dailyChallengeView(){
   const totalRecord = formatScore(heartsR + sdR + taR);
 
   const summary = STATE.leagueSummary;
-  let rankLabel = '...', modeLabel = '...';
+  const SKEL = '<span class="skel" style="display:inline-block;width:42px;height:1em;vertical-align:middle"></span>';
+  let rankLabel = SKEL, modeLabel = SKEL;
   if(summary){
     const ranked = [
       { label:'Corazones', rank: summary.hearts },
@@ -1959,12 +1969,13 @@ function leaderboardView(){
     </div>`;
   }).join('');
 
+  const SKEL = '<span class="skel" style="display:inline-block;width:42px;height:1em;vertical-align:middle"></span>';
   const stat = (icon, val, label) => `<div class="lg-sum"><span class="lg-sum-ic">${ic(icon)}</span><div><b>${val}</b><small>${label}</small></div></div>`;
   const summaryStripHtml = `
   <div class="lg-sumrow">
-    ${stat('users', participants===null?'...':participants, 'Participantes')}
-    ${stat('trophy', s?'#'+s.rank:(s===false?'—':'...'), 'Tu posición')}
-    ${stat('target', s?formatScore(Number(s.score)):(s===false?'—':'...'), 'Récord personal')}
+    ${stat('users', participants===null?SKEL:participants, 'Participantes')}
+    ${stat('trophy', s?'#'+s.rank:(s===false?'—':SKEL), 'Tu posición')}
+    ${stat('target', s?formatScore(Number(s.score)):(s===false?'—':SKEL), 'Récord personal')}
   </div>`;
 
   let standingHtml = '';
@@ -3735,42 +3746,52 @@ function currentQ(){
   return quizQuestionById(qid);
 }
 
+/* Indicador compacto de preguntas: una pastilla por pregunta (respondida / acertada / fallada / pendiente). */
 function questionDots(quiz){
-  const letters=['a','b','c','d'];
   const visibleQids = isRecordMode(quiz.mode) ? quiz.qids.slice(0, quiz.idx+1) : quiz.qids;
-  const dots = visibleQids.map((qid,i)=>{
+  let okN = 0, badN = 0, answeredN = 0, pendingN = 0;
+  const segs = visibleQids.map((qid,i)=>{
     const sel = quiz.answers[qid];
     const timedOut = !!(quiz.timedOut && quiz.timedOut[qid]);
-    const isCurrent = i === quiz.idx;
-    let cls = 'q-dot';
-    if(isCurrent) cls += ' current';
+    let cls = 'qd-seg', state = 'pendiente';
+    if(i === quiz.idx) cls += ' current';
     if(sel){
       if(quiz.instantFeedback){
         const q = quizQuestionById(qid, quiz);
-        cls += (sel===q.correct) ? ' ok' : ' bad';
-      } else {
-        cls += ' answered';
-      }
-    } else if(timedOut){
-      cls += ' bad';
-    }
+        if(sel === q.correct){ cls += ' ok'; okN++; state = 'acertada'; }
+        else { cls += ' bad'; badN++; state = 'fallada'; }
+      } else { cls += ' answered'; answeredN++; state = 'respondida'; }
+    } else if(timedOut){ cls += ' bad'; badN++; state = 'sin tiempo'; }
+    else pendingN++;
     const clickable = !quiz.instantFeedback || !!sel || timedOut;
-    return `<${clickable?'button':'div'} class="${cls}" ${clickable?`data-action="goto-question" data-idx="${i}"`:''}>${i+1}</${clickable?'button':'div'}>`;
+    const label = 'Pregunta ' + (i+1) + ', ' + state;
+    return clickable
+      ? `<button type="button" class="${cls}" data-action="goto-question" data-idx="${i}" aria-label="${label}"></button>`
+      : `<div class="${cls}" role="img" aria-label="${label}"></div>`;
   }).join('');
-  return `<div class="q-dots">${dots}</div>`;
+  const legend = quiz.instantFeedback
+    ? `<span><b>${okN}</b> acertadas</span><span><b>${badN}</b> falladas</span><span><b>${pendingN}</b> pendientes</span>`
+    : `<span><b>${answeredN}</b> respondidas</span><span><b>${pendingN}</b> pendientes</span>`;
+  return `<nav class="qd" aria-label="Progreso de preguntas"><div class="qd-bar">${segs}</div><div class="qd-legend">${legend}</div></nav>`;
 }
+
+const RULE_SLUGS = {1:'regla-1-terreno-de-juego',2:'regla-2-balon',3:'regla-3-jugadores',4:'regla-4-equipamiento',5:'regla-5-arbitro',6:'regla-6-otros-miembros-equipo-arbitral',7:'regla-7-duracion-del-partido',8:'regla-8-inicio-y-reanudacion',9:'regla-9-balon-en-juego-y-fuera-de-juego',10:'regla-10-determinar-el-resultado',11:'regla-11-fuera-de-juego',12:'regla-12-faltas-e-incorrecciones',13:'regla-13-tiros-libres',14:'regla-14-tiro-penal',15:'regla-15-saque-de-banda',16:'regla-16-saque-de-meta',17:'regla-17-saque-de-esquina'};
+function ruleGuideUrl(rule){ return RULE_SLUGS[rule] ? '/reglas-de-juego/' + RULE_SLUGS[rule] + '/' : ''; }
 
 function quizView(){
   const ic = (n) => shellIcon(n);
   const quiz = STATE.quiz;
   const q = currentQ();
-  if(q && q._stub){ bankLazy(quiz.qids.slice(quiz.idx, quiz.idx + 40)); return '<div class="empty-state">Cargando preguntas...</div>'; }
+  if(q && q._stub){ bankLazy(quiz.qids.slice(quiz.idx, quiz.idx + 40)); return '<div class="skel-wrap" role="status" aria-label="Cargando preguntas"><span class="skel skel-title"></span><span class="skel skel-block"></span><span class="skel skel-line"></span></div>'; }
   const total = quiz.qids.length;
-  const pct = Math.round((quiz.idx)/total*100);
+  /* instantánea al abrir la primera pregunta: sirve para mostrar tiempo, puntos ganados y subida de rango al final */
+  if(!quiz.startTs){ quiz.startTs = Date.now(); quiz.startPoints = computePoints(); quiz.startRank = currentRank(quiz.startPoints).name; quiz.startBadges = Object.keys(STATE.storage.unlockedBadges || {}); }
   const letters=['a','b','c','d'];
   const selectedLetter = quiz.answers[q.id] || null;
   const timedOut = !!(quiz.timedOut && quiz.timedOut[q.id]);
   const reveal = quiz.instantFeedback && (!!selectedLetter || timedOut);
+  const doneN = quiz.mode==='training' ? Object.keys(quiz.answers).length : (quiz.idx + (reveal ? 1 : 0));
+  const pct = Math.round(Math.min(total, doneN) / total * 100);
   const correctCount = () => Object.keys(quiz.answers).filter(id=>{ const qq=quizQuestionById(id, quiz); return qq && quiz.answers[id]===qq.correct; }).length;
 
   let optsHtml = q.options.map((opt,i)=>{
@@ -3799,11 +3820,16 @@ function quizView(){
       </div>
     </div>
     ${(isLifeMode(quiz.mode) && quiz.hearts<=0) ? `<div class="qz-alert">${quiz.mode==='suddendeath' ? '¡Eliminado! Un fallo y se acabó la partida.' : '¡Te has quedado sin vidas! Fin de la partida.'}</div>` : ''}
-    ${q.explanation ? `<div class="qz-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}`;
+    ${(function(){
+      const url = q.domain === 'law' ? ruleGuideUrl(q.rule) : '';
+      const link = url ? `<a class="qz-rule-link" href="${url}" target="_blank" rel="noopener">${ic('book')} Ver la Regla ${q.rule} en la guía</a>` : '';
+      if(!q.explanation && !link) return '';
+      return `<div class="qz-expl">${q.explanation ? `<strong>Explicación:</strong> ${esc(q.explanation)}` : ''}${link ? `<div>${link}</div>` : ''}</div>`;
+    })()}`;
   }
   const reportBtn = STATE.reportedIds[q.id]
-    ? `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Ya has avisado de un posible error en esta pregunta. Nuestro equipo la revisará.">${ic('check')} Error reportado, ¡gracias!</button>`
-    : `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" data-tooltip="Avisa si crees que esta pregunta tiene un error o está desactualizada, para que la revisemos.">${ic('flag')} Reportar un error</button>`;
+    ? `<button class="flag-btn reported" data-action="report-question" data-qid="${q.id}" data-tooltip="Ya has avisado de un posible error en esta pregunta. Nuestro equipo la revisará.">${ic('check')} Error reportado, ¡gracias!</button>`
+    : `<button class="flag-btn" data-action="report-question" data-qid="${q.id}" aria-label="Reportar error en esta pregunta" data-tooltip="Avisa si crees que esta pregunta tiene un error o está desactualizada, para que la revisemos.">${ic('flag')} Reportar error en esta pregunta</button>`;
   const savedBtn = STATE.storage.saved[q.id]
     ? `<button class="flag-btn on" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="Quítala de tu lista personal si ya no quieres tenerla guardada.">${ic('star')} Guardada en Mi Academia</button>`
     : `<button class="flag-btn" data-action="toggle-saved" data-qid="${q.id}" data-tooltip="La pregunta se añadirá a tu lista personal en Mi Academia, para repasarla más tarde.">${ic('star')} Guardar en Mi Academia</button>`;
@@ -3811,25 +3837,25 @@ function quizView(){
 
   let info, status;
   if(quiz.mode==='training'){
-    info = `<strong>Pregunta ${quiz.idx+1} / ${total}</strong><small>Respondidas: ${Object.keys(quiz.answers).length}/${total}</small>`;
+    info = `<strong>${scopeLabel(q)}</strong><small>Pregunta ${quiz.idx+1} de ${total} · Respondidas ${Object.keys(quiz.answers).length}/${total}</small>`;
     status = quiz.timerMode==='total' ? `<span class="qz-chip">${ic('clock')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>` :
       quiz.timerMode==='perQuestion' ? `<span class="qz-chip">${ic('timer')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>` :
       `<span class="qz-chip soft">${ic('repeat')} Sin límite</span>`;
   } else if(isLifeMode(quiz.mode)){
     const maxLives = maxLivesFor(quiz.mode);
-    info = `<strong>${quiz.combo>=2 ? 'Racha: ' + quiz.combo : 'Pregunta ' + (quiz.idx+1)}</strong><small>${quiz.mode==='suddendeath' ? 'Muerte Súbita' : 'Modo Corazones'}</small>`;
+    info = `<strong>${quiz.mode==='suddendeath' ? 'Muerte Súbita' : 'Modo Corazones'}</strong><small>${quiz.combo>=2 ? 'Racha ' + quiz.combo + ' · ' : ''}Pregunta ${quiz.idx+1}</small>`;
     status = quiz.mode==='suddendeath'
       ? `<span class="qz-chip ${quiz.hearts>0 ? 'bad' : 'soft'}">${ic('skull')} ${quiz.hearts>0 ? 'Una vida' : 'Eliminado'}</span>`
       : `<span class="qz-hearts">${Array.from({length:maxLives}, (_,i) => `<span class="qz-heart ${i < quiz.hearts ? 'on' : ''}">${ic('heart')}</span>`).join('')}</span>`;
   } else if(quiz.mode==='timeattack'){
-    info = `<strong>Contrarreloj</strong><small>Aciertos: ${correctCount()}</small>`;
+    info = `<strong>Contrarreloj</strong><small>Pregunta ${quiz.idx+1} · Aciertos ${correctCount()}</small>`;
     status = `<span class="qz-chip">${ic('timer')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>`;
   } else {
     const scoreLabel = quiz.law==='failed'
       ? `Aciertos seguidos: ${STATE.storage.failedStreaks[q.id]||0}/3`
       : `Aciertos: ${correctCount()}`;
-    info = `<strong>Pregunta ${quiz.idx+1} / ${total}</strong><small>${scoreLabel}</small>`;
-    status = `<span class="qz-chip soft">${ic('target')} ${correctCount()}</span>`;
+    info = `<strong>${scopeLabel(q)}</strong><small>Pregunta ${quiz.idx+1} de ${total} · ${scoreLabel}</small>`;
+    status = `<span class="qz-chip score" role="status" aria-label="Aciertos: ${correctCount()}">${ic('target')} ${correctCount()}</span>`;
   }
 
   let actions;
@@ -3853,17 +3879,19 @@ function quizView(){
       <button class="qz-exit" data-action="quit-quiz" aria-label="Salir del test">${ic('chevron')}<span>Salir</span></button>
       <div class="qz-info">${info}</div>
       <div class="qz-status">${status}</div>
+      <div class="qz-progress" role="progressbar" aria-label="Progreso del test" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
     </header>
-    <div class="qz-progress"><i style="width:${pct}%"></i></div>
-    <article class="qz-card">
-      <div class="qz-tag">${scopeLabel(q)}</div>
-      <h2 class="qz-text">${esc(q.question)}</h2>
-      <div class="qz-options">${optsHtml}</div>
-      ${feedback}
-      ${quiz.mode!=='training' ? (reveal ? actionLinksRow : '') : actionLinksRow}
-    </article>
-    <div class="qz-actions">${actions}</div>
-    ${questionDots(quiz)}
+    <div class="qz-body">
+      <article class="qz-card">
+        <h2 class="qz-text">${esc(q.question)}</h2>
+        <div class="qz-options" role="group" aria-label="Respuestas">${optsHtml}</div>
+        <p class="qz-hint"><kbd>1</kbd>–<kbd>4</kbd> o <kbd>A</kbd>–<kbd>D</kbd> para responder · <kbd>Enter</kbd> para continuar</p>
+        ${feedback}
+        ${quiz.mode!=='training' ? (reveal ? actionLinksRow : '') : actionLinksRow}
+      </article>
+      <div class="qz-actions">${actions}</div>
+      ${questionDots(quiz)}
+    </div>
   </div>
   `;
 }
@@ -3924,78 +3952,121 @@ function nextQuestion(){
 
 function resultView(){
   const quiz = STATE.quiz;
-  const letters=['a','b','c','d'];
+  const ic = (n) => shellIcon(n);
+  const letters = ['a','b','c','d'];
   const scopeQids = isRecordMode(quiz.mode) ? quiz.qids.filter(qid => quiz.answers[qid]) : quiz.qids;
   const total = scopeQids.length;
   let score = 0;
   const byLaw = {};
-  scopeQids.forEach(qid=>{
+  const fails = [];
+  scopeQids.forEach((qid, i) => {
     const q = quizQuestionById(qid, quiz);
+    if(!q) return;
     const sel = quiz.answers[qid];
     const ok = sel === q.correct;
-    if(ok) score++;
-    if(!byLaw[q.rule]) byLaw[q.rule]={total:0,correct:0};
+    if(ok) score++; else fails.push({ q, sel, n: i + 1 });
+    if(!byLaw[q.rule]) byLaw[q.rule] = {total:0, correct:0};
     byLaw[q.rule].total++;
     if(ok) byLaw[q.rule].correct++;
   });
-  const pct = total ? Math.round(score/total*100) : 0;
+  const pct = total ? Math.round(score / total * 100) : 0;
   const unanswered = isRecordMode(quiz.mode) ? 0 : quiz.qids.filter(qid => !quiz.answers[qid]).length;
-  let rows = Object.keys(byLaw).sort((a,b)=>a-b).map(law=>{
+
+  /* tiempo empleado y puntos ganados (se miden desde que se abre la primera pregunta) */
+  if(quiz.startTs && !quiz.endTs) quiz.endTs = Date.now();
+  const elapsed = quiz.startTs ? Math.max(0, Math.round((quiz.endTs - quiz.startTs) / 1000)) : null;
+  const pointsNow = computePoints();
+  const pointsGained = quiz.startPoints != null ? Math.max(0, pointsNow - quiz.startPoints) : null;
+  const rankNow = currentRank(pointsNow);
+  const rankUp = quiz.startRank && rankNow.name !== quiz.startRank;
+  const startBadges = quiz.startBadges || [];
+  const newBadges = BADGES.filter(b => (STATE.storage.unlockedBadges || {})[b.id] && !startBadges.includes(b.id));
+
+  /* veredicto: mismos tramos que ya usa la app para colorear resultados (60 % y 85 %) */
+  const verdict = pct >= 85 ? { t: 'Excelente', soft: false, msg: 'Resultado sobresaliente. Sigue así.' }
+    : pct >= 60 ? { t: 'Aprobado', soft: false, msg: 'Estás por encima del umbral de aprobado. Repasa los fallos para afianzarlo.' }
+    : { t: 'A reforzar', soft: true, msg: 'Todavía no llegas al aprobado. Repasa tus fallos y vuelve a intentarlo.' };
+  const R = 70, C = 2 * Math.PI * R;
+  const ring = `<div class="rs-ring" role="img" aria-label="${pct} por ciento de aciertos">
+    <svg viewBox="0 0 168 168" aria-hidden="true"><circle class="track" cx="84" cy="84" r="${R}" fill="none" stroke-width="12"/><circle class="fill" cx="84" cy="84" r="${R}" fill="none" stroke-width="12" stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${(C * (1 - pct / 100)).toFixed(2)}"/></svg>
+    <div class="rs-pct">${pct}<small>%</small></div>
+  </div>`;
+  const stats = [
+    `<span class="rs-stat">${ic('target')}<b>${score}/${total}</b> correctas</span>`,
+    elapsed != null ? `<span class="rs-stat">${ic('clock')}<b>${formatTime(elapsed)}</b> de tiempo</span>` : '',
+    pointsGained != null ? `<span class="rs-stat">${ic('star')}<b>+${pointsGained}</b> puntos</span>` : '',
+    unanswered > 0 ? `<span class="rs-stat"><b>${unanswered}</b> sin responder</span>` : ''
+  ].join('');
+
+  const lastHR = STATE.lastHeartsResult;
+  const recordCard = isRecordMode(quiz.mode) ? `<section class="rs-record ${lastHR && lastHR.isNewRecord ? 'new' : ''}">
+    <div class="big">${lastHR ? formatScore(lastHR.score) : score}</div>
+    <div class="label">${lastHR && lastHR.isNewRecord ? '¡Nuevo récord personal!' : 'puntos · tu récord: ' + formatScore(quiz.mode==='suddendeath' ? STATE.storage.suddenDeathRecord : quiz.mode==='timeattack' ? STATE.storage.timeAttackRecord : STATE.storage.heartsRecord)}</div>
+    ${quiz.mode==='timeattack' ? `<div class="label">Cada fallo resta 0,5 puntos</div>` : ''}
+  </section>` : '';
+
+  const celebrate = (rankUp ? `<div class="rs-celebrate"><span class="ic">${ic('award')}</span><div><strong>¡Subes de rango!</strong><small>Ahora eres ${esc(rankNow.name)}.</small></div></div>` : '')
+    + newBadges.map(b => `<div class="rs-celebrate"><span class="ic">${ic('trophy')}</span><div><strong>Nueva insignia: ${esc(b.name)}</strong><small>${esc(b.desc)}</small></div></div>`).join('');
+
+  const failsHtml = fails.length ? `<details class="ui-card rs-fails">
+    <summary><span>Preguntas falladas</span><span class="count">${fails.length}</span><span class="chev">${ic('chevron')}</span></summary>
+    <div class="rs-fails-list">${fails.map(f => {
+      const q = f.q;
+      const url = q.domain === 'law' ? ruleGuideUrl(q.rule) : '';
+      const opts = q.options.map((o, idx) => {
+        const letter = letters[idx];
+        if(letter === q.correct) return `<div class="rs-ans ok"><b>${letter.toUpperCase()}</b><span><small>Respuesta correcta</small>${esc(o)}</span></div>`;
+        if(letter === f.sel) return `<div class="rs-ans bad"><b>${letter.toUpperCase()}</b><span><small>Tu respuesta</small>${esc(o)}</span></div>`;
+        return '';
+      }).join('');
+      return `<article class="rs-fail">
+        <div class="rs-fail-tag">Pregunta ${f.n} · ${scopeLabel(q)}${f.sel ? '' : ' · sin responder'}</div>
+        <div class="rs-fail-q">${esc(q.question)}</div>
+        ${opts}
+        ${(q.explanation || url) ? `<div class="qz-expl">${q.explanation ? `<strong>Explicación:</strong> ${esc(q.explanation)}` : ''}${url ? `<div><a class="qz-rule-link" href="${url}" target="_blank" rel="noopener">${ic('book')} Ver la Regla ${q.rule} en la guía</a></div>` : ''}</div>` : ''}
+      </article>`;
+    }).join('')}</div>
+  </details>` : '';
+
+  const lawRows = Object.keys(byLaw).sort((a, b) => a - b).map(law => {
     const b = byLaw[law];
-    const rulePct = Math.round(b.correct/b.total*100);
-    return `<button class="breakdown-row" data-action="open-law" data-law="${law}" style="width:100%; text-align:left; border:none; cursor:pointer; font:inherit; color:inherit;"><span>Regla ${law} · ${esc(LAW_NAMES[law])}</span><span class="mono" style="color:${scoreColor(rulePct)};">${rulePct}%</span></button>`;
+    const rulePct = Math.round(b.correct / b.total * 100);
+    return `<button class="rs-law" data-action="open-law" data-law="${law}"><span>Regla ${law} · ${esc(LAW_NAMES[law])}</span><span class="mono">${b.correct}/${b.total} · ${rulePct}%</span><span class="bar ui-progress" aria-hidden="true"><i style="width:${rulePct}%"></i></span></button>`;
   }).join('');
+  const byLawHtml = Object.keys(byLaw).length > 1 ? `<section class="ui-card">
+    <div class="ui-section-head" style="margin-top:0;"><h3>Repasa por regla</h3><small>Toca una regla para practicarla</small></div>${lawRows}
+  </section>` : '';
+
+  const isLeague = ['hearts','suddendeath','timeattack'].includes(quiz.mode);
+  const lawNumeric = typeof quiz.law === 'number' || /^\d+$/.test(String(quiz.law || ''));
+  const actions = [
+    fails.length ? `<button class="btn btn-secondary" data-action="open-law" data-law="failed">${ic('repeat')} Repasar mis fallos</button>` : '',
+    quiz.mode==='hearts' ? `<button class="btn btn-primary" data-action="start-hearts">Jugar de nuevo</button>` : '',
+    quiz.mode==='suddendeath' ? `<button class="btn btn-primary" data-action="start-suddendeath">Jugar de nuevo</button>` : '',
+    quiz.mode==='timeattack' ? `<button class="btn btn-primary" data-action="start-timeattack">Jugar de nuevo</button>` : '',
+    quiz.mode==='training' ? `<button class="btn btn-primary" data-action="train-config">Otro test</button>` : '',
+    (!isLeague && quiz.mode!=='training' && quiz.law) ? `<button class="btn btn-primary" data-action="start-quiz" data-law="${quiz.law}" data-mode="${quiz.mode}">Otro test</button>` : '',
+    (!isLeague && quiz.mode!=='training' && !quiz.law) ? `<button class="btn btn-primary" data-action="start-daily-goal" data-count="${quiz.qids.length}">Otro test</button>` : '',
+    (!isLeague && quiz.law) ? `<button class="btn btn-ghost" data-action="open-law" data-law="${quiz.law}">${lawNumeric ? 'Volver a la regla' : 'Volver'}</button>` : '',
+    isLeague ? `<button class="btn btn-ghost" data-action="dailyChallenge">Volver a la League</button>` : `<button class="btn btn-ghost" data-action="home">Inicio</button>`
+  ].join('');
 
   return `
-  ${isRecordMode(quiz.mode) ? `<div class="result-hero" style="margin-bottom:16px; ${STATE.lastHeartsResult && STATE.lastHeartsResult.isNewRecord ? 'border-color:var(--accent);' : ''}">
-    <div style="font-size:28px;">${STATE.lastHeartsResult && STATE.lastHeartsResult.isNewRecord ? '🏆' : (quiz.mode==='suddendeath' ? '💀' : quiz.mode==='timeattack' ? '⏱' : '❤️')}</div>
-    <div class="big" style="color:var(--pitch); font-size:38px;">${STATE.lastHeartsResult ? formatScore(STATE.lastHeartsResult.score) : score}</div>
-    <div class="label">${STATE.lastHeartsResult && STATE.lastHeartsResult.isNewRecord ? '¡Nuevo récord personal!' : 'puntos · tu récord: '+formatScore(quiz.mode==='suddendeath' ? STATE.storage.suddenDeathRecord : quiz.mode==='timeattack' ? STATE.storage.timeAttackRecord : STATE.storage.heartsRecord)}</div>
-    ${quiz.mode==='timeattack' ? `<div style="font-size:11.5px; color:var(--muted); margin-top:6px;">Cada fallo resta 0,5 puntos</div>` : ''}
-  </div>` : ''}
-  <div class="result-hero">
-    <div class="big" style="color:${scoreColor(pct)};">${pct}%</div>
-    <div class="label">${score} de ${total} respuestas correctas${unanswered>0?' · '+unanswered+' sin responder':''}</div>
-  </div>
-  <div class="q-dots" style="margin-top:14px; margin-bottom:6px;">
-    ${scopeQids.map((qid,i)=>{
-      const q = quizQuestionById(qid, quiz);
-      const sel = quiz.answers[qid];
-      const ok = sel === (q ? q.correct : null);
-      const cls = sel ? (ok ? 'ok' : 'bad') : '';
-      return `<button class="q-dot ${cls}" data-action="toggle-review-detail" data-idx="${i}">${i+1}</button>`;
-    }).join('')}
-  </div>
-  ${(STATE.reviewDetailIdx!==null && STATE.reviewDetailIdx!==undefined && scopeQids[STATE.reviewDetailIdx]) ? (function(){
-    const qid = scopeQids[STATE.reviewDetailIdx];
-    const q = quizQuestionById(qid, quiz);
-    const sel = quiz.answers[qid];
-    const letters2 = ['a','b','c','d'];
-    return `<div class="qcard" style="margin-bottom:14px;">
-      <div class="qtag">Pregunta ${STATE.reviewDetailIdx+1} · ${scopeLabel(q)} ${sel ? (sel===q.correct?'· <span style="color:var(--green-ok)">Correcta</span>':'· <span style="color:var(--red)">Incorrecta</span>') : '· <span style="color:var(--muted)">Sin responder</span>'}</div>
-      <div class="qtext" style="font-size:14.5px;">${esc(q.question)}</div>
-      ${q.options.map((o,idx)=>{
-        const letter=letters2[idx];
-        let cls='option';
-        if(letter===q.correct) cls+=' correct';
-        else if(letter===sel) cls+=' incorrect';
-        return `<div class="${cls}" style="cursor:default;"><span class="letter">${letter})</span>${esc(o)}</div>`;
-      }).join('')}
-      ${q.explanation ? `<div style="margin-top:10px; padding:10px 12px; background:#FBF1F1; border-radius:8px; font-size:13px;"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-    </div>`;
-  })() : ''}
-  ${Object.keys(byLaw).length>1 ? `
-  <div class="section-title">Repasa por regla</div>
-  <div class="sub" style="color:var(--muted); margin-bottom:10px; font-size:12.5px;">Toca una regla para practicarla de nuevo.</div>
-  <div class="qcard">${rows}</div>
-  ` : ''}
-  <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
-    ${['hearts','suddendeath','timeattack'].includes(quiz.mode) ? '<button class="btn btn-primary" data-action="dailyChallenge">Volver a la League</button>' : '<button class="btn btn-primary" data-action="home">Volver al inicio</button>'}
-    ${quiz.law ? `<button class="btn btn-secondary" data-action="open-law" data-law="${quiz.law}">Repetir esta regla</button>` : ''}
-    ${quiz.mode==='hearts' ? `<button class="btn btn-secondary" data-action="start-hearts">Jugar de nuevo</button>` : ''}
-    ${quiz.mode==='suddendeath' ? `<button class="btn btn-secondary" data-action="start-suddendeath">Jugar de nuevo</button>` : ''}
-    ${quiz.mode==='timeattack' ? `<button class="btn btn-secondary" data-action="start-timeattack">Jugar de nuevo</button>` : ''}
-    ${quiz.mode==='training' ? `<button class="btn btn-secondary" data-action="train-config">Nuevo entreno</button>` : ''}
+  <div class="rs">
+    ${recordCard}
+    <section class="rs-hero">
+      ${ring}
+      <div class="rs-main">
+        <span class="rs-verdict ${verdict.soft ? 'soft' : ''}">${verdict.soft ? '' : ic('check')}${verdict.t}</span>
+        <h1 class="rs-score">${score}<small>de ${total} respuestas correctas</small></h1>
+        <p class="rs-msg">${verdict.msg}</p>
+        <div class="rs-stats">${stats}</div>
+      </div>
+    </section>
+    ${celebrate}
+    ${failsHtml}
+    ${byLawHtml}
+    <div class="rs-actions">${actions}</div>
   </div>
   `;
 }
@@ -4104,7 +4175,7 @@ function savedBrowseView(){
   if(STATE.savedBrowseIdx < 0) STATE.savedBrowseIdx = 0;
   const id = ids[STATE.savedBrowseIdx];
   const q = allQuestions().find(x=>x.id===id);
-  if(q && q._stub){ bankLazy(ids.slice(Math.max(0, STATE.savedBrowseIdx), STATE.savedBrowseIdx + 20)); return '<div class="empty-state">Cargando pregunta...</div>'; }
+  if(q && q._stub){ bankLazy(ids.slice(Math.max(0, STATE.savedBrowseIdx), STATE.savedBrowseIdx + 20)); return '<div class="skel-wrap" role="status" aria-label="Cargando pregunta"><span class="skel skel-title"></span><span class="skel skel-block"></span></div>'; }
   const pct = Math.round((STATE.savedBrowseIdx + 1) / ids.length * 100);
   return `
   <button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas guardadas</button>
@@ -5476,7 +5547,7 @@ function onAction(e){
     loadQuestionReports();
     render();
   }
-  else if(action==='report-question'){ reportQuestion(el.dataset.qid); }
+  else if(action==='report-question'){ reportQuestionDialog(el.dataset.qid); }
   else if(action==='dismiss-reports'){ if(!isDevUser()) return; dismissReports(el.dataset.qid); }
   else if(action==='profile-nudge-close'){ dismissProfileNudge(); }
   else if(action==='achievements'){ STATE.view='achievements'; render(); }
@@ -5742,6 +5813,25 @@ document.addEventListener('visibilitychange', async () => {
 /* Esc cierra el aviso de "¿Seguro que quieres salir del test?" y deja seguir con el test. */
 document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape' && STATE.confirmQuit){ STATE.confirmQuit = null; render(); }
+});
+
+/* Teclado en el test: 1-4 o A-D responden, Enter continúa. Reutiliza los propios botones de la pantalla. */
+document.addEventListener('keydown', (e) => {
+  if(STATE.view !== 'quiz' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if(document.getElementById('app-dialog') || document.getElementById('confirm-modal')) return;
+  const t = e.target;
+  if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  const root = document.querySelector('.qz'); if(!root) return;
+  const k = e.key.toLowerCase();
+  const map = { '1':'a', '2':'b', '3':'c', '4':'d', 'a':'a', 'b':'b', 'c':'c', 'd':'d' };
+  if(map[k]){
+    const btn = root.querySelector('button.option[data-letter="' + map[k] + '"]:not(:disabled)');
+    if(btn){ e.preventDefault(); btn.click(); }
+  } else if(e.key === 'Enter'){
+    if(t && t.tagName === 'BUTTON') return; // Enter sobre un botón ya lo activa el navegador
+    const next = root.querySelector('[data-action="next-question"]:not(:disabled)');
+    if(next){ e.preventDefault(); next.click(); }
+  }
 });
 
 /* ---------------- Seguridad: cierre de sesión por inactividad (solo maestro y desarrolladores) ----------------

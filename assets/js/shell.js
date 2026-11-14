@@ -162,3 +162,21 @@ function menuView(){
     ${row({ label: 'Cerrar sesión', icon: 'logout', action: 'logout' })}
   </div>`;
 }
+
+/* ---------------- Accesibilidad: botones de solo icono sin nombre accesible ----------------
+   Si un botón no tiene texto ni aria-label, toma su nombre de title / data-tooltip. Se repasa tras cada cambio de pantalla. */
+(function(){
+  let raf = null;
+  function fix(){
+    raf = null;
+    document.querySelectorAll('button:not([aria-label]), [role="button"]:not([aria-label])').forEach(b => {
+      if((b.textContent || '').trim()) return;
+      const name = b.getAttribute('title') || b.getAttribute('data-tooltip') || '';
+      if(name) b.setAttribute('aria-label', name);
+    });
+  }
+  if(typeof MutationObserver !== 'undefined' && document.body){
+    new MutationObserver(() => { if(raf === null) raf = requestAnimationFrame(fix); }).observe(document.body, { childList: true, subtree: true });
+    fix();
+  }
+})();
