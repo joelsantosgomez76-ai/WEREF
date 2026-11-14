@@ -416,6 +416,7 @@ let STATE = {
   leaderboardMode: 'hearts',
   myStanding: null,
   leagueSummary: null,
+  dataReady: false,   // true cuando loadStorage() ha terminado: hasta entonces Inicio y el menú lateral muestran skeletons
   leaderboardParticipants: null,
   confirmDeleteId: null,
   confirmResetLawId: null,
@@ -1048,6 +1049,7 @@ async function loadStorage(){
   startAdminSync();
   pruneSavedStale();
   checkAndUnlockBadges();
+  STATE.dataReady = true;
   render();
 }
 async function saveProgress(){ await storageSet('progress', JSON.stringify(STATE.storage.progress)); }
@@ -3419,15 +3421,45 @@ function ihRuleState(i){
   return { s, crown, state };
 }
 
-/* Las 3 reglas más flojas: con al menos 5 respuestas y menos de 75 % de acierto. */
-function ihWeakSet(){
+/* UN SOLO criterio de "regla floja": mínimo 5 preguntas respondidas y menos de 75 % de acierto, de menor a mayor acierto
+   (a igualdad, la más respondida). La primera es "Tu punto débil" (y el botón del banner); las 3 primeras llevan el aviso
+   y forman el filtro "Flojas". */
+const IH_WEAK_MIN = 5, IH_WEAK_MAX_PCT = 75;
+function ihWeakList(){
   const rows = [];
   for(let i = 1; i <= 17; i++){
     const s = lawStats(i);
-    if(s.attempted >= 5 && s.accuracyPct < 75) rows.push({ i, acc: s.accuracyPct, n: s.attempted });
+    if(s.attempted >= IH_WEAK_MIN && s.accuracyPct < IH_WEAK_MAX_PCT) rows.push({ rule: i, pct: s.accuracyPct, n: s.attempted });
   }
-  rows.sort((a, b) => a.acc - b.acc || b.n - a.n);
-  return new Set(rows.slice(0, 3).map(r => r.i));
+  rows.sort((a, b) => a.pct - b.pct || b.n - a.n || a.rule - b.rule);
+  return rows;
+}
+
+/* Esqueleto de Inicio mientras no han cargado los datos (nunca se pinta "usuario nuevo" ni "0 puntos" por error). */
+function ihSkeleton(){
+  const sk = (cls, style) => `<span class="skel ${cls || ''}" style="${style || ''}"></span>`;
+  return `<div class="ih" role="status" aria-busy="true" aria-label="Cargando tu panel">
+    <div class="ih-top">
+      <section class="ih-hero">
+        ${sk('', 'width:150px;height:12px;')}${sk('', 'width:70%;height:34px;')}
+        <div class="ih-hero-actions">${sk('', 'width:210px;height:46px;border-radius:12px;')}${sk('ih-opt', 'width:210px;height:46px;border-radius:12px;')}</div>
+        ${sk('', 'width:100%;height:78px;border-radius:16px;')}
+      </section>
+      <aside class="ih-level">
+        ${sk('', 'width:110px;height:20px;')}
+        <div style="display:flex;gap:16px;align-items:center;">${sk('', 'width:84px;height:84px;border-radius:50%;')}<div style="flex:1;">${sk('', 'width:80%;height:16px;margin-bottom:8px;')}${sk('', 'width:60%;height:12px;')}</div></div>
+        ${sk('', 'width:100%;height:44px;')}${sk('', 'width:100%;height:44px;')}
+      </aside>
+    </div>
+    <section class="ih-section ih-s-today">
+      <div class="ih-head">${sk('', 'width:160px;height:26px;')}</div>
+      <div class="ih-today">${[1, 2, 3].map(() => `<div class="ih-todo" style="cursor:default;">${sk('', 'width:38px;height:38px;')}${sk('', 'width:50%;height:12px;')}${sk('', 'width:70%;height:26px;')}${sk('', 'width:60%;height:12px;')}</div>`).join('')}</div>
+    </section>
+    <section class="ih-section ih-s-rules">
+      <div class="ih-head">${sk('', 'width:180px;height:26px;')}</div>
+      <div class="ih-rules">${Array.from({ length: 17 }, () => `<div class="ih-rule" style="cursor:default;">${sk('', 'width:34px;height:30px;')}${sk('', 'width:80%;height:12px;')}${sk('', 'width:60%;height:14px;margin-top:auto;')}${sk('', 'width:100%;height:5px;')}</div>`).join('')}</div>
+    </section>
+  </div>`;
 }
 
 /* Datos asíncronos de Inicio: se piden una sola vez y mientras tanto se pintan skeletons. */
@@ -3444,6 +3476,7 @@ function ihEnsureData(){
 }
 
 function homeView(){
+  if(!STATE.dataReady) return ihSkeleton();
   ihEnsureData();
   const os = overallStats();
   const points = computePoints();
@@ -3451,7 +3484,8 @@ function homeView(){
   const next = nextRankInfo(points);
   const rp = recentPerformance(20);
   const streak = computeStreak();
-  const weak = weakestRuleRecent(20);
+  const weakList = ihWeakList();
+  const weak = weakList[0] || null;
   const goal = STATE.storage.dailyGoal || 20;
   const today = todaysAnsweredCount();
   const goalPct = Math.min(100, Math.round(today / goal * 100));
@@ -3564,8 +3598,8 @@ function homeView(){
       : `<button class="ih-todo" data-action="start-daily-goal" data-count="10">
           <span class="ih-todo-ic">${ic('target')}</span>
           <span class="ih-todo-t">Tu punto débil</span>
-          <span class="ih-todo-name">Aún lo estamos midiendo</span>
-          <span class="ih-todo-d">Haz unos tests y te diremos qué regla reforzar</span>
+          <span class="ih-todo-name">Sin puntos débiles por ahora</span>
+          <span class="ih-todo-d">Responde 5 preguntas de una regla para que podamos detectarlo</span>
         </button>`);
   } else {
     todo.push(`<button class="ih-todo" data-action="open-law" data-law="1">
@@ -3575,13 +3609,24 @@ function homeView(){
       <span class="ih-todo-d">Estudia una regla y practícala</span>
     </button>`);
   }
-  todo.push(`<button class="ih-todo ih-todo-main" data-action="start-daily-goal" data-count="10">
-    <span class="ih-todo-ic">${ic('zap')}</span>
-    <span class="ih-todo-t">${isNew ? 'Test rápido' : 'Reto del día'}</span>
-    <span class="ih-todo-name">${isNew ? '10 preguntas al azar' : today >= goal ? '¡Objetivo cumplido!' : `Llevas ${today} de ${goal}`}</span>
-    ${isNew ? '' : `<span class="ih-todo-bar" aria-hidden="true"><i style="width:${goalPct}%"></i></span>`}
-    <span class="ih-todo-d">Test rápido · 10 preguntas</span>
-  </button>`);
+  const goalDone = !isNew && today >= goal;
+  if(goalDone){
+    /* reto cumplido: tarjeta neutra con ✓ y botón secundario; el amarillo de bloque queda para cuando está pendiente */
+    todo.push(`<button class="ih-todo ih-todo-done" data-action="start-daily-goal" data-count="10">
+      <span class="ih-todo-ic ih-todo-check">${ic('check')}</span>
+      <span class="ih-todo-t">Reto cumplido</span>
+      <span class="ih-todo-name">${today} de ${goal} preguntas hoy</span>
+      <span class="btn btn-secondary ih-todo-extra">Reto extra · 10 preguntas</span>
+    </button>`);
+  } else {
+    todo.push(`<button class="ih-todo ih-todo-main" data-action="start-daily-goal" data-count="10">
+      <span class="ih-todo-ic">${ic('zap')}</span>
+      <span class="ih-todo-t">${isNew ? 'Test rápido' : 'Reto del día'}</span>
+      <span class="ih-todo-name">${isNew ? '10 preguntas al azar' : `Llevas ${today} de ${goal}`}</span>
+      ${isNew ? '' : `<span class="ih-todo-bar" aria-hidden="true"><i style="width:${goalPct}%"></i></span>`}
+      <span class="ih-todo-d">Test rápido · 10 preguntas</span>
+    </button>`);
+  }
   if(cmOpen > 0){
     todo.push(`<button class="ih-todo ih-todo-sm" data-action="committee-open">
       <span class="ih-todo-ic">${ic('users')}</span>
@@ -3595,7 +3640,7 @@ function homeView(){
   </section>`;
 
   /* ---- 4 · las 17 reglas ---- */
-  const weakSet = ihWeakSet();
+  const weakSet = new Set(weakList.slice(0, 3).map(r => r.rule));
   const filter = STATE.homeFilter || 'all';
   const rows = [];
   for(let i = 1; i <= 17; i++) rows.push(Object.assign({ i }, ihRuleState(i), { weak: weakSet.has(i) }));
@@ -3621,7 +3666,6 @@ function homeView(){
   const modesSection = `<section class="ih-section ih-s-modes" aria-labelledby="ih-h-modes">
     <div class="ih-head"><h2 id="ih-h-modes">Modos especiales</h2></div>
     <div class="ih-modes">
-      <button class="ih-mode" data-action="open-law" data-law="failed"><span class="ih-mode-ic">${ic('repeat')}</span><strong>Sala de Repaso</strong><span>Vuelve a las preguntas que has fallado hasta dominarlas.</span></button>
       <button class="ih-mode ih-mode-var" data-action="open-law" data-law="hard"><span class="ih-mode-ic">${ic('shield')}</span><strong>Sala VAR</strong><span>Las preguntas más difíciles de la plataforma.</span><em>${hs.total === 0 ? 'Todavía no hay ninguna' : hs.total + ' preguntas'}</em></button>
       <button class="ih-mode" data-action="open-law" data-law="glossary"><span class="ih-mode-ic">${ic('glossary')}</span><strong>Glosario</strong><span>Términos y definiciones de las Reglas de Juego.</span><em>${gs.total} preguntas</em></button>
       <button class="ih-mode" data-action="train-config"><span class="ih-mode-ic">${ic('settings')}</span><strong>Test personalizado</strong><span>Elige reglas, número de preguntas, tiempo y modo.</span></button>

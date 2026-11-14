@@ -121,7 +121,9 @@ function shellFor(view, html){
     <div class="shell-spacer"></div>
     <button class="shell-user" data-action="achievements" title="Ver rango e insignias">
       <span class="shell-avatar">${esc(name.charAt(0).toUpperCase())}</span>
-      <span class="shell-user-text"><strong>${esc(name)}</strong><small>${esc(rank.name)} · ${points} pts</small></span>
+      ${STATE.dataReady
+        ? `<span class="shell-user-text"><strong>${esc(name)}</strong><small>${esc(rank.name)} · ${points} pts</small></span>`
+        : `<span class="shell-user-text" aria-label="Cargando tu cuenta"><span class="skel" style="width:90px;height:13px;margin:2px 0 6px;"></span><span class="skel" style="width:120px;height:11px;"></span></span>`}
     </button>
     <div class="shell-foot">
       <button class="shell-link ${active === 'config' ? 'active' : ''}" data-action="profile">${shellIcon('settings')}<span>Configuración</span></button>
