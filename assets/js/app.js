@@ -3883,7 +3883,7 @@ function quizView(){
     const isGameOver = isLifeMode(quiz.mode) && quiz.hearts<=0;
     actions = `
       <button class="btn btn-secondary" data-action="prev-question" ${quiz.idx===0?'disabled':''}>&larr; Anterior</button>
-      ${reveal ? `<button class="btn btn-primary" data-action="next-question">${isGameOver ? 'Ver resultado' : (quiz.idx+1<total?'Siguiente &rarr;':'Ver resultado')}</button>` : ''}
+      <button class="btn btn-primary" data-action="next-question" ${reveal ? '' : 'disabled aria-disabled="true"'}>${isGameOver ? 'Ver resultado' : (quiz.idx+1<total?'Siguiente &rarr;':'Ver resultado')}</button>
     `;
   }
 
@@ -3896,6 +3896,7 @@ function quizView(){
       <div class="qz-progress" role="progressbar" aria-label="Progreso del test" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
     </header>
     <div class="qz-body">
+      <div class="qz-main">
       <article class="qz-card">
         <h2 class="qz-text">${esc(q.question)}</h2>
         <div class="qz-options" role="group" aria-label="Respuestas">${optsHtml}</div>
@@ -3903,8 +3904,9 @@ function quizView(){
         ${feedback}
         ${quiz.mode!=='training' ? (reveal ? actionLinksRow : '') : actionLinksRow}
       </article>
-      <div class="qz-actions">${actions}</div>
       ${questionDots(quiz)}
+      </div>
+      <div class="qz-actions">${actions}</div>
     </div>
   </div>
   `;

@@ -78,7 +78,8 @@
 .qz-top .qz-progress{position:absolute; left:16px; right:16px; bottom:8px; margin:0; height:4px; border-radius:var(--r-pill); background:rgba(255,255,255,.18); overflow:hidden;}
 .qz-top .qz-progress i{background:var(--c-progress); border-radius:inherit; transition:width var(--t-base) var(--ease);}
 
-.qz-body{flex:1; display:flex; flex-direction:column; justify-content:center; padding:var(--sp-5) 0;}
+.qz-body{flex:1; display:flex; flex-direction:column;}
+.qz-main{flex:1; display:flex; flex-direction:column; justify-content:center; padding:var(--sp-5) 0;}
 .qz-card{padding:var(--sp-8) var(--sp-8) var(--sp-6); border-radius:var(--r-xl); box-shadow:var(--sh-1);}
 .qz-tag{color:var(--c-ink); background:var(--c-paper-2); border:1px solid var(--c-line); font:700 var(--fs-xs) var(--ff-mono);}
 .qz-text{font:600 26px/1.35 var(--ff-body); margin:var(--sp-2) 0 var(--sp-6); letter-spacing:-.005em;}
@@ -116,7 +117,9 @@
 .qz-links .flag-btn.on svg{fill:var(--c-action);}
 .qz-links .flag-btn.reported{color:var(--c-muted);}
 
-.qz-actions{gap:var(--sp-3); margin-top:var(--sp-4);}
+/* botones fijos abajo: siempre en el mismo sitio, sea cual sea el largo de la pregunta o la explicación */
+.qz-actions{gap:var(--sp-3); margin-top:0; position:sticky; bottom:0; z-index:20; padding:var(--sp-3) 0 calc(var(--sp-3) + env(safe-area-inset-bottom)); background:linear-gradient(180deg,rgba(250,250,248,0),var(--c-paper) 28%);}
+.qz-actions .btn:disabled{opacity:.4;}
 .qz-actions .btn{padding:13px 24px; font-size:var(--fs-base);}
 
 /* indicador compacto de preguntas (reemplaza la rejilla de números) */
