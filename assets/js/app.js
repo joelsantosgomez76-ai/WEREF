@@ -243,8 +243,68 @@ const LAW_ICONS = {
 /* El banco base ya no viaja con la web: se descarga del almacén privado de Supabase al iniciar sesión (loadBaseBank). */
 const BASE_QUESTIONS = [];
 const BANK = { ready: false, source: '' };
+/* ---- Entrega del banco por lotes (funcion "bank" del servidor) ----
+   Con BANK_SERVER la app solo recibe un indice (id y regla); el texto de las preguntas se pide al servidor
+   por lotes antes de cada test, con limite diario por usuario. Mientras BANK_ROLLOUT_ALL sea false, solo lo usa
+   un administrador que lo active con: localStorage.setItem('weref_bank_server','1')  (para probarlo). */
+let BANK_SERVER = false;
+const BANK_ROLLOUT_ALL = false;
+const BANK_INDEX = {};
+function bankCap(n){ return BANK_SERVER ? Math.min(n, n > 100 ? 70 : 40) : n; }
+async function bankIsAdmin(){ try{ const r = await supabaseClient.rpc('is_weref_admin'); return !!(r && r.data === true); }catch(e){ return false; } }
+async function bankInvoke(body){
+  const r = await supabaseClient.functions.invoke('bank', { body });
+  if(r.error){
+    let msg = ''; try{ const j = await r.error.context.json(); msg = j.message || j.error || ''; }catch(e){}
+    const err = new Error(msg || 'bank'); err.userMessage = msg; throw err;
+  }
+  return r.data;
+}
+async function ensureBankContent(ids){
+  const need = Array.from(new Set(ids)).filter(id => BANK_INDEX[id] && BANK_INDEX[id]._stub);
+  for(let i = 0; i < need.length; i += 40){
+    const data = await bankInvoke({ action: 'get', ids: need.slice(i, i + 40) });
+    ((data && data.questions) || []).forEach(item => {
+      const q = BANK_INDEX[item.id]; if(!q) return;
+      Object.assign(q, item, { id: q.id, source: 'base', domain: 'law' });
+      if(!q.difficulty) q.difficulty = 'normal';
+      delete q._stub;
+    });
+  }
+}
+function bankReady(list){
+  if(!BANK_SERVER) return Promise.resolve(true);
+  const ids = (list || []).map(x => typeof x === 'string' ? x : x.id);
+  return ensureBankContent(ids).then(() => true, e => {
+    STATE.toast = (e && e.userMessage) ? e.userMessage : 'No se pudieron cargar las preguntas. Int\u00e9ntalo de nuevo.';
+    render(); return false;
+  });
+}
+let BANK_LAZY_BUSY = false;
+function bankLazy(ids){
+  if(BANK_LAZY_BUSY) return; BANK_LAZY_BUSY = true;
+  bankReady(ids).then(ok => { BANK_LAZY_BUSY = false; if(ok) render(); });
+}
 async function loadBaseBank(){
   if(BANK.ready) return true;
+  const admin = await bankIsAdmin();
+  let wantServer = BANK_ROLLOUT_ALL ? !admin : false;
+  try{ if(admin && localStorage.getItem('weref_bank_server') === '1') wantServer = true; }catch(e){}
+  if(wantServer){
+    try{
+      const data = await bankInvoke({ action: 'index' });
+      const rows = (data && data.questions) || [];
+      if(rows.length){
+        rows.forEach(q => {
+          const s = { id: q.id, rule: q.rule, num: q.num, difficulty: q.difficulty || 'normal', source: 'base', domain: 'law', question: '', options: [], correct: null, explanation: '', _stub: true };
+          BASE_QUESTIONS.push(s); BANK_INDEX[s.id] = s;
+        });
+        BANK_SERVER = true; BANK.source = 'servidor'; BASE_ID_SET = null; BANK.ready = true;
+        console.info('Banco de preguntas: servidor, por lotes (' + BASE_QUESTIONS.length + ')');
+        return true;
+      }
+    }catch(e){ console.warn('Banco por lotes no disponible, se usa el archivo', e); }
+  }
   let list = null;
   try{
     const { data, error } = await supabaseClient.storage.from('bank').download('base-questions.json');
@@ -255,10 +315,9 @@ async function loadBaseBank(){
   BASE_ID_SET = null; BANK.ready = true;
   console.info('Banco de preguntas: ' + BANK.source + ' (' + BASE_QUESTIONS.length + ')');
   return true;
-}
-function bankCardHtml(){
+}function bankCardHtml(){
   const ic = (n) => shellIcon(n);
-  const ok = BANK.ready && BANK.source === 'privado';
+  const ok = BANK.ready && (BANK.source === 'privado' || BANK.source === 'servidor');
   return `<div class="tc-card" style="margin-bottom:16px;">
     <div class="tc-card-head"><span class="tc-step">${ic('lock')}</span><div><h3>Banco de preguntas</h3><small>${ok ? 'Protegido: se lee de un almacén privado que solo abre con sesión iniciada.' : 'No se pudo cargar el banco de preguntas.'}</small></div></div>
     <div class="st-note">${ok ? `${ic('check')} Banco privado en uso (${BASE_QUESTIONS.length} preguntas).` : 'Recarga la página. Si sigue igual, revisa que base-questions.json está en Storage > bank.'}</div>
@@ -1378,10 +1437,12 @@ function startCountedQuiz(count){
   let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
   pool = shuffle(pool.slice()).slice(0, Math.max(1,count));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
+  bankReady(pool).then(function(ok){ if(!ok) return;
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'short', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null };
   STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
+  });
 }
 
 function isLifeMode(mode){ return mode==='hearts' || mode==='suddendeath'; }
@@ -1391,33 +1452,39 @@ function formatScore(n){ return Number.isInteger(n) ? String(n) : n.toFixed(1); 
 
 function startHeartsMode(){
   let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
-  pool = shuffle(pool.slice()).slice(0, Math.min(60, pool.length));
+  pool = shuffle(pool.slice()).slice(0, Math.min(bankCap(60), pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
+  bankReady(pool).then(function(ok){ if(!ok) return;
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'hearts', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null, hearts:3, combo:0, bestCombo:0 };
   STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
+  });
 }
 
 function startSuddenDeathMode(){
   let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
-  pool = shuffle(pool.slice()).slice(0, Math.min(60, pool.length));
+  pool = shuffle(pool.slice()).slice(0, Math.min(bankCap(60), pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
+  bankReady(pool).then(function(ok){ if(!ok) return;
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'suddendeath', law:null, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null, hearts:1, combo:0, bestCombo:0 };
   STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
+  });
 }
 
 function startTimeAttackMode(){
   let pool = allQuestions().filter(q=>q.domain!=='federation' && q.domain!=='assistants');
-  pool = shuffle(pool.slice()).slice(0, Math.min(150, pool.length));
+  pool = shuffle(pool.slice()).slice(0, Math.min(bankCap(150), pool.length));
   if(pool.length===0){ STATE.toast='No hay preguntas disponibles.'; render(); return; }
+  bankReady(pool).then(function(ok){ if(!ok) return;
   STATE.quiz = { qids: pool.map(q=>q.id), idx:0, mode:'timeattack', law:null, answers:{}, instantFeedback:true, timerMode:'total', timeSec:60, remainingSec:60, showFeedback:false, selected:null, combo:0, bestCombo:0 };
   STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
   startTimer();
+  });
 }
 
 const CROWN_COLORS = ['', '#B87333', '#9AA0A6', '#E3A008', '#4FC3D9'];
@@ -3596,10 +3663,12 @@ function pickQuestions(law, mode){
 function startQuiz(law, mode){
   const qids = pickQuestions(law, mode);
   if(qids.length===0){ STATE.toast="No hay preguntas disponibles para este modo."; render(); return; }
+  bankReady(qids).then(function(ok){ if(!ok) return;
   STATE.quiz = { qids, idx:0, mode: mode||'short', law, answers:{}, instantFeedback:true, timeSec:0, remainingSec:0, showFeedback:false, selected:null };
   STATE.quiz.shuffled = buildQuizShuffleMap(STATE.quiz.qids);
   STATE.view = 'quiz';
   render();
+  });
 }
 
 function isFailedQuestion(q){
@@ -3631,6 +3700,7 @@ function startTraining(opts){
     remainingSec = perQSeconds;
   }
 
+  bankReady(pool).then(function(ok){ if(!ok) return;
   STATE.quiz = {
     qids: pool.map(q=>q.id), idx:0, mode:'training', law: opts.scopeOverride || null,
     answers:{}, instantFeedback: !!opts.instantFeedback, timerMode, timeSec, remainingSec, perQSeconds
@@ -3639,6 +3709,7 @@ function startTraining(opts){
   STATE.view = 'quiz';
   render();
   if(timerMode==='total' || timerMode==='perQuestion') startTimer();
+  });
 }
 
 function goToQuestion(newIdx){
@@ -3687,6 +3758,7 @@ function quizView(){
   const ic = (n) => shellIcon(n);
   const quiz = STATE.quiz;
   const q = currentQ();
+  if(q && q._stub){ bankLazy(quiz.qids.slice(quiz.idx, quiz.idx + 40)); return '<div class="empty-state">Cargando preguntas...</div>'; }
   const total = quiz.qids.length;
   const pct = Math.round((quiz.idx)/total*100);
   const letters=['a','b','c','d'];
@@ -4026,6 +4098,7 @@ function savedBrowseView(){
   if(STATE.savedBrowseIdx < 0) STATE.savedBrowseIdx = 0;
   const id = ids[STATE.savedBrowseIdx];
   const q = allQuestions().find(x=>x.id===id);
+  if(q && q._stub){ bankLazy(ids.slice(Math.max(0, STATE.savedBrowseIdx), STATE.savedBrowseIdx + 20)); return '<div class="empty-state">Cargando pregunta...</div>'; }
   const pct = Math.round((STATE.savedBrowseIdx + 1) / ids.length * 100);
   return `
   <button class="backbtn" data-action="open-law" data-law="saved">&larr; Preguntas guardadas</button>
