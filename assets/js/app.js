@@ -66,6 +66,24 @@ async function reportQuestion(qid){
   }catch(e){ /* aviso ya mostrado igualmente; el fallo de red no debe bloquear al usuario */ }
 }
 
+/* Finalizar el examen: pide confirmación (se contaba al primer toque y se cerraba sin querer). */
+async function finishTrainingConfirm(){
+  const quiz = STATE.quiz;
+  if(!quiz) return;
+  const left = quiz.qids.filter(id => !quiz.answers[id]).length;
+  const ok = await appConfirm({
+    icon: 'flag',
+    title: '¿Finalizar el examen?',
+    message: left > 0
+      ? 'Te quedan ' + left + (left === 1 ? ' pregunta sin responder' : ' preguntas sin responder') + '. Si finalizas ahora, contarán como no respondidas.'
+      : 'Has respondido todas las preguntas. Verás tu resultado.',
+    confirmText: 'Sí, finalizar',
+    cancelText: 'Seguir con el examen'
+  });
+  if(!ok || STATE.view !== 'quiz' || STATE.quiz !== quiz) return;
+  stopTimer(); recordTestResult(quiz); STATE.view = 'result'; render();
+}
+
 /* Modal de confirmación antes de enviar el aviso de error (guarda en question_reports con el id de la pregunta). */
 async function reportQuestionDialog(qid){
   if(STATE.reportedIds[qid]) return;
@@ -3832,10 +3850,12 @@ function quizView(){
 
   let info, status;
   if(quiz.mode==='training'){
-    info = `<strong>${scopeLabel(q)}</strong><small>Pregunta ${quiz.idx+1} de ${total} · Respondidas ${Object.keys(quiz.answers).length}/${total}</small>`;
+    info = `<strong>${scopeLabel(q)}</strong><small>Pregunta ${quiz.idx+1} de ${total}</small>`;
     status = quiz.timerMode==='total' ? `<span class="qz-chip">${ic('clock')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>` :
       quiz.timerMode==='perQuestion' ? `<span class="qz-chip">${ic('timer')}<span class="mono" id="timer-display">${formatTime(quiz.remainingSec)}</span></span>` :
       `<span class="qz-chip soft">${ic('repeat')} Sin límite</span>`;
+    /* "Finalizar" arriba, lejos de Anterior/Siguiente, y siempre con confirmación */
+    status += `<button type="button" class="qz-finish" data-action="finish-training" aria-label="Finalizar examen">Finalizar</button>`;
   } else if(isLifeMode(quiz.mode)){
     const maxLives = maxLivesFor(quiz.mode);
     info = `<strong>${quiz.mode==='suddendeath' ? 'Muerte Súbita' : 'Modo Corazones'}</strong><small>${quiz.combo>=2 ? 'Racha ' + quiz.combo + ' · ' : ''}Pregunta ${quiz.idx+1}</small>`;
@@ -3857,8 +3877,7 @@ function quizView(){
   if(quiz.mode==='training'){
     actions = `
       <button class="btn btn-secondary" data-action="prev-question" ${quiz.idx===0?'disabled':''}>&larr; Anterior</button>
-      ${quiz.idx+1<total ? `<button class="btn btn-secondary" data-action="next-question">Siguiente &rarr;</button>` : ''}
-      <button class="btn btn-primary" data-action="finish-training">Finalizar examen</button>
+      ${quiz.idx+1<total ? `<button class="btn btn-secondary" data-action="next-question">Siguiente &rarr;</button>` : `<button class="btn btn-primary" data-action="finish-training">Finalizar examen</button>`}
     `;
   } else {
     const isGameOver = isLifeMode(quiz.mode) && quiz.hearts<=0;
@@ -3954,12 +3973,13 @@ function resultView(){
   let score = 0;
   const byLaw = {};
   const fails = [];
+  const rights = [];
   scopeQids.forEach((qid, i) => {
     const q = quizQuestionById(qid, quiz);
     if(!q) return;
     const sel = quiz.answers[qid];
     const ok = sel === q.correct;
-    if(ok) score++; else fails.push({ q, sel, n: i + 1 });
+    if(ok){ score++; rights.push({ q, sel, n: i + 1 }); } else fails.push({ q, sel, n: i + 1 });
     if(!byLaw[q.rule]) byLaw[q.rule] = {total:0, correct:0};
     byLaw[q.rule].total++;
     if(ok) byLaw[q.rule].correct++;
@@ -4003,24 +4023,28 @@ function resultView(){
   const celebrate = (rankUp ? `<div class="rs-celebrate"><span class="ic">${ic('award')}</span><div><strong>¡Subes de rango!</strong><small>Ahora eres ${esc(rankNow.name)}.</small></div></div>` : '')
     + newBadges.map(b => `<div class="rs-celebrate"><span class="ic">${ic('trophy')}</span><div><strong>Nueva insignia: ${esc(b.name)}</strong><small>${esc(b.desc)}</small></div></div>`).join('');
 
-  const failsHtml = fails.length ? `<details class="ui-card rs-fails">
-    <summary><span>Preguntas falladas</span><span class="count">${fails.length}</span><span class="chev">${ic('chevron')}</span></summary>
-    <div class="rs-fails-list">${fails.map(f => {
-      const q = f.q;
-      const opts = q.options.map((o, idx) => {
-        const letter = letters[idx];
-        if(letter === q.correct) return `<div class="rs-ans ok"><b>${letter.toUpperCase()}</b><span><small>Respuesta correcta</small>${esc(o)}</span></div>`;
-        if(letter === f.sel) return `<div class="rs-ans bad"><b>${letter.toUpperCase()}</b><span><small>Tu respuesta</small>${esc(o)}</span></div>`;
-        return '';
-      }).join('');
-      return `<article class="rs-fail">
-        <div class="rs-fail-tag">Pregunta ${f.n} · ${scopeLabel(q)}${f.sel ? '' : ' · sin responder'}</div>
-        <div class="rs-fail-q">${esc(q.question)}</div>
-        ${opts}
-        ${q.explanation ? `<div class="qz-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
-      </article>`;
-    }).join('')}</div>
+  /* revisión de preguntas: falladas y acertadas en dos bloques plegables */
+  const reviewItem = (f) => {
+    const q = f.q;
+    const good = f.sel === q.correct;
+    const opts = q.options.map((o, idx) => {
+      const letter = letters[idx];
+      if(letter === q.correct) return `<div class="rs-ans ok"><b>${letter.toUpperCase()}</b><span><small>${good ? 'Tu respuesta · correcta' : 'Respuesta correcta'}</small>${esc(o)}</span></div>`;
+      if(letter === f.sel) return `<div class="rs-ans bad"><b>${letter.toUpperCase()}</b><span><small>Tu respuesta</small>${esc(o)}</span></div>`;
+      return '';
+    }).join('');
+    return `<article class="rs-fail">
+      <div class="rs-fail-tag">Pregunta ${f.n} · ${scopeLabel(q)}${f.sel ? '' : ' · sin responder'}</div>
+      <div class="rs-fail-q">${esc(q.question)}</div>
+      ${opts}
+      ${q.explanation ? `<div class="qz-expl"><strong>Explicación:</strong> ${esc(q.explanation)}</div>` : ''}
+    </article>`;
+  };
+  const reviewBlock = (title, list, cls) => list.length ? `<details class="ui-card rs-fails">
+    <summary><span>${title}</span><span class="count ${cls}">${list.length}</span><span class="chev">${ic('chevron')}</span></summary>
+    <div class="rs-fails-list">${list.map(reviewItem).join('')}</div>
   </details>` : '';
+  const failsHtml = reviewBlock('Preguntas falladas', fails, 'bad') + reviewBlock('Preguntas acertadas', rights, 'ok');
 
   const lawRows = Object.keys(byLaw).sort((a, b) => a - b).map(law => {
     const b = byLaw[law];
@@ -5506,7 +5530,7 @@ function onAction(e){
     STATE.reviewDetailIdx = (STATE.reviewDetailIdx === idx) ? null : idx;
     render();
   }
-  else if(action==='finish-training'){ stopTimer(); recordTestResult(STATE.quiz); STATE.view='result'; render(); }
+  else if(action==='finish-training'){ finishTrainingConfirm(); }
   else if(action==='quit-quiz'){ STATE.confirmQuit = 'quiz'; render(); }
   else if(action==='quit-cancel'){ STATE.confirmQuit = null; render(); }
   else if(action==='quit-confirm'){

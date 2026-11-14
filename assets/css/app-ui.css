@@ -56,6 +56,15 @@
 .qz{max-width:800px; margin:0 auto; min-height:calc(100vh - 36px); min-height:calc(100dvh - 36px); display:flex; flex-direction:column;}
 .qz-top{position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:var(--sp-3); padding:12px 16px 18px; border-radius:var(--r-lg); background:linear-gradient(135deg,var(--c-pitch),var(--c-black)); box-shadow:var(--sh-2);}
 .qz-top{flex-wrap:nowrap;}
+.qz-finish{flex-shrink:0; min-height:36px; padding:0 14px; border-radius:var(--r-md); border:1.5px solid rgba(255,255,255,.35); background:transparent; color:var(--c-on-dark); font:700 var(--fs-sm) var(--ff-body); cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);}
+.qz-finish:hover{background:rgba(255,255,255,.14); border-color:#fff;}
+@media (max-width:640px){
+  .qz-finish{padding:0 10px; font-size:12px; min-height:34px;}
+  .qz-top:has(.qz-finish) .qz-chip svg{display:none;}
+  .qz-top:has(.qz-finish) .qz-chip{padding:7px 10px;}
+  .qz-top:has(.qz-finish) .qz-info strong{font-size:14px;}
+  .qz-top:has(.qz-finish){gap:8px;}
+}
 .qz-exit{min-height:40px; border-radius:var(--r-md); flex-shrink:0;}
 .qz-info{overflow:hidden;}
 .qz-info small{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -172,6 +181,7 @@ button.qd-seg{cursor:pointer;} button.qd-seg:hover{border-color:var(--c-ink); tr
 .rs-fails > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); padding:var(--sp-4) var(--sp-5); font:700 var(--fs-md) var(--ff-body);}
 .rs-fails > summary::-webkit-details-marker{display:none;}
 .rs-fails > summary .count{font:700 var(--fs-xs) var(--ff-mono); padding:4px 10px; border-radius:var(--r-pill); background:var(--c-bad-bg); color:var(--c-bad);}
+.rs-fails > summary .count.ok{background:var(--c-ok-bg); color:var(--c-ok);}
 .rs-fails > summary .chev{margin-left:auto; transition:transform var(--t-base) var(--ease); display:flex;} .rs-fails > summary .chev svg{width:18px; height:18px;}
 .rs-fails[open] > summary .chev{transform:rotate(90deg);}
 .rs-fails-list{border-top:1px solid var(--c-line); padding:var(--sp-4) var(--sp-5) var(--sp-5); display:flex; flex-direction:column; gap:var(--sp-4);}
