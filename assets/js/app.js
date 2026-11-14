@@ -290,11 +290,11 @@ async function loadBaseBank(){
   const admin = await bankIsAdmin();
   let wantServer = BANK_ROLLOUT_ALL ? !admin : false;
   try{
-    // Solo administradores: app.html?bank=1 activa el modo servidor para probarlo; ?bank=0 lo desactiva.
+    // app.html?bank=1 activa el modo servidor en ESTE navegador para probarlo (con cualquier cuenta); ?bank=0 lo desactiva.
     const qp = new URLSearchParams(location.search).get('bank');
-    if(admin && qp === '1') localStorage.setItem('weref_bank_server', '1');
-    if(admin && qp === '0') localStorage.removeItem('weref_bank_server');
-    if(admin && localStorage.getItem('weref_bank_server') === '1') wantServer = true;
+    if(qp === '1') localStorage.setItem('weref_bank_server', '1');
+    if(qp === '0') localStorage.removeItem('weref_bank_server');
+    if(localStorage.getItem('weref_bank_server') === '1') wantServer = true;
   }catch(e){}
   if(wantServer){
     try{
