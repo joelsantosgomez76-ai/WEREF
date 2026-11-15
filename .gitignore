@@ -1,0 +1,7 @@
+# Lo sensible vive en el repositorio PRIVADO (WEREF-privado), que usa la carpeta .git-private.
+# Estas carpetas siguen en el equipo (el generador de paginas las necesita) pero NO van al repositorio publico.
+.git-private/
+supabase/
+tools/
+content/
+tests/

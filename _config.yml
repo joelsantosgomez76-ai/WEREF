@@ -1,0 +1,8 @@
+# Archivos y carpetas que NO se publican en we-ref.com (GitHub Pages usa Jekyll y respeta esta lista).
+# Importante: esto quita estos archivos de la web, pero el repositorio de GitHub sigue siendo público.
+exclude:
+  - supabase
+  - tools
+  - content
+  - tests
+  - README.md

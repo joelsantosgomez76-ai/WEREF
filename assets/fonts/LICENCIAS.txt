@@ -1,0 +1,6 @@
+Fuentes alojadas en we-ref.com (antes se cargaban desde Google Fonts). Subconjuntos latin y latin-ext, fuentes variables en woff2.
+- Oswald (The Oswald Project Authors) - SIL Open Font License 1.1
+- Work Sans (The Work Sans Project Authors) - SIL Open Font License 1.1
+- JetBrains Mono (The JetBrains Mono Project Authors) - SIL Open Font License 1.1
+Texto de la licencia: https://openfontlicense.org/open-font-license-official-text/
+Origen: https://fonts.google.com (descargadas el 2026-11-15).
