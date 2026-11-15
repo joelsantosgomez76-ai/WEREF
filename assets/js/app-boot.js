@@ -57,15 +57,43 @@ function showUsernamePrompt(){
   });
 }
 
+/* Arranque a prueba de atascos: si una comprobación tarda más de 8 s (pasaba tras iniciar sesión con 2FA: la pantalla se quedaba
+   "pensando" hasta pulsar F5), se recarga sola UNA vez y, si vuelve a pasar, se dice en qué paso se atascó y se ofrece reintentar. */
+function bootTimeout(promise, ms, label){
+  return new Promise(function(resolve, reject){
+    const t = setTimeout(function(){ reject(new Error('timeout:' + label)); }, ms);
+    Promise.resolve(promise).then(function(v){ clearTimeout(t); resolve(v); }, function(e){ clearTimeout(t); reject(e); });
+  });
+}
+function bootFailed(e){
+  console.error('Arranque de la app', e);
+  const msg = String((e && e.message) || e || 'desconocido');
+  const paso = /^timeout:/.test(msg) ? msg.slice(8) : msg;
+  let retried = false;
+  try{ retried = sessionStorage.getItem('weref_boot_retry') === '1'; }catch(_){}
+  if(!retried){ try{ sessionStorage.setItem('weref_boot_retry', '1'); }catch(_){} window.location.reload(); return; }
+  try{ sessionStorage.removeItem('weref_boot_retry'); }catch(_){}
+  const app = document.getElementById('app');
+  if(!app) return;
+  app.innerHTML = '<div style="max-width:380px; margin:70px auto; padding:0 16px; text-align:center;">' +
+    '<h2 style="margin-bottom:8px;">No se ha podido cargar</h2>' +
+    '<div style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">Se ha quedado en: <b></b>. Tus datos están a salvo.</div>' +
+    '<button type="button" class="btn btn-primary" style="width:100%;" id="boot-retry">Reintentar</button>' +
+    '<button type="button" class="btn btn-ghost" style="width:100%; margin-top:10px;" id="boot-out">Cerrar sesión</button></div>';
+  app.querySelector('b').textContent = paso;
+  document.getElementById('boot-retry').addEventListener('click', function(){ window.location.reload(); });
+  document.getElementById('boot-out').addEventListener('click', async function(){ try{ await supabaseClient.auth.signOut({ scope: 'local' }); }catch(_){} window.location.href = 'index.html'; });
+}
+
 /* Pantalla del código de verificación (2FA). Devuelve una promesa que se resuelve cuando el código es correcto. */
 async function mfaGate(){
   let need = false;
   try{
-    const { data } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+    const { data } = await bootTimeout(supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel(), 8000, 'comprobar la verificación en dos pasos');
     need = !!(data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2');
-  }catch(e){ return; }
+  }catch(e){ if(e && /^timeout:/.test(String(e.message))) throw e; return; }
   if(!need) return;
-  const listed = await supabaseClient.auth.mfa.listFactors();
+  const listed = await bootTimeout(supabaseClient.auth.mfa.listFactors(), 8000, 'leer tus factores de verificación');
   const factor = listed && listed.data && listed.data.totp && listed.data.totp[0];
   if(!factor) return;
   await new Promise(function(resolve){
@@ -103,7 +131,12 @@ async function mfaGate(){
 }
 
 (async function init(){
-  const session = await getCurrentSession();
+  try{ await initInner(); try{ sessionStorage.removeItem('weref_boot_retry'); }catch(_){} }
+  catch(e){ bootFailed(e); }
+})();
+
+async function initInner(){
+  const session = await bootTimeout(getCurrentSession(), 8000, 'leer tu sesión');
   if(!session){
     // Si venía de escanear el QR de asistencia, se guarda el código para registrarlo tras iniciar sesión.
     try{ const q = new URLSearchParams(location.search).get('asistencia'); if(q) sessionStorage.setItem('weref_checkin', q.slice(0, 64)); const s = new URLSearchParams(location.search).get('sala'); if(s) sessionStorage.setItem('weref_live', s.slice(0, 12)); }catch(e){}
@@ -119,10 +152,10 @@ async function mfaGate(){
   // Con Google (o si el usuario no se guardó al registrarse) puede faltar el usuario o la fecha de nacimiento:
   // se piden en un paso intermedio antes de entrar.
   try{
-    const miss = await accountMissing();
+    const miss = await bootTimeout(accountMissing(), 8000, 'comprobar tu perfil');
     if(miss.username || miss.birthdate){ window.location.href = '/registro/?completar=1&redirect=' + encodeURIComponent('/app.html'); return; }
   }catch(e){}
-  const { data: unameRow } = await supabaseClient.from('usernames').select('username').eq('user_id', CURRENT_USER_ID).maybeSingle();
+  const { data: unameRow } = await bootTimeout(supabaseClient.from('usernames').select('username').eq('user_id', CURRENT_USER_ID).maybeSingle(), 8000, 'leer tu nombre de usuario');
   if(!unameRow){
     showUsernamePrompt();
     return;
@@ -130,7 +163,7 @@ async function mfaGate(){
   CURRENT_USERNAME = unameRow.username;
   // Los miembros del comité necesitan nombre y apellidos bien separados (se ordenan por apellidos).
   try{
-    const cs = await supabaseClient.rpc('committee_status');
+    const cs = await bootTimeout(supabaseClient.rpc('committee_status'), 8000, 'comprobar el comité');
     if(cs && !cs.error && cs.data && cs.data.is_member){
       const ur = await supabaseClient.auth.getUser();
       const meta = (ur && ur.data && ur.data.user && ur.data.user.user_metadata) || {};
@@ -139,7 +172,7 @@ async function mfaGate(){
     }
   }catch(e){}
   startApp();
-})();
+}
 
 /* Pantalla que se pide una sola vez a los miembros cuyo nombre o apellidos no están bien separados. */
 function showNamePrompt(first, last){
