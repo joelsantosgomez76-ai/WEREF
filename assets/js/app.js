@@ -1072,7 +1072,7 @@ function questionsForLaw(law){
 
 /* ---- Fase B · f3: el progreso vive en el SERVIDOR (user_progress, user_failed, user_tests, user_crowns, user_days, user_badges, user_stats).
    La app lo lee de ahí al cargar y ya no lo escribe en user_data (lo escriben las funciones del servidor al contestar y terminar tests).
-   Si la lectura del servidor falla, se usa user_data como hasta ahora. */
+   Si la lectura falla, se avisa al usuario (ya no hay respaldo en user_data: esas claves se borraron). */
 const SERVER_PROGRESS_KEYS = new Set(['progress', 'failedStreaks', 'testHistory', 'crownLevels', 'activeDays', 'unlockedBadges', 'maxStreak',
   'pointsCorrectOffset', 'heartsRecord', 'suddenDeathRecord', 'timeAttackRecord']);
 const SERVER_PROGRESS_ALL = true;   /* f3: se pondrá a true al publicar el cambio general, tras repetir la migración. Con ?srv=3 se prueba en un solo navegador. */
@@ -1107,10 +1107,10 @@ async function loadServerProgress(){
     const s = st.data || {};
     d.maxStreak = s.max_streak || 0; d.pointsCorrectOffset = s.points_offset || 0;
     d.heartsRecord = Number(s.hearts_record || 0); d.suddenDeathRecord = Number(s.suddendeath_record || 0); d.timeAttackRecord = Number(s.timeattack_record || 0);
-    /* seguridad: si el servidor no devuelve nada (cuenta sin migrar o fallo de permisos), se sigue con user_data */
+    /* cuenta sin datos en el servidor: se devuelve null (progreso vacío) */
     if(!prog.length && !tests.length && !days.length) return null;
     return d;
-  }catch(e){ console.warn('No se pudo leer el progreso del servidor; se usa user_data', e); return null; }
+  }catch(e){ console.warn('No se pudo leer el progreso del servidor', e); return false; }
 }
 async function storageGet(key){
   if(SERVER_PROGRESS_ON && SERVER_PROGRESS_KEYS.has(key)) return null;
@@ -1129,49 +1129,25 @@ async function loadStorage(){
   if(BANK_INDEX_MODE) sharedRebuild();     /* modo índice: los cambios y preguntas añadidas ya vienen en el índice del servidor */
   else await loadSharedQuestions();
   window.__stage = 'tus datos (progreso, coronas...)';
-  const SRVD = srvProgressOn() ? await loadServerProgress() : null;
-  SERVER_PROGRESS_ON = !!SRVD;
-  try{ const v = await storageGet('progress'); STATE.storage.progress = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.progress = {}; }
-  let failedStreaksWasNew = false;
-  try{ const v = await storageGet('failedStreaks'); if(v){ STATE.storage.failedStreaks = JSON.parse(v); } else { STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; } }catch(e){ STATE.storage.failedStreaks = {}; failedStreaksWasNew = true; }
+  const SRVD = srvProgressOn() ? await loadServerProgress() : null;      /* objeto = datos; null = cuenta sin datos; false = error de lectura */
+  SERVER_PROGRESS_ON = srvProgressOn();                                   /* el servidor manda aunque la cuenta aún no tenga datos */
   try{ const v = await storageGet('userQuestions'); STATE.storage.userQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.userQuestions = []; }
   try{ const v = await storageGet('saved'); STATE.storage.saved = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.saved = {}; }
   try{ const v = await storageGet('edits'); STATE.storage.edits = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.edits = {}; }
   try{ const v = await storageGet('reviewed'); STATE.storage.reviewed = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.reviewed = {}; }
   try{ const v = await storageGet('deleted'); STATE.storage.deleted = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.deleted = {}; }
-  try{ const v = await storageGet('testHistory'); STATE.storage.testHistory = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.testHistory = []; }
-  try{ const v = await storageGet('maxStreak'); STATE.storage.maxStreak = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.maxStreak = 0; }
-  try{ const v = await storageGet('unlockedBadges'); STATE.storage.unlockedBadges = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.unlockedBadges = {}; }
   try{ const v = await storageGet('dailyGoal'); STATE.storage.dailyGoal = v ? JSON.parse(v) : 20; }catch(e){ STATE.storage.dailyGoal = 20; }
-  try{ const v = await storageGet('crownLevels'); STATE.storage.crownLevels = v ? JSON.parse(v) : {}; }catch(e){ STATE.storage.crownLevels = {}; }
-  try{ const v = await storageGet('heartsRecord'); STATE.storage.heartsRecord = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.heartsRecord = 0; }
-  try{ const v = await storageGet('suddenDeathRecord'); STATE.storage.suddenDeathRecord = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.suddenDeathRecord = 0; }
-  try{ const v = await storageGet('timeAttackRecord'); STATE.storage.timeAttackRecord = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.timeAttackRecord = 0; }
   try{ const v = await storageGet('glossaryQuestions'); STATE.storage.glossaryQuestions = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.glossaryQuestions = []; }
   try{ const v = await storageGet('myBank'); STATE.storage.myBank = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBank = []; }
   try{ const v = await storageGet('myBankCategories'); STATE.storage.myBankCategories = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myBankCategories = []; }
   try{ const v = await storageGet('myDocsFolders'); STATE.storage.myDocsFolders = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocsFolders = []; }
   try{ const v = await storageGet('myDocs'); STATE.storage.myDocs = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.myDocs = []; }
   try{ const v = await storageGet('calendarEvents'); STATE.storage.calendarEvents = v ? JSON.parse(v) : []; }catch(e){ STATE.storage.calendarEvents = []; }
-  let activeDaysWasNew = false;
-  try{ const v = await storageGet('activeDays'); if(v){ STATE.storage.activeDays = JSON.parse(v); } else { STATE.storage.activeDays = {}; activeDaysWasNew = true; } }catch(e){ STATE.storage.activeDays = {}; activeDaysWasNew = true; }
-  try{ const v = await storageGet('pointsCorrectOffset'); STATE.storage.pointsCorrectOffset = v ? JSON.parse(v) : 0; }catch(e){ STATE.storage.pointsCorrectOffset = 0; }
-  if(SRVD){ Object.assign(STATE.storage, SRVD); activeDaysWasNew = false; failedStreaksWasNew = false; }   /* f3: el progreso es el del servidor */
-  if(activeDaysWasNew && Object.keys(STATE.storage.progress).length>0){
-    // Primera vez que existe esta clave: recuperamos el historial de racha a partir de las marcas de tiempo ya guardadas en "progress", para no resetear la racha de nadie con este cambio.
-    Object.values(STATE.storage.progress).forEach(p=>{ if(p && p.ts) STATE.storage.activeDays[dayKey(p.ts)] = true; });
-    saveActiveDays();
-  }
-  if(failedStreaksWasNew){
-    // Primera vez que existe esta clave: las preguntas ya falladas (según "progress") entran
-    // en la Sala de Repaso con 0 aciertos seguidos, para no perder el repaso pendiente de nadie.
-    Object.keys(STATE.storage.progress).forEach(qid=>{
-      if(STATE.storage.progress[qid] && STATE.storage.progress[qid].correct === false){
-        STATE.storage.failedStreaks[qid] = 0;
-      }
-    });
-    saveFailedStreaks();
-  }
+  /* f3: el progreso es SOLO el del servidor (las claves antiguas de user_data ya no existen).
+     Cuenta sin datos = vacío; si falla la lectura (red), se avisa en vez de enseñar ceros en silencio. */
+  Object.assign(STATE.storage, { progress: {}, failedStreaks: {}, testHistory: [], maxStreak: 0, unlockedBadges: {}, crownLevels: {},
+    heartsRecord: 0, suddenDeathRecord: 0, timeAttackRecord: 0, activeDays: {}, pointsCorrectOffset: 0 }, SRVD || {});
+  if(SRVD === false) STATE.toast = 'No se pudo cargar tu progreso. Recarga la página.';
   {
     // Compatibilidad con la versión anterior (categoría como texto libre sin lista propia):
     // si alguna pregunta tiene una categoría que ya no está en la lista, la recuperamos
