@@ -508,12 +508,9 @@ let STATE = {
   adminUsersPage: 1,
   adminUsersFilter: { search: '', status: 'all', role: 'all' },
   confirmDeleteUserId: null,
-  leaderboard: [],
-  leaderboardMode: 'hearts',
-  myStanding: null,
-  leagueSummary: null,
+  leagueBoard: {},      // clasificación por modo (league_board): { hearts: { data, loading, error }, ... }
+  leagueMode: null,     // último modo elegido en la League
   dataReady: false,   // true cuando loadStorage() ha terminado: hasta entonces Inicio y el menú lateral muestran skeletons
-  leaderboardParticipants: null,
   confirmDeleteId: null,
   confirmResetLawId: null,
 };
@@ -1286,63 +1283,44 @@ const COUNTRY_FLAGS = {
   'Ucrania':'🇺🇦','Uruguay':'🇺🇾','Venezuela':'🇻🇪'
 };
 
-// Clasificacion: se lee de la vista leaderboard_public (sin user_id ni datos de mas). Si la vista aun no existe, se usa la tabla.
-let LB_SRC = 'leaderboard_public';
-
-
-async function loadLeaderboard(mode){
-  STATE.leaderboardMode = mode;
-  STATE.myStanding = null;
-  STATE.leaderboardParticipants = null;
-  try{
-    const { data, error } = await supabaseClient.from(LB_SRC).select('*').eq('mode', mode).order('score', { ascending: false }).limit(25);
-    if(error && LB_SRC === 'leaderboard_public'){ LB_SRC = 'leaderboard_scores'; return loadLeaderboard(mode); }
-    if(!error && data) STATE.leaderboard = data;
-    const { count: totalCount } = await supabaseClient.from(LB_SRC).select('score', { count: 'exact', head: true }).eq('mode', mode);
-    STATE.leaderboardParticipants = totalCount||0;
-    render();
-  }catch(e){}
-  loadMyLeaderboardStanding(mode);
+/* ---------------- WEREF LEAGUE · datos ----------------
+   La posición, el top 25 y el "a X pts de ..." salen SIEMPRE de la función league_board del servidor:
+   más puntos y, si empatan, quien lo consiguió antes (updated_at más antiguo); cada jugador tiene una posición única.
+   Así el mismo #N se ve en la pantalla de la League y en Inicio. */
+const LEAGUE_MODES = {
+  hearts:      { label: 'Corazones',     short: 'Corazones', icon: 'heart', rules: '3 vidas · sin tiempo',               action: 'start-hearts',      rec: 'heartsRecord' },
+  suddendeath: { label: 'Muerte Súbita', short: 'Súbita',    icon: 'zap',   rules: '1 vida · sin tiempo',                action: 'start-suddendeath', rec: 'suddenDeathRecord' },
+  timeattack:  { label: 'Contrarreloj',  short: 'Reloj',     icon: 'timer', rules: '60 segundos · cada fallo resta 0,5', action: 'start-timeattack',  rec: 'timeAttackRecord' }
+};
+/* País (como lo guarda la cuenta) -> código ISO para la bandera SVG de /assets/flags/. Sin país o sin bandera: no se muestra nada. */
+const FLAG_ISO = { 'Alemania':'de','Andorra':'ad','Argelia':'dz','Argentina':'ar','Australia':'au','Austria':'at','Bélgica':'be','Bolivia':'bo','Brasil':'br','Canadá':'ca','Chile':'cl','China':'cn','Colombia':'co','Corea del Sur':'kr','Costa Rica':'cr','Cuba':'cu','Dinamarca':'dk','Ecuador':'ec','Egipto':'eg','El Salvador':'sv','España':'es','Estados Unidos':'us','Filipinas':'ph','Finlandia':'fi','Francia':'fr','Grecia':'gr','Guatemala':'gt','Guinea Ecuatorial':'gq','Holanda (Países Bajos)':'nl','Honduras':'hn','India':'in','Indonesia':'id','Irlanda':'ie','Israel':'il','Italia':'it','Japón':'jp','Marruecos':'ma','México':'mx','Nicaragua':'ni','Noruega':'no','Nueva Zelanda':'nz','Panamá':'pa','Paraguay':'py','Perú':'pe','Polonia':'pl','Portugal':'pt','Puerto Rico':'pr','Reino Unido':'gb','República Dominicana':'do','Rumanía':'ro','Rusia':'ru','Suecia':'se','Suiza':'ch','Turquía':'tr','Ucrania':'ua','Uruguay':'uy','Venezuela':'ve' };
+/* Puntuaciones de la League con coma decimal (12,5), como en el resto del texto en castellano. */
+function lgFmt(n){ return formatScore(n).replace('.', ','); }
+function flagHtml(country){
+  const iso = FLAG_ISO[country];
+  return iso ? `<img class="lg2-flag" src="/assets/flags/${iso}.svg" alt="" width="20" height="15" loading="lazy" decoding="async">` : '';
 }
-
-async function loadMyLeaderboardStanding(mode){
-  try{
-    const { data: mine } = await supabaseClient.from('leaderboard_scores').select('*').eq('mode', mode).eq('user_id', CURRENT_USER_ID).maybeSingle();
-    if(!mine){ STATE.myStanding = false; render(); return; }
-    const { count } = await supabaseClient.from(LB_SRC).select('score', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
-    const myRank = (count||0) + 1;
-    let nextAbove = null;
-    if(myRank > 1){
-      const { data: aboveRows } = await supabaseClient.from(LB_SRC).select('score,username').eq('mode', mode).gt('score', mine.score).order('score', { ascending: true }).limit(1);
-      if(aboveRows && aboveRows[0]) nextAbove = aboveRows[0];
-    }
-    let milestoneRank = null, milestoneScore = null;
-    if(myRank > 25) milestoneRank = 25;
-    else if(myRank > 10) milestoneRank = 10;
-    if(milestoneRank){
-      const { data: msRows } = await supabaseClient.from(LB_SRC).select('score').eq('mode', mode).order('score', { ascending: false }).range(milestoneRank-1, milestoneRank-1);
-      if(msRows && msRows[0]) milestoneScore = msRows[0].score;
-    }
-    STATE.myStanding = Object.assign({}, mine, { rank: myRank, nextAbove, milestoneRank, milestoneScore });
-    render();
-  }catch(e){}
+/* El último modo elegido se recuerda en este navegador. */
+function leagueMode(){
+  let m = STATE.leagueMode;
+  if(!LEAGUE_MODES[m]){ try{ m = localStorage.getItem('weref_league_mode'); }catch(e){} }
+  return LEAGUE_MODES[m] ? m : 'hearts';
 }
-
-async function loadLeagueSummary(){
-  const modes = ['hearts','suddendeath','timeattack'];
-  const results = {};
-  for(const mode of modes){
-    try{
-      const { data: mine } = await supabaseClient.from('leaderboard_scores').select('score').eq('mode', mode).eq('user_id', CURRENT_USER_ID).maybeSingle();
-      if(mine){
-        const { count } = await supabaseClient.from(LB_SRC).select('score', { count: 'exact', head: true }).eq('mode', mode).gt('score', mine.score);
-        results[mode] = (count||0) + 1;
-      } else {
-        results[mode] = null;
-      }
-    }catch(e){ results[mode] = null; }
+function setLeagueMode(m){ if(!LEAGUE_MODES[m]) return; STATE.leagueMode = m; try{ localStorage.setItem('weref_league_mode', m); }catch(e){} }
+async function loadLeagueBoard(mode){
+  mode = LEAGUE_MODES[mode] ? mode : leagueMode();
+  const cur = STATE.leagueBoard[mode];
+  if(cur && cur.loading) return;
+  STATE.leagueBoard[mode] = { data: (cur && cur.data) || null, loading: true, error: false };
+  render();
+  try{
+    const { data, error } = await supabaseClient.rpc('league_board', { p_mode: mode, p_limit: 25 });
+    if(error) throw error;
+    STATE.leagueBoard[mode] = { data: (typeof data === 'string') ? JSON.parse(data) : data, loading: false, error: false };
+  }catch(e){
+    console.warn('league_board', e);
+    STATE.leagueBoard[mode] = { data: (cur && cur.data) || null, loading: false, error: true };
   }
-  STATE.leagueSummary = results;
   render();
 }
 
@@ -2013,8 +1991,8 @@ function viewFor(v){
   if(v==='suggestionsAdmin') return isMaster() ? suggestionsAdminView() : homeView();
   if(v==='database') return databaseView();
   if(v==='adminDashboard') return isMaster() ? adminDashboardView() : homeView();
-  if(v==='dailyChallenge') return dailyChallengeView();
-  if(v==='leaderboard') return leaderboardView();
+  if(v==='dailyChallenge') return leagueView();
+  if(v==='leaderboard') return leagueView();
   if(v==='myBank') return myBankCategoriesView();
   if(v==='myBankCategory') return myBankCategoryView();
   if(v==='myBankForm') return myBankFormView();
@@ -2034,197 +2012,98 @@ function viewFor(v){
   return homeView();
 }
 
-function dailyChallengeView(){
+/* ---------------- WEREF LEAGUE · pantalla única (juego + posición + clasificación) ---------------- */
+function leagueView(){
   const ic = (n) => shellIcon(n);
-  const heartsR = STATE.storage.heartsRecord || 0;
-  const sdR = STATE.storage.suddenDeathRecord || 0;
-  const taR = STATE.storage.timeAttackRecord || 0;
-  const totalRecord = formatScore(heartsR + sdR + taR);
+  const mode = leagueMode(), M = LEAGUE_MODES[mode];
+  const slot = STATE.leagueBoard[mode] || null;
+  const board = slot && slot.data ? slot.data : null;
+  const loading = !slot || (slot.loading && !board);
+  const failed = !!(slot && slot.error && !board);
+  const me = board ? board.me : null;
+  const rec = (k) => lgFmt(Number(STATE.storage[LEAGUE_MODES[k].rec]) || 0);
+  const initial = (n) => esc(String(n || '?').trim().charAt(0).toUpperCase() || '?');
+  const nm = (n) => esc(n || 'Anónimo');
 
-  const summary = STATE.leagueSummary;
-  const SKEL = '<span class="skel" style="display:inline-block;width:42px;height:1em;vertical-align:middle"></span>';
-  let rankLabel = SKEL, modeLabel = SKEL;
-  if(summary){
-    const ranked = [
-      { label:'Corazones', rank: summary.hearts },
-      { label:'M. Súbita', rank: summary.suddendeath },
-      { label:'Contrarreloj', rank: summary.timeattack }
-    ].filter(e => e.rank !== null && e.rank !== undefined);
-    if(ranked.length>0){
-      ranked.sort((a,b)=>a.rank-b.rank);
-      rankLabel = '#'+ranked[0].rank;
-      modeLabel = ranked[0].label;
-    } else {
-      rankLabel = 'Sin clasificar';
-      modeLabel = '—';
-    }
-  }
-
-  const mode = (cls, icon, title, desc, rec, facts, tagline, action) => `
-  <article class="lg-mode ${cls}">
-    <div class="lg-mode-top">
-      <span class="lg-mode-ic">${ic(icon)}</span>
-      <div class="lg-mode-rec"><small>Récord personal</small><b>${rec}</b></div>
-    </div>
-    <h3>${title}</h3>
-    <p>${desc}</p>
-    <ul class="lg-facts">${facts.map(f => `<li>${ic(f[0])}<span>${f[1]}</span></li>`).join('')}</ul>
-    <div class="lg-tag">${tagline}</div>
-    <button class="btn lg-play" data-action="${action}">${ic('play')} Jugar ahora</button>
-  </article>`;
-
-  return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <section class="lg-hero">
-    <div class="lg-hero-main">
-      <div class="home-eyebrow">Zona competitiva</div>
-      <h1>WEREF League</h1>
-      <p>Compite, supera tus récords y escala posiciones en la clasificación global.</p>
-      <div class="lg-hero-actions">
-        <button class="btn btn-yellow" data-action="leaderboard">${ic('trophy')} Clasificación global</button>
-      </div>
-    </div>
-    <div class="lg-hero-stats">
-      <div class="lg-stat"><b>${totalRecord}</b><span>Récord total</span></div>
-      <div class="lg-stat"><b>${rankLabel}</b><span>Tu posición</span></div>
-      <div class="lg-stat"><b>${modeLabel}</b><span>Mejor modo</span></div>
-    </div>
-  </section>
-
-  <div class="lg-section-head"><h2>Elige tu modo de juego</h2><span>Cada partida cuenta para la clasificación</span></div>
-  <div class="lg-modes">
-    ${mode('hearts', 'heart', 'Modo Corazones', 'Consigue aciertos antes de perder tus 3 vidas.', heartsR,
-      [['heart','3 vidas'], ['target','Sin límite de tiempo'], ['trophy','Récord: ' + heartsR]],
-      '¿Serás capaz de superar tu récord?', 'start-hearts')}
-    ${mode('sudden', 'skull', 'Muerte Súbita', 'Una sola vida. Falla una vez y quedas eliminado.', sdR,
-      [['skull','Una única vida'], ['zap','Cada fallo termina la partida'], ['trophy','Récord: ' + sdR]],
-      'Solo los mejores llegan al Top 25.', 'start-suddendeath')}
-    ${mode('attack', 'timer', 'Contrarreloj', '60 segundos en el reloj. Sin vidas, pero cada fallo resta.', formatScore(taR),
-      [['timer','60 segundos'], ['zap','Cada fallo resta 0,5 puntos'], ['trophy','Récord: ' + formatScore(taR)]],
-      'Cada punto cuenta para la clasificación.', 'start-timeattack')}
-  </div>
-  `;
-}
-
-function leaderboardView(){
-  const ic = (n) => shellIcon(n);
-  const mode = STATE.leaderboardMode || 'hearts';
-  const modeTitle = mode==='hearts' ? 'Modo Corazones' : mode==='suddendeath' ? 'Muerte Súbita' : 'Contrarreloj';
-  const medals = ['🥇','🥈','🥉'];
-  const s = STATE.myStanding;
-  const participants = STATE.leaderboardParticipants;
-  const list = STATE.leaderboard || [];
-
-  const topScore = list.length ? Math.max(Number(list[0].score) || 0, 1) : 1;
-  const avatar = (name, cls) => {
-    const n = String(name || '?').trim();
-    let h = 0; for(let k = 0; k < n.length; k++) h = (h * 31 + n.charCodeAt(k)) % 360;
-    return `<span class="lg-avatar ${cls || ''}" style="--h:${h};">${esc(n.charAt(0).toUpperCase())}</span>`;
-  };
-  const pod = (r, i) => {
-    const isMe = (r.is_me !== undefined) ? r.is_me : (r.user_id === CURRENT_USER_ID);
-    return `<div class="lg-pod p${i+1}${isMe?' me':''}">
-      ${i===0 ? '<div class="lg-crown">👑</div>' : ''}
-      <div class="lg-pod-av">${avatar(r.username, 'xl')}<span class="lg-pod-flag">${COUNTRY_FLAGS[r.country] || '🏳️'}</span></div>
-      <div class="lg-pod-name">${esc(r.username || 'Anónimo')}${isMe?' <span class="lb-you-badge">TÚ</span>':''}</div>
-      <div class="lg-pod-score">${formatScore(Number(r.score))}</div>
-      <div class="lg-pod-step"><span>${i+1}</span></div>
-    </div>`;
-  };
-  // Podio clásico: el 2.º a la izquierda, el 1.º en el centro y el 3.º a la derecha.
-  const podium = list.length ? `<div class="lg-podium">${[1,0,2].filter(i => i < list.length).map(i => pod(list[i], i)).join('')}</div>` : '';
-
-  const rows = list.slice(3).map((r,k) => {
-    const i = k + 3;
-    const isMe = (r.is_me !== undefined) ? r.is_me : (r.user_id === CURRENT_USER_ID);
-    const pct = Math.max(4, Math.round((Number(r.score) || 0) / topScore * 100));
-    return `
-    <div class="lg-row${isMe?' me':''}" style="animation-delay:${Math.min(k*0.03,0.4)}s;">
-      <div class="lg-row-pos">${i+1}</div>
-      ${avatar(r.username)}
-      <div class="lg-row-info">
-        <div class="lg-row-name"><span>${esc(r.username || 'Anónimo')}</span>${isMe?' <span class="lb-you-badge">TÚ</span>':''}<em>${COUNTRY_FLAGS[r.country] || '🏳️'}</em></div>
-        <div class="lg-row-bar"><i style="width:${pct}%"></i></div>
-      </div>
-      <div class="lg-row-score">${formatScore(Number(r.score))}</div>
-    </div>`;
+  const seg = Object.keys(LEAGUE_MODES).map(k => {
+    const m = LEAGUE_MODES[k];
+    return `<button type="button" role="tab" aria-selected="${k === mode}" class="lg2-seg-b${k === mode ? ' on' : ''}" data-action="league-mode" data-mode="${k}">${ic(m.icon)}<span class="lg2-full">${m.label}</span><span class="lg2-short">${m.short}</span></button>`;
   }).join('');
 
-  const SKEL = '<span class="skel" style="display:inline-block;width:42px;height:1em;vertical-align:middle"></span>';
-  const stat = (icon, val, label) => `<div class="lg-sum"><span class="lg-sum-ic">${ic(icon)}</span><div><b>${val}</b><small>${label}</small></div></div>`;
-  const summaryStripHtml = `
-  <div class="lg-sumrow">
-    ${stat('users', participants===null?SKEL:participants, 'Participantes')}
-    ${stat('trophy', s?'#'+s.rank:(s===false?'—':SKEL), 'Tu posición')}
-    ${stat('target', s?formatScore(Number(s.score)):(s===false?'—':SKEL), 'Récord personal')}
-  </div>`;
+  const play = `
+  <section class="lg2-play" aria-label="Jugar ${M.label}">
+    <div class="lg2-play-top"><span class="lg2-play-ic">${ic(M.icon)}</span><div><h2>${M.label}</h2><p>${M.rules}</p></div></div>
+    <div class="lg2-rec"><small>Tu récord</small><b>${rec(mode)}</b></div>
+    <button type="button" class="btn btn-yellow lg2-go" data-action="${M.action}">${ic('play')} Jugar ahora</button>
+  </section>`;
 
-  let standingHtml = '';
-  if(s && s.rank>25){
-    const gapText = s.nextAbove
-      ? `Te faltan <strong>${formatScore(Number(s.nextAbove.score) - Number(s.score))}</strong> puntos para superar a ${esc(s.nextAbove.username || 'el jugador de arriba')}.`
-      : 'Eres el primero de la lista en esta clasificación.';
-    const milestoneText = (s.milestoneRank && s.milestoneScore!=null)
-      ? `Te faltan <strong>${formatScore(Number(s.milestoneScore) - Number(s.score))}</strong> puntos para entrar en el Top ${s.milestoneRank}.`
-      : (s.rank<=10 ? '¡Ya estás en el Top 10! 🎉' : '');
-    standingHtml = `
-    <div class="lb-standing">
-      <div class="lg-stand-title">Tu posición</div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <div class="lb-rank" style="color:rgba(255,255,255,0.7); width:auto; min-width:34px;">#${s.rank}</div>
-        <div class="lb-flag">${COUNTRY_FLAGS[s.country] || '🏳️'}</div>
-        <div class="lb-info">
-          <div class="lb-name">${esc(s.username || 'Tú')} <span class="lb-you-badge">TÚ</span></div>
-        </div>
-        <div class="lb-score">${formatScore(Number(s.score))}</div>
-      </div>
-      <div class="lb-gap">${gapText}</div>
-      ${milestoneText ? `<div class="lb-gap">${milestoneText}</div>` : ''}
-    </div>`;
-  } else if(s===false){
-    standingHtml = `<div class="lg-empty-me">${ic('flame')}<div>Todavía no tienes puntuación en este modo. ¡Juega una partida para entrar en la clasificación!</div></div>`;
-  } else if(s){
-    // Dentro del Top 25: resumen de tu posición y lo que te falta para subir.
-    const gapText = s.rank <= 1
-      ? '¡Eres el número 1 de esta clasificación! 🎉'
-      : s.nextAbove
-        ? `Te faltan <strong>${formatScore(Number(s.nextAbove.score) - Number(s.score))}</strong> puntos para superar a ${esc(s.nextAbove.username || 'el jugador de arriba')}.`
+  let posBody;
+  if(loading) posBody = '<span class="skel" style="display:block;width:70%;height:34px"></span><span class="skel" style="display:block;width:50%;height:14px;margin-top:10px"></span>';
+  else if(failed) posBody = `<p class="lg2-muted">No se pudo cargar la clasificación.</p><button type="button" class="btn btn-secondary" data-action="league-reload">Reintentar</button>`;
+  else if(!me) posBody = `<p class="lg2-muted">Juega una partida para entrar en el ranking.</p>`;
+  else {
+    const gap = me.rank === 1
+      ? '<p class="lg2-gap">Eres el número 1 de este modo.</p>'
+      : me.above
+        ? `<p class="lg2-gap">A <b>${lgFmt(Math.max(0, Number(me.above.score) - Number(me.score)))}</b> pts de <b>${nm(me.above.username)}</b></p>`
         : '';
-    standingHtml = `
-    <div class="lb-standing">
-      <div class="lg-stand-title">Tu posición</div>
-      <div class="lg-stand-big"><b>#${s.rank}</b><span>Estás en el Top 25</span></div>
-      <div class="lg-stand-score">${formatScore(Number(s.score))} <small>puntos en ${modeTitle}</small></div>
-      ${gapText ? `<div class="lb-gap">${gapText}</div>` : ''}
-    </div>`;
+    const cut = (me.cut && me.rank > 10) ? `<p class="lg2-gap">A <b>${lgFmt(Math.max(0, Number(me.cut.score) - Number(me.score)))}</b> pts del Top ${me.cut.rank}</p>` : '';
+    posBody = `<div class="lg2-pos-big"><b>#${me.rank}</b><span>en ${M.label}</span></div><div class="lg2-pos-pts">${lgFmt(Number(me.score))} pts</div>${gap}${cut}`
+      + (me.rank > 1 ? `<button type="button" class="btn btn-secondary lg2-chase" data-action="${M.action}">${ic('play')} Jugar y superarle</button>` : '');
   }
+  const pos = `<section class="lg2-card lg2-pos" aria-label="Tu posición"><h3>Tu posición</h3>${posBody}</section>`;
 
-  const seg = (m, icon, label) => `<button class="${mode===m?'active':''}" data-action="leaderboard-tab" data-mode="${m}">${ic(icon)}<span>${label}</span></button>`;
+  const recs = `<section class="lg2-card lg2-recs" aria-label="Tus récords"><h3>Tus récords</h3><div class="lg2-recs-row">${
+    Object.keys(LEAGUE_MODES).map(k => `<div class="lg2-rec3${k === mode ? ' on' : ''}">${ic(LEAGUE_MODES[k].icon)}<b>${rec(k)}</b><small>${LEAGUE_MODES[k].short}</small></div>`).join('')
+  }</div></section>`;
+
+  /* clasificación: podio + lista */
+  const top = board ? (board.top || []) : [];
+  let boardBody;
+  if(loading){
+    boardBody = '<div class="lg2-skel">' + '<span class="skel" style="display:block;height:150px;margin-bottom:12px"></span>' + Array.from({length: 5}, () => '<span class="skel" style="display:block;height:48px;margin-bottom:8px"></span>').join('') + '</div>';
+  } else if(failed){
+    boardBody = `<div class="lg2-empty">${ic('trophy')}<strong>No se pudo cargar la clasificación</strong><button type="button" class="btn btn-secondary" data-action="league-reload">Reintentar</button></div>`;
+  } else if(!top.length){
+    boardBody = `<div class="lg2-empty">${ic('trophy')}<strong>Sé el primero en este modo</strong><span>Juega una partida y aparecerás aquí.</span></div>`;
+  } else {
+    const pod = (r) => `<div class="lg2-pod p${r.rank}${r.is_me ? ' me' : ''}" title="${nm(r.username)}" role="button" tabindex="0" data-action="lg-pod" aria-label="${nm(r.username)}, puesto ${r.rank}">
+      <div class="lg2-pod-av"><span class="lg2-av xl${r.is_me ? ' me' : ''}" aria-hidden="true">${initial(r.username)}</span><span class="lg2-pod-n">${r.rank}</span></div>
+      <div class="lg2-pod-name">${nm(r.username)}${r.is_me ? ' <i class="lg2-you">Tú</i>' : ''}</div>
+      <div class="lg2-pod-meta">${flagHtml(r.country)}<b>${lgFmt(Number(r.score))}</b></div>
+    </div>`;
+    const podium = `<div class="lg2-podium">${[1, 0, 2].filter(i => i < top.length).map(i => pod(top[i])).join('')}</div>`;
+    const row = (r) => `<div class="lg2-row${r.is_me ? ' me' : ''}">
+      <span class="lg2-rk">${r.rank}</span>
+      <span class="lg2-av${r.is_me ? ' me' : ''}" aria-hidden="true">${initial(r.username)}</span>
+      <span class="lg2-name"><span class="lg2-uname">${nm(r.username)}</span>${r.is_me ? '<i class="lg2-you">Tú</i>' : ''}${flagHtml(r.country)}</span>
+      <b class="lg2-sc">${lgFmt(Number(r.score))}</b>
+    </div>`;
+    const rows = top.slice(3).map(row).join('');
+    const outside = (me && me.rank > top.length)
+      ? `<div class="lg2-dots" aria-hidden="true">···</div>` + row({ rank: me.rank, username: me.username, country: me.country, score: me.score, is_me: true })
+      : '';
+    boardBody = podium + (rows || outside ? `<div class="lg2-list">${rows}${outside}</div>` : '');
+  }
+  const total = board ? Number(board.total) || 0 : null;
+  const boardSec = `<section class="lg2-board" id="lg2-board" aria-label="Clasificación">
+    <div class="lg2-board-head"><h2>Clasificación · ${M.label}</h2><span>${total === null ? '' : total + (total === 1 ? ' jugador' : ' jugadores')}</span></div>
+    ${boardBody}
+  </section>`;
 
   return `
-  <button class="backbtn" data-action="dailyChallenge">&larr; WEREF League</button>
-  <section class="lg-hero lg-hero-sm">
-    <div class="lg-hero-main">
-      <div class="home-eyebrow">Clasificación global · Top 25</div>
-      <h1>${modeTitle}</h1>
+  <div class="lg2">
+    <button class="backbtn" data-action="home">&larr; Inicio</button>
+    <header class="lg2-head"><h1>WEREF League</h1><p>Compite, supera tus récords y escala posiciones.</p></header>
+    <div class="lg2-seg" role="tablist" aria-label="Modo de juego">${seg}</div>
+    <div class="lg2-grid">
+      <div class="lg2-main">${play}</div>
+      <aside class="lg2-side">${pos}${recs}</aside>
     </div>
-    <div class="lg-seg">
-      ${seg('hearts', 'heart', 'Corazones')}
-      ${seg('suddendeath', 'skull', 'Muerte Súbita')}
-      ${seg('timeattack', 'timer', 'Contrarreloj')}
-    </div>
-  </section>
-  ${summaryStripHtml}
-  <div class="lg-lb-layout ${standingHtml ? 'has-side' : ''}">
-    <div class="lg-lb-main">
-      ${podium}
-      ${rows ? `<div class="lg-list">${rows}</div>` : ''}
-      ${list.length ? '' : '<div class="empty-state">Todavía no hay puntuaciones en este modo. ¡Sé el primero!</div>'}
-    </div>
-    ${standingHtml ? `<aside class="lg-lb-side">${standingHtml}</aside>` : ''}
-  </div>
-  `;
+    ${boardSec}
+  </div>`;
 }
+
 
 /* ---------------- MI BASE DE DATOS: banco de preguntas 100% privado del usuario ----------------
    Independiente de allQuestions()/BASE_QUESTIONS: nunca se mezcla con el contenido de la
@@ -3653,7 +3532,7 @@ function academiaView(){
    · acierto reciente .. recentPerformance(20) sobre STATE.storage.testHistory
    · progreso global ... overallStats()
    · puntos y rango .... computePoints(), currentRank(), nextRankInfo()
-   · liga .............. STATE.leagueSummary (loadLeagueSummary) → mejor posición entre los 3 modos
+   · liga .............. STATE.leagueBoard (loadLeagueBoard) → posición única del último modo elegido, desde league_board
    · coronas ........... STATE.storage.crownLevels[regla] (0-4)
    · examen ............ próximo evento de tipo "exam" en STATE.storage.calendarEvents
    · fallos pendientes . lawStats('failed')
@@ -3731,9 +3610,9 @@ function ihSkeleton(){
 
 /* Datos asíncronos de Inicio: se piden una sola vez y mientras tanto se pintan skeletons. */
 function ihEnsureData(){
-  if(STATE.leagueSummary === null && !STATE.homeLeagueBusy){
+  if(!STATE.leagueBoard[leagueMode()] && !STATE.homeLeagueBusy){
     STATE.homeLeagueBusy = true;
-    setTimeout(() => { Promise.resolve(loadLeagueSummary()).finally(() => { STATE.homeLeagueBusy = false; }); }, 0);
+    setTimeout(() => { Promise.resolve(loadLeagueBoard(leagueMode())).finally(() => { STATE.homeLeagueBusy = false; }); }, 0);
   }
   const cst = (typeof COMMITTEE !== 'undefined') ? COMMITTEE.status : null;
   if(cst && cst.is_member && COMMITTEE.myTests === null && !STATE.homeCmBusy){
@@ -3804,14 +3683,12 @@ function homeView(){
   /* ---- 2 · tarjeta "Tu nivel" ---- */
   const R = 38, C = 2 * Math.PI * R, ringPct = next ? next.progressPct : 100;
   const ring = `<svg viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="${R}" fill="none" stroke="var(--c-line)" stroke-width="8"/><circle cx="44" cy="44" r="${R}" fill="none" stroke="var(--c-progress)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${(C * (1 - ringPct / 100)).toFixed(2)}" transform="rotate(-90 44 44)"/></svg>`;
-  const modeNames = { hearts: 'Corazones', suddendeath: 'Muerte Súbita', timeattack: 'Contrarreloj' };
+  /* Misma posición que en la pantalla de la League: la del último modo elegido, calculada por el servidor. */
   let leagueVal;
-  const ls = STATE.leagueSummary;
-  if(!ls) leagueVal = SKEL;
-  else {
-    const ranked = Object.keys(ls).filter(k => ls[k] !== null && ls[k] !== undefined).map(k => ({ k, r: ls[k] })).sort((a, b) => a.r - b.r);
-    leagueVal = ranked.length ? `<b>#${ranked[0].r}</b> <small>${modeNames[ranked[0].k] || ''}</small>` : '<small>Sin clasificar</small>';
-  }
+  const lgSlot = STATE.leagueBoard[leagueMode()];
+  const lgData = lgSlot && lgSlot.data;
+  if(!lgData) leagueVal = (lgSlot && lgSlot.error) ? '<small>—</small>' : SKEL;
+  else leagueVal = lgData.me ? `<b>#${lgData.me.rank}</b> <small>${LEAGUE_MODES[leagueMode()].label}</small>` : '<small>Sin clasificar</small>';
   const todayISO = todayKeyISO();
   const nextExam = (STATE.storage.calendarEvents || []).filter(ev => ev && ev.type === 'exam' && typeof ev.date === 'string' && ev.date >= todayISO).sort((a, b) => a.date.localeCompare(b.date))[0];
   let examRow;
@@ -6284,7 +6161,7 @@ function onAction(e){
     const qz = STATE.quiz;
     // Vuelve a la pantalla desde la que se empezó el test, no siempre al inicio.
     if(qz && qz.mode==='training'){ STATE.view='trainConfig'; }
-    else if(qz && ['hearts','suddendeath','timeattack'].includes(qz.mode)){ STATE.view='dailyChallenge'; STATE.leagueSummary=null; render(); loadLeagueSummary(); return; }
+    else if(qz && ['hearts','suddendeath','timeattack'].includes(qz.mode)){ setLeagueMode(qz.mode); STATE.view='dailyChallenge'; loadLeagueBoard(qz.mode); return; }
     else if(qz && qz.law!=null && qz.law!==''){ STATE.lawId=qz.law; STATE.view='law'; }
     else { STATE.view='home'; }
     render();
@@ -6333,9 +6210,11 @@ function onAction(e){
   else if(action==='calendar-cancel-event'){ STATE.calendarAddingEvent = false; render(); }
   else if(action==='calendar-save-event'){ calendarSaveEvent(); }
   else if(action==='calendar-delete-event'){ calendarDeleteEvent(el.dataset.id); }
-  else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; STATE.leagueSummary=null; render(); loadLeagueSummary(); }
-  else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeaderboard(STATE.leaderboardMode||'hearts'); render(); }
-  else if(action==='leaderboard-tab'){ loadLeaderboard(el.dataset.mode); }
+  else if(action==='dailyChallenge'){ STATE.view='dailyChallenge'; loadLeagueBoard(leagueMode()); }
+  else if(action==='leaderboard'){ STATE.view='leaderboard'; loadLeagueBoard(leagueMode()); setTimeout(() => { const b = document.getElementById('lg2-board'); if(b && b.scrollIntoView) b.scrollIntoView({ block: 'start' }); }, 60); }
+  else if(action==='league-mode' || action==='leaderboard-tab'){ setLeagueMode(el.dataset.mode); loadLeagueBoard(leagueMode()); }
+  else if(action==='league-reload'){ loadLeagueBoard(leagueMode()); }
+  else if(action==='lg-pod'){ el.classList.toggle('open'); }
   else if(action==='academia'){ STATE.view='academia'; render(); }
   else if(action==='mybank'){ STATE.myBankEditingId=null; STATE.myBankViewCategory=null; STATE.myBankCreatingCategory=false; STATE.myBankSearch=''; STATE.view='myBank'; render(); }
   else if(action==='mybank-new-category'){ STATE.myBankCreatingCategory=true; render(); }

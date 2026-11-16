@@ -1,0 +1,3 @@
+Banderas SVG (formato 4x3) del proyecto flag-icons 7.2.3 - licencia MIT - https://github.com/lipis/flag-icons
+Solo los 57 paises que ofrece WEREF. Descargadas el 2026-11-16 desde cdn.jsdelivr.net y alojadas en we-ref.com.
+El nombre de cada archivo es el codigo ISO 3166-1 alfa-2 del pais (es.svg = Espana).
