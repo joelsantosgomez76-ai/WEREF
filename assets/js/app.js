@@ -3599,7 +3599,10 @@ function ihSkeleton(){
     </div>
     <section class="ih-section ih-s-today">
       <div class="ih-head">${sk('', 'width:160px;height:26px;')}</div>
-      <div class="ih-today">${[1, 2, 3].map(() => `<div class="ih-todo" style="cursor:default;">${sk('', 'width:38px;height:38px;')}${sk('', 'width:50%;height:12px;')}${sk('', 'width:70%;height:26px;')}${sk('', 'width:60%;height:12px;')}</div>`).join('')}</div>
+      <div class="ih-today">
+        <div class="ih-td-main" style="cursor:default;">${sk('', 'width:34px;height:34px;')}${sk('', 'width:45%;height:12px;')}${sk('', 'width:70%;height:28px;')}${sk('', 'width:60%;height:12px;')}${sk('', 'width:100%;height:48px;border-radius:12px;margin-top:12px;')}</div>
+        <div class="ih-td-side">${[1, 2].map(() => `<div class="ih-td-c" style="cursor:default;">${sk('', 'width:34px;height:34px;')}${sk('', 'width:50%;height:26px;')}${sk('', 'width:70%;height:12px;')}</div>`).join('')}</div>
+      </div>
     </section>
     <section class="ih-section ih-s-rules">
       <div class="ih-head">${sk('', 'width:180px;height:26px;')}</div>
@@ -3724,63 +3727,82 @@ function homeView(){
     const done = new Set((COMMITTEE.myAttempts || []).map(a => a.test_id));
     cmOpen = COMMITTEE.myTests.filter(t => Date.parse(t.opens_at) <= Date.now() && !done.has(t.id)).length;
   }
-  const todo = [];
-  if(!isNew){
-    todo.push(`<button class="ih-todo" data-action="open-law" data-law="failed">
-      <span class="ih-todo-ic">${ic('repeat')}</span>
-      <span class="ih-todo-t">Sala de Repaso</span>
-      <span class="ih-todo-big">${failed}</span>
-      <span class="ih-todo-d">${failed === 0 ? '¡Nada pendiente!' : failed === 1 ? 'pregunta por repasar' : 'preguntas por repasar'}</span>
-    </button>`);
-    todo.push(weak
-      ? `<button class="ih-todo" data-action="start-quiz" data-law="${weak.rule}" data-mode="short">
-          <span class="ih-todo-ic">${ic('target')}</span>
-          <span class="ih-todo-t">Tu punto débil</span>
-          <span class="ih-todo-name">Regla ${weak.rule} · ${esc(LAW_SHORT[weak.rule])}</span>
-          <span class="ih-todo-d">10 preguntas para mejorarla</span>
-        </button>`
-      : `<button class="ih-todo" data-action="start-daily-goal" data-count="10">
-          <span class="ih-todo-ic">${ic('target')}</span>
-          <span class="ih-todo-t">Tu punto débil</span>
-          <span class="ih-todo-name">Sin puntos débiles por ahora</span>
-          <span class="ih-todo-d">Responde 5 preguntas de una regla para que podamos detectarlo</span>
-        </button>`);
-  } else {
-    todo.push(`<button class="ih-todo" data-action="open-law" data-law="1">
-      <span class="ih-todo-ic">${ic('book')}</span>
-      <span class="ih-todo-t">Empieza por el principio</span>
-      <span class="ih-todo-name">Regla 1 · ${esc(LAW_SHORT[1])}</span>
-      <span class="ih-todo-d">Estudia una regla y practícala</span>
-    </button>`);
-  }
+  /* Una tarjeta principal + dos secundarias. Prioridad: reto del día pendiente > punto débil (si el reto ya está cumplido) > test rápido.
+     "Punto débil" usa el mismo criterio que el resto de Inicio (weak = ihWeakList()[0]). */
   const goalDone = !isNew && today >= goal;
-  if(goalDone){
-    /* reto cumplido: tarjeta neutra con ✓ y botón secundario; el amarillo de bloque queda para cuando está pendiente */
-    todo.push(`<button class="ih-todo ih-todo-done" data-action="start-daily-goal" data-count="10">
-      <span class="ih-todo-ic ih-todo-check">${ic('check')}</span>
-      <span class="ih-todo-t">Reto cumplido</span>
-      <span class="ih-todo-name">${today} de ${goal} preguntas hoy</span>
-      <span class="btn btn-secondary ih-todo-extra">Reto extra · 10 preguntas</span>
-    </button>`);
+  const tdIc = (n, cls) => `<span class="ih-td-ic ${cls || ''}">${ic(n)}</span>`;
+  const quickCardMain = (eyebrow, title, sub) => `<button type="button" class="ih-td-main" data-action="start-daily-goal" data-count="10">
+      <span class="ih-td-top">${tdIc('zap')}<span class="ih-td-eyebrow">${eyebrow}</span></span>
+      <span class="ih-td-title">${title}</span><span class="ih-td-sub">${sub}</span>
+      <span class="btn btn-primary ih-td-go">Empezar</span>
+    </button>`;
+  const cardRepaso = `<button type="button" class="ih-td-c" data-action="open-law" data-law="failed">
+      <span class="ih-td-top">${tdIc('repeat')}<span class="ih-td-eyebrow">Sala de Repaso</span></span>
+      <span class="ih-td-big">${failed}</span>
+      <span class="ih-td-lab">por repasar</span>
+    </button>`;
+  const cardQuick = `<button type="button" class="ih-td-c" data-action="start-daily-goal" data-count="10">
+      <span class="ih-td-top">${tdIc('zap')}<span class="ih-td-eyebrow">Test rápido</span></span>
+      <span class="ih-td-big">10</span>
+      <span class="ih-td-lab">preguntas</span>
+    </button>`;
+  const cardWeak = weak
+    ? `<button type="button" class="ih-td-c" data-action="start-quiz" data-law="${weak.rule}" data-mode="short">
+        <span class="ih-td-top">${tdIc('target')}<span class="ih-td-eyebrow">Punto débil</span></span>
+        <span class="ih-td-big">Regla ${weak.rule}</span>
+        <span class="ih-td-lab">${esc(LAW_SHORT[weak.rule])}</span>
+      </button>`
+    : `<button type="button" class="ih-td-c" data-action="start-daily-goal" data-count="10">
+        <span class="ih-td-top">${tdIc('target')}<span class="ih-td-eyebrow">Punto débil</span></span>
+        <span class="ih-td-big ih-td-big-s">Sin detectar</span>
+        <span class="ih-td-lab">Responde más preguntas</span>
+      </button>`;
+  const cardDone = `<button type="button" class="ih-td-c ih-td-done" data-action="start-daily-goal" data-count="10">
+      <span class="ih-td-top">${tdIc('check', 'ih-td-ok')}<span class="ih-td-eyebrow">Reto del día</span></span>
+      <span class="ih-td-big ih-td-big-s">Reto cumplido</span>
+      <span class="ih-td-lab">${today} de ${goal} preguntas</span>
+      <span class="btn btn-secondary ih-td-extra">Reto extra</span>
+    </button>`;
+  let mainCard, sideCards;
+  if(isNew){
+    mainCard = `<button type="button" class="ih-td-main" data-action="open-law" data-law="1">
+        <span class="ih-td-top">${tdIc('book')}<span class="ih-td-eyebrow">Empieza por el principio</span></span>
+        <span class="ih-td-title">Regla 1 · ${esc(LAW_SHORT[1])}</span><span class="ih-td-sub">Estudia una regla y practícala</span>
+        <span class="btn btn-primary ih-td-go">Empezar</span>
+      </button>`;
+    sideCards = [cardQuick, `<button type="button" class="ih-td-c" data-action="train-config">
+        <span class="ih-td-top">${tdIc('wand')}<span class="ih-td-eyebrow">Crear test</span></span>
+        <span class="ih-td-big ih-td-big-s">A tu medida</span>
+        <span class="ih-td-lab">Elige reglas y tiempo</span>
+      </button>`];
+  } else if(!goalDone){
+    mainCard = `<button type="button" class="ih-td-main" data-action="start-daily-goal" data-count="10">
+        <span class="ih-td-top">${tdIc('zap')}<span class="ih-td-eyebrow">Reto del día</span></span>
+        <span class="ih-td-title">${today} de ${goal} preguntas</span>
+        <span class="ih-td-bar" aria-hidden="true"><i style="width:${goalPct}%"></i></span>
+        <span class="ih-td-sub">${today === 0 ? 'Empieza con un test rápido de 10 preguntas' : 'Sigue con un test rápido de 10 preguntas'}</span>
+        <span class="btn btn-primary ih-td-go">Empezar</span>
+      </button>`;
+    sideCards = [failed > 0 ? cardRepaso : cardQuick, cardWeak];
+  } else if(weak){
+    mainCard = `<button type="button" class="ih-td-main" data-action="start-quiz" data-law="${weak.rule}" data-mode="short">
+        <span class="ih-td-top">${tdIc('target')}<span class="ih-td-eyebrow">Punto débil</span></span>
+        <span class="ih-td-title">Mejora la Regla ${weak.rule}</span><span class="ih-td-sub">${esc(LAW_SHORT[weak.rule])} · 10 preguntas</span>
+        <span class="btn btn-primary ih-td-go">Empezar</span>
+      </button>`;
+    sideCards = [failed > 0 ? cardRepaso : cardQuick, cardDone];
   } else {
-    todo.push(`<button class="ih-todo ih-todo-main" data-action="start-daily-goal" data-count="10">
-      <span class="ih-todo-ic">${ic('zap')}</span>
-      <span class="ih-todo-t">${isNew ? 'Test rápido' : 'Reto del día'}</span>
-      <span class="ih-todo-name">${isNew ? '10 preguntas al azar' : `Llevas ${today} de ${goal}`}</span>
-      ${isNew ? '' : `<span class="ih-todo-bar" aria-hidden="true"><i style="width:${goalPct}%"></i></span>`}
-      <span class="ih-todo-d">Test rápido · 10 preguntas</span>
-    </button>`);
+    mainCard = quickCardMain('Test rápido', '10 preguntas', 'Sin punto débil por ahora: practica un poco de todo');
+    sideCards = [cardRepaso, cardDone];
   }
-  if(cmOpen > 0){
-    todo.push(`<button class="ih-todo ih-todo-sm" data-action="committee-open">
-      <span class="ih-todo-ic">${ic('users')}</span>
-      <span class="ih-todo-t">CTA BAGES</span>
-      <span class="ih-todo-d">${cmOpen === 1 ? 'Tienes 1 test abierto' : 'Tienes ' + cmOpen + ' tests abiertos'}</span>
-    </button>`);
-  }
+  const cmStrip = cmOpen > 0 ? `<button type="button" class="ih-td-cm" data-action="committee-open">
+      <span class="ih-td-ic">${ic('users')}</span>
+      <span class="ih-td-cm-t"><strong>CTA BAGES</strong><small>${cmOpen === 1 ? 'Tienes 1 test abierto' : 'Tienes ' + cmOpen + ' tests abiertos'}</small></span>
+    </button>` : '';
   const todaySection = `<section class="ih-section ih-s-today" aria-labelledby="ih-h-today">
     <div class="ih-head"><h2 id="ih-h-today">Hoy te toca</h2></div>
-    <div class="ih-today">${todo.join('')}</div>
+    <div class="ih-today">${mainCard}<div class="ih-td-side">${sideCards.join('')}</div></div>
+    ${cmStrip}
   </section>`;
 
   /* ---- 4 · las 17 reglas ---- */
