@@ -630,7 +630,7 @@ button.qd-seg{cursor:pointer;} button.qd-seg:hover{border-color:var(--c-ink); tr
 .ph-back svg{width:22px; height:22px; flex:none;}
 .ph-back span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
 .ph-back:hover{background:var(--c-paper-2);}
-.ph-back:focus-visible, .ph-crumb:focus-visible, .ph-inline:focus-visible, .lg2-info:focus-visible, .ph-streak:focus-visible, .ph-avatar:focus-visible{outline:2px solid var(--c-ink); outline-offset:2px;}
+.ph-back:focus-visible, .ph-crumb:focus-visible, .lg2-info:focus-visible, .ph-streak:focus-visible, .ph-avatar:focus-visible{outline:2px solid var(--c-ink); outline-offset:2px;}
 .ph-title{flex:1; min-width:0; text-align:center; font:700 16px/1.2 'Oswald',system-ui,sans-serif; letter-spacing:.01em; color:var(--c-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:0; transform:translateY(4px); transition:opacity .15s, transform .15s;}
 .ph-title-on .ph-title{opacity:1; transform:none;}
 .ph-act{display:flex; align-items:center; justify-content:flex-end; gap:6px; flex:none; position:relative; min-width:44px;}
@@ -642,8 +642,6 @@ button.qd-seg{cursor:pointer;} button.qd-seg:hover{border-color:var(--c-ink); tr
 button.ph-crumb:hover{color:var(--c-ink); text-decoration:underline;}
 .ph-crumb.cur{color:var(--c-ink); cursor:default; padding:4px 2px;}
 .ph-sep{color:var(--c-line-strong);}
-.ph-inline{position:absolute; top:var(--sp-3); right:var(--sp-3); min-height:36px; padding:0 12px; border:1px solid var(--c-line); border-radius:var(--r-pill); background:var(--c-card); color:var(--c-ink); font:600 13px/1 'Work Sans',system-ui,sans-serif; cursor:pointer;}
-.ph-inline:hover{background:var(--c-paper-2);}
 .ct-hero{position:relative;}
 
 @media (min-width:1024px){

@@ -4598,9 +4598,11 @@ function resultView(){
 /* ---------------- CREAR TEST (configurador "Diseña tu examen") ----------------
    Misma pantalla para todo: desde el menú, desde "Test personalizado" de Inicio y desde la página de una regla
    (que llega con esa regla ya marcada). Las salas especiales (VAR, Repaso, Guardadas...) siguen entrando con su ámbito fijo. */
-const CT_COUNTS = [10, 15, 20, 25];
+const CT_COUNTS = [5, 10, 15, 20, 25];
 const CT_MINS = [10, 20, 30, 45];
-const CT_SECS = [30, 45, 60];
+const CT_SECS = [30, 45, 60, 90];
+/* Solo hay valores fijos (sin "Otro"): cualquier valor que llegue de otro sitio se ajusta al más cercano de la lista. */
+function ctSnap(v, list, dflt){ const n = Number(v); if(!isFinite(n)) return dflt; return list.reduce((b, x) => Math.abs(x - n) < Math.abs(b - n) ? x : b, list[0]); }
 function ctAllLaws(){ const a = []; for(let i = 1; i <= 17; i++) a.push(i); a.push('glossary'); return a; }
 
 /* Selecciones que dan los atajos (Todas / Mis flojas / Sin empezar) y cuál de ellos coincide ahora con lo marcado. */
@@ -4637,24 +4639,20 @@ function trainConfigView(){
   const backData = scope ? scope : (STATE.ctFrom != null ? STATE.ctFrom : '');
   const backLabel = scope ? scopeName : (typeof STATE.ctFrom === 'number' ? 'Regla ' + STATE.ctFrom : STATE.ctFrom === 'glossary' ? 'Glosario' : 'Inicio');
 
+  cfg.count = ctSnap(cfg.count, CT_COUNTS, 20); cfg.minutes = ctSnap(cfg.minutes, CT_MINS, 20); cfg.secondsPerQuestion = ctSnap(cfg.secondsPerQuestion, CT_SECS, 45);
+  cfg.countOther = cfg.minOther = cfg.secOther = false;
   const pool = ctPool(cfg);
   const avail = pool.length;
-  const want = Math.min(MAX_TEST_QUESTIONS, Math.max(1, cfg.count || 20));
+  const want =Math.min(MAX_TEST_QUESTIONS, Math.max(1, cfg.count || 20));
   const real = Math.min(want, avail);
   const basePool = scope ? questionsForLaw(scope) : (cfg.laws.length ? trainPoolForLaws(cfg.laws) : []);
   const failedAvail = basePool.filter(isFailedQuestion).length;
 
   /* --- chips --- */
   const chip = (on, action, attrs, label) => `<button type="button" class="ct-chip ${on ? 'on' : ''}" data-action="${action}" ${attrs} aria-pressed="${on}">${label}</button>`;
-  const otherCount = cfg.countOther || !CT_COUNTS.includes(cfg.count);
-  const countRow = CT_COUNTS.map(n => chip(!otherCount && cfg.count === n, 'ct-count', `data-v="${n}"`, n)).join('') + chip(otherCount, 'ct-count-other', '', 'Otro')
-    + (otherCount ? `<input type="text" inputmode="numeric" id="cfg-count" class="ct-input" value="${Math.min(cfg.count, MAX_TEST_QUESTIONS)}" maxlength="2" aria-label="Número de preguntas (máximo 25)">` : '');
-  const otherMin = cfg.minOther || !CT_MINS.includes(cfg.minutes);
-  const minRow = CT_MINS.map(n => chip(!otherMin && cfg.minutes === n, 'ct-min', `data-v="${n}"`, n + ' min')).join('') + chip(otherMin, 'ct-min-other', '', 'Otro')
-    + (otherMin ? `<input type="text" inputmode="numeric" id="cfg-minutes" class="ct-input" value="${cfg.minutes}" maxlength="3" aria-label="Minutos para todo el examen"><span class="ct-unit">min</span>` : '');
-  const otherSec = cfg.secOther || !CT_SECS.includes(cfg.secondsPerQuestion);
-  const secRow = CT_SECS.map(n => chip(!otherSec && cfg.secondsPerQuestion === n, 'ct-sec', `data-v="${n}"`, n + ' s')).join('') + chip(otherSec, 'ct-sec-other', '', 'Otro')
-    + (otherSec ? `<input type="text" inputmode="numeric" id="cfg-seconds-per-q" class="ct-input" value="${cfg.secondsPerQuestion}" maxlength="3" aria-label="Segundos por pregunta (máximo 120)"><span class="ct-unit">s</span>` : '');
+  const countRow = CT_COUNTS.map(n => chip(cfg.count === n, 'ct-count', `data-v="${n}"`, n)).join('');
+  const minRow = CT_MINS.map(n => chip(cfg.minutes === n, 'ct-min', `data-v="${n}"`, n + ' min')).join('');
+  const secRow = CT_SECS.map(n => chip(cfg.secondsPerQuestion === n, 'ct-sec', `data-v="${n}"`, n + ' s')).join('');
 
   const seg = (on, action, attrs, icon, title, text) => `<button type="button" class="ct-opt ${on ? 'on' : ''}" data-action="${action}" ${attrs} aria-pressed="${on}">
     <span class="ct-opt-ic">${ic(icon)}</span><span class="ct-opt-body"><strong>${title}</strong><small>${text}</small></span><span class="ct-opt-check">${ic('check')}</span></button>`;

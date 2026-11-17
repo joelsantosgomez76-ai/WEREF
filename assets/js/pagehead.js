@@ -76,10 +76,6 @@ function phEnhance(app){
     if(orig) orig.remove();
     app.classList.add('ph-main');
     content.insertAdjacentHTML('afterbegin', phTopBarHtml());
-    if(v === 'trainConfig'){
-      const hero = content.querySelector('.ct-hero');
-      if(hero) hero.insertAdjacentHTML('afterbegin', '<button type="button" class="ph-inline" data-action="ph-ct-reset">Restablecer</button>');
-    }
     phBindScroll();
     return;
   }
@@ -143,11 +139,6 @@ function phAction(action, el){
     let fb = {}; try{ fb = JSON.parse(el.dataset.fb || '{}'); }catch(e){}
     if(fb.action) onAction({ currentTarget: { dataset: fb } });
     else { STATE.view = 'home'; render(); }
-  }
-  else if(action === 'ph-ct-reset'){
-    STATE.trainCfg = { count: 20, minutes: 20, secondsPerQuestion: 45, timerMode: 'total', laws: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,'glossary'],
-      onlyFailed: false, scopeOverride: null, feedbackMode: 'exam', countOther: false, minOther: false, secOther: false };
-    STATE.toast = 'Opciones restablecidas.'; render();
   }
   else if(action === 'ph-league-info') phLeagueInfo();
 }
