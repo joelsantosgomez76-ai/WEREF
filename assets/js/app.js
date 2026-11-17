@@ -1815,6 +1815,7 @@ function render(){
   const useShell = typeof shellFor==='function' && !SHELL_FOCUS_VIEWS.includes(STATE.view);
   app.classList.toggle('has-shell', useShell);
   app.innerHTML = useShell ? shellFor(STATE.view, viewHtml) : viewHtml;
+  if(typeof phEnhance === 'function'){ try{ phEnhance(app); }catch(err){ console.warn('Cabecera', err); } }   // cabeceras comunes (pagehead.js)
   bindEvents();
   navSync();
   if(typeof committeeAfterRender==='function') committeeAfterRender();
@@ -2093,8 +2094,7 @@ function leagueView(){
 
   return `
   <div class="lg2">
-    <button class="backbtn" data-action="home">&larr; Inicio</button>
-    <header class="lg2-head"><h1>WEREF League</h1><p>Compite, supera tus récords y escala posiciones.</p></header>
+    <header class="lg2-head"><div class="lg2-head-t"><h1>WEREF League</h1><p>Compite, supera tus récords y escala posiciones.</p></div><button type="button" class="lg2-info" data-action="ph-league-info" aria-label="Cómo funciona la League"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg><span>Cómo funciona</span></button></header>
     <div class="lg2-seg" role="tablist" aria-label="Modo de juego">${seg}</div>
     <div class="lg2-grid">
       <div class="lg2-main">${play}</div>
@@ -6076,6 +6076,7 @@ function onAction(e){
   const rawLaw = el.dataset.law;
   const law = rawLaw ? ((rawLaw==='hard' || rawLaw==='failed' || rawLaw==='glossary' || rawLaw==='assistants' || rawLaw==='saved' || /^fed-\d+$/.test(rawLaw)) ? rawLaw : parseInt(rawLaw,10)) : null;
 
+  if(typeof action==='string' && action.startsWith('ph-') && typeof phAction==='function'){ phAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('committee-') && typeof committeeOnAction==='function'){ committeeOnAction(action, el); return; }
 
   if(action==='logout'){ stopTimer(); if(typeof handleLogout==='function') handleLogout(); }
@@ -6466,7 +6467,7 @@ document.addEventListener('keydown', (e) => {
    Cada pantalla de la app tiene su dirección (#/inicio, #/regla/12, #/crear-test, #/league...). El botón o gesto "atrás"
    del móvil vuelve a la pantalla anterior en vez de salir de la app, y durante un test abre el aviso de salida.
    Recargar la página abre la misma pantalla (las que dependen de un test en curso vuelven a Inicio). */
-const NAV = { ready: false, last: null };
+const NAV = { ready: false, last: null, stack: [] };   // stack: pantallas de la app visitadas en esta sesion (para el boton volver)
 const NAV_QUIZ_ROUTES = ['#/test', '#/mi-test'];
 const NAV_SPECIAL_LAWS = ['failed', 'hard', 'glossary', 'saved', 'assistants'];
 
@@ -6520,13 +6521,13 @@ function navSync(){
   try{
     if(NAV_QUIZ_ROUTES.includes(NAV.last) && r === NAV.preQuiz){
       // Se sale del test a la pantalla desde la que se empezó: se retrocede una entrada (no se duplica la pantalla).
-      NAV.last = r; NAV.pendingBack = true; history.back(); return;
+      NAV.stack.pop(); NAV.last = r; NAV.pendingBack = true; history.back(); return;
     }
     // Desde un test, la pantalla nueva sustituye a la entrada del test: "atrás" no vuelve a un test que ya no existe.
-    if(location.hash === '' || NAV_QUIZ_ROUTES.includes(NAV.last)) history.replaceState({ r }, '', r);
+    if(location.hash === '' || NAV_QUIZ_ROUTES.includes(NAV.last)){ history.replaceState({ r }, '', r); NAV.stack[Math.max(0, NAV.stack.length - 1)] = r; }
     else {
       if(NAV_QUIZ_ROUTES.includes(r)) NAV.preQuiz = NAV.last;
-      history.pushState({ r }, '', r); window.scrollTo(0, 0);
+      history.pushState({ r }, '', r); NAV.stack.push(r); window.scrollTo(0, 0);
     }
   }catch(e){}
   NAV.last = r;
@@ -6555,7 +6556,7 @@ function navInit(){
   }
   const r = navRoute();
   try{ history.replaceState({ r }, '', r); }catch(e){}
-  NAV.last = r;
+  NAV.last = r; NAV.stack = [r];
 }
 
 window.addEventListener('popstate', function(){
@@ -6569,6 +6570,9 @@ window.addEventListener('popstate', function(){
     return;
   }
   STATE.confirmQuit = null;
+  /* la pila de pantallas se recorta hasta la dirección a la que se ha vuelto (o se reinicia si no estaba) */
+  const at = NAV.stack.lastIndexOf(location.hash);
+  if(at >= 0) NAV.stack.length = at + 1; else NAV.stack = [location.hash];
   navGoto(location.hash);
 });
 

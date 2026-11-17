@@ -9,3 +9,4 @@ tests/
 # Archivos temporales de pruebas de diseno (no van al repositorio)
 lgtest.html
 _capturas-league/
+_capturas-cabeceras/
