@@ -79,6 +79,7 @@ function shellSection(view){
   if(v === 'database') return 'db';
   if(v === 'suggestionsAdmin') return 'sug';
   if(v === 'adminDashboard') return 'panel';
+  if(v === 'adminAnalytics') return 'analitica';
   if(v.startsWith('profile')) return 'config';
   if(v === 'menu') return 'more';
   return '';
@@ -103,6 +104,7 @@ function shellNavItems(){
     admin.push({ id: 'db', label: 'Base de datos', icon: 'database', action: 'database', badge: reports, alert: true });
     if(isMaster()) admin.push({ id: 'sug', label: 'Sugerencias', icon: 'message', action: 'suggestions-admin', badge: pending, alert: true });
     if(isMaster()) admin.push({ id: 'panel', label: 'Panel de administración', icon: 'dashboard', action: 'admin-dashboard' });
+    if(isMaster()) admin.push({ id: 'analitica', label: 'Analítica', icon: 'chart', action: 'admin-analytics' });
     admin.push({ id: 'formacion', label: 'Panel de Formación', icon: 'target', action: 'committee-training' });
   }
   return { main, admin };
@@ -143,11 +145,11 @@ function shellFor(view, html){
     { id: 'academia', label: 'Academia', icon: 'folder', action: 'academia' },
     { id: 'more', label: 'Más', icon: 'more', action: 'menu' }
   ];
-  const moreIds = ['stats', 'logros', 'comite', 'db', 'sug', 'panel', 'formacion', 'config'];
+  const moreIds = ['stats', 'logros', 'comite', 'db', 'sug', 'panel', 'analitica', 'formacion', 'config'];
   const bottomActive = moreIds.includes(active) ? 'more' : active;
   const bottom = `<nav class="shell-bottom" aria-label="Navegación">${bottomItems.map(it =>
     `<button class="${bottomActive === it.id ? 'active' : ''}" data-action="${it.action}">${shellIcon(it.icon)}<span>${it.label}</span></button>`).join('')}</nav>`;
-  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin', 'profile', 'profileEdit', 'adminDashboard', 'database', 'committee', 'committeeAdmin', 'committeeBuilder', 'committeeTestDetail', 'committeeResult', 'committeeTraining', 'committeeExamBench', 'add'];
+  const WIDE_VIEWS = ['home', 'trainConfig', 'dailyChallenge', 'leaderboard', 'academia', 'adminAnalytics', 'myDocs', 'myDocsPreview', 'myBank', 'myBankCategory', 'myBankForm', 'myBankTrainConfig', 'savedBrowse', 'stats', 'achievements', 'recentPerformance', 'streakCalendar', 'suggestForm', 'suggestionsAdmin', 'profile', 'profileEdit', 'adminDashboard', 'database', 'committee', 'committeeAdmin', 'committeeBuilder', 'committeeTestDetail', 'committeeResult', 'committeeTraining', 'committeeExamBench', 'add'];
   const wide = WIDE_VIEWS.includes(String(view)) || String(view) === 'law';
   return `<div class="shell">${side}<main class="shell-main"><div class="shell-content ${wide ? 'wide' : ''}">${html}</div></main></div>${bottom}`;
 }

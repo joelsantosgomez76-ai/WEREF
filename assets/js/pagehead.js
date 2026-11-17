@@ -14,7 +14,7 @@ const PH_VIEW_LABELS = {
   stats: 'Estadísticas', achievements: 'Rango e insignias', recentPerformance: 'Rendimiento', streakCalendar: 'Racha', menu: 'Más',
   profile: 'Configuración', profileEdit: 'Editar cuenta', myDocs: 'Mis documentos', myDocsPreview: 'Documento', myBank: 'Mis propios test',
   myBankCategory: 'Categoría', myBankForm: 'Pregunta', myBankTrainConfig: 'Crear test propio', savedBrowse: 'Preguntas guardadas',
-  result: 'Resultado', myBankResult: 'Resultado', suggestForm: 'Sugerencias', database: 'Base de datos', adminDashboard: 'Panel de administración', suggestionsAdmin: 'Sugerencias'
+  result: 'Resultado', myBankResult: 'Resultado', suggestForm: 'Sugerencias', database: 'Base de datos', adminDashboard: 'Panel de administración', adminAnalytics: 'Analítica', suggestionsAdmin: 'Sugerencias'
 };
 const PH_SPECIAL_LAWS = { failed: 'Sala de Repaso', hard: 'Sala VAR', glossary: 'Glosario', saved: 'Preguntas guardadas', assistants: 'Árbitros asistentes' };
 

@@ -53,6 +53,7 @@ async function setUserRole(userId, role){
 }
 
 async function reportQuestion(qid){
+  if(typeof anLog === 'function') anLog('report_question');
   if(STATE.reportedIds[qid]) return;
   STATE.reportedIds[qid] = true;
   STATE.toast = 'Gracias, hemos recibido tu aviso.';
@@ -1184,6 +1185,7 @@ async function loadStorage(){
   pruneSavedStale();
   checkAndUnlockBadges();
   loadGami();
+  if(typeof anLog === 'function') anLog('session_start');
   STATE.dataReady = true;
   navInit();
   render();
@@ -1358,6 +1360,7 @@ function srvApplyResult(quiz){
   }
 }
 function recordTestResult(quiz){
+  if(typeof anLog === 'function'){ const pr = {}; if(quiz && quiz.mode) pr.mode = String(quiz.mode); const pc = quiz && quiz.server && quiz.server.result ? quiz.server.result.pct : null; if(typeof pc === 'number') pr.pct = pc; anLog('test_finished', pr); }
   if(typeof loadGami === 'function') setTimeout(loadGami, 400);   // puntos, rango e insignias nuevos: los calcula el servidor
   STATE.reviewDetailIdx = null;
   if(quiz.server && SERVER_PROGRESS_ON){ srvApplyResult(quiz); return; }
@@ -1790,6 +1793,7 @@ function render(){
   app.innerHTML = useShell ? shellFor(STATE.view, viewHtml) : viewHtml;
   if(typeof phEnhance === 'function'){ try{ phEnhance(app); }catch(err){ console.warn('Cabecera', err); } }   // cabeceras comunes (pagehead.js)
   if(typeof gamiAfterRender === 'function'){ try{ gamiAfterRender(); }catch(err){ console.warn('Logros', err); } }   // celebraciones (gami.js)
+  if(typeof anAfterRender === 'function'){ try{ anAfterRender(); }catch(err){ console.warn('Analítica', err); } }   // eventos de uso y gráficos (analytics.js)
   bindEvents();
   navSync();
   if(typeof committeeAfterRender==='function') committeeAfterRender();
@@ -1966,6 +1970,7 @@ function viewFor(v){
   if(v==='suggestionsAdmin') return isMaster() ? suggestionsAdminView() : homeView();
   if(v==='database') return databaseView();
   if(v==='adminDashboard') return isMaster() ? adminDashboardView() : homeView();
+  if(v==='adminAnalytics') return isMaster() ? adminAnalyticsView() : homeView();
   if(v==='dailyChallenge') return leagueView();
   if(v==='leaderboard') return leagueView();
   if(v==='myBank') return myBankCategoriesView();
@@ -2754,6 +2759,7 @@ function myDocsPreviewView(){
 }
 
 async function myDocsAddFolder(){
+  if(typeof anLog === 'function') anLog('academy_used', { action: 'create_folder' });
   const input = document.getElementById('mydocs-new-folder-name');
   const name = input.value.trim();
   if(!name){ STATE.toast = 'Escribe un nombre para la carpeta.'; render(); return; }
@@ -2861,6 +2867,7 @@ async function uploadMyDoc(file){
     const path = `${CURRENT_USER_ID}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeName}`;
     const { error } = await supabaseClient.storage.from(MYDOCS_BUCKET).upload(path, file, { contentType: 'application/pdf' });
     if(error) throw error;
+    if(typeof anLog === 'function') anLog('academy_used', { action: 'upload_pdf' });
     STATE.storage.myDocs.push({
       id: 'MD'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
       name: file.name, folderId: STATE.myDocsCurrentFolder, path, size: file.size, notes: '',
@@ -2876,6 +2883,7 @@ async function uploadMyDoc(file){
 }
 
 async function myDocsPreview(id){
+  if(typeof anLog === 'function') anLog('academy_used', { action: 'open_pdf' });
   const doc = (STATE.storage.myDocs||[]).find(d=>d.id===id);
   if(!doc) return;
   STATE.myDocsPreviewId = id;
@@ -5492,7 +5500,11 @@ function adminDashboardView(){
     <div class="lg-stat"><b>${s.active}</b><span>Activos 30 d</span></div>
     <div class="lg-stat"><b>${s.registeredToday}</b><span>Nuevos hoy</span></div>`)}
 
-  <div class="ad-kpis">${kpis}</div>
+  <button type="button" class="an-link" data-action="admin-analytics">
+    <span class="an-link-ic">${ic('chart')}</span>
+    <span><strong>Analítica</strong><small>Crecimiento, retención, países, embudo y señales de pago. Sustituye a las estadísticas de este panel.</small></span>
+    <span class="an-link-go">&rarr;</span>
+  </button>
 
   <div class="ad-tools">
     ${tool('database', 'Base de datos', 'Gestiona las preguntas', 'database')}
@@ -5502,11 +5514,6 @@ function adminDashboardView(){
 
   ${bankCardHtml()}
   ${bankUsageCardHtml()}
-
-  <div class="tc-card" style="margin-bottom:16px;">
-    <div class="tc-card-head"><span class="tc-step">${ic('chart')}</span><div><h3>Registros de los últimos 30 días</h3><small>${chartTotal} nuevos usuarios en el periodo</small></div></div>
-    ${s.totalUsers === 0 ? '<div class="st-note">Todavía no hay usuarios registrados.</div>' : `<div class="ad-chart">${chartHtml}</div>${axis}`}
-  </div>
 
   <div class="tc-card">
     <div class="tc-card-head"><span class="tc-step">${ic('users')}</span><div><h3>Todos los usuarios</h3><small>${s.usersFilteredTotal} ${s.usersFilteredTotal === 1 ? 'resultado' : 'resultados'}</small></div></div>
@@ -5993,6 +6000,7 @@ function onAction(e){
 
   if(typeof action==='string' && action.startsWith('ph-') && typeof phAction==='function'){ phAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('gami-') && typeof gamiAction==='function'){ gamiAction(action, el); return; }
+  if(typeof action==='string' && action.startsWith('an-') && typeof anAction==='function'){ anAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('committee-') && typeof committeeOnAction==='function'){ committeeOnAction(action, el); return; }
 
   if(action==='logout'){ stopTimer(); if(typeof handleLogout==='function') handleLogout(); }
@@ -6324,6 +6332,7 @@ function onAction(e){
   else if(action==='open-suggest'){ STATE.view = 'suggestForm'; render(); }
   else if(action==='send-suggestion'){ sendSuggestion(); }
   else if(action==='suggestions-admin'){ if(!isMaster()) return; STATE.view = 'suggestionsAdmin'; loadSuggestions(); render(); }
+  else if(action==='admin-analytics'){ if(!isMaster()) return; STATE.view = 'adminAnalytics'; loadAnalytics(); }
   else if(action==='admin-dashboard'){ if(!isMaster()) return; STATE.view = 'adminDashboard'; loadAdminStats(1); loadBankUsage(); render(); }
   else if(action==='bank-usage-pct'){ if(!isMaster()) return; loadBankUsage(parseInt(el.dataset.v, 10)); }
   else if(action==='bank-usage-reload'){ if(!isMaster()) return; loadBankUsage(); }
@@ -6398,6 +6407,7 @@ function navRoute(){
     case 'academia': return '#/academia';
     case 'stats': return '#/estadisticas';
     case 'achievements': return '#/logros';
+    case 'adminAnalytics': return '#/admin/analitica';
     case 'recentPerformance': return '#/rendimiento';
     case 'streakCalendar': return '#/calendario';
     case 'menu': return '#/mas';
@@ -6415,6 +6425,7 @@ function navParse(hash){
   const k = p[0] || 'inicio';
   const simple = { inicio: 'home', 'crear-test': 'train-config', academia: 'academia', estadisticas: 'stats', logros: 'achievements', rendimiento: 'recent-performance', calendario: 'streak-calendar', mas: 'menu', perfil: 'profile' };
   if(simple[k] && p.length === 1) return { action: simple[k] };
+  if(k === 'admin' && p[1] === 'analitica' && p.length === 2) return { action: 'admin-analytics' };
   if(k === 'league' && p.length <= 2) return { action: p[1] === 'clasificacion' ? 'leaderboard' : 'dailyChallenge' };
   if(k === 'regla' && p[1]){
     const n = parseInt(p[1], 10);

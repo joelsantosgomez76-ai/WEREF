@@ -4,3 +4,5 @@ Librerias de terceros alojadas en we-ref.com (antes se cargaban de unpkg y cdnjs
 - jsPDF-AutoTable 3.8.2 - MIT - https://github.com/simonbengtsson/jsPDF-AutoTable
 - SheetJS (xlsx) 0.18.5 - Apache-2.0 - https://sheetjs.com
 Descargadas el 2026-11-15 desde unpkg.com y cdnjs.cloudflare.com; hashes SHA-384 comprobados contra los que ya usaba la web.
+
+Chart.js 4.4.1 - MIT - https://www.chartjs.org (analitica de administracion; cargado solo en esa pantalla)
