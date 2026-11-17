@@ -169,7 +169,7 @@ function anPro(d, s){
   const base = d.kpis && d.kpis.mau ? d.kpis.mau.v : 0;
   const stat = (label, v) => `<div class="an-ps"><b>${esc(anVal(v))}</b><small>${esc(label)}</small></div>`;
   const scen = (conv) => `<div class="an-sc"><small>${conv} %</small><b>${anFmtN(base * conv / 100 * s.price)} €</b><em>${anFmtN(base * conv / 100)} suscr.</em></div>`;
-  return `<div class="an-pro">${stat('Usuarios intensivos (3+ días activos a la semana)', p.intensivos)}${stat('Con examen en menos de 60 días', p.examen_60)}${stat('Clics en «WEREF Pro»', p.pro_clics)}${stat('Correos dejados en la lista de espera', p.pro_correos)}</div>
+  return `${typeof proAdminCard === 'function' ? proAdminCard() : ''}<div class="an-pro">${stat('Usuarios intensivos (3+ días activos a la semana)', p.intensivos)}${stat('Con examen en menos de 60 días', p.examen_60)}${stat('Clics en «WEREF Pro»', p.pro_clics)}${stat('Correos dejados en la lista de espera', p.pro_correos)}</div>
     <div class="an-calc"><h3>Calculadora de escenarios</h3>
       <div class="an-calc-in"><label><span>Precio al mes (€)</span><input id="an-price" type="number" inputmode="decimal" min="0" step="0.5" value="${esc(String(s.price))}"></label>
         <label><span>Conversión de activos (%)</span><input id="an-conv" type="number" inputmode="decimal" min="0" max="100" step="0.5" value="${esc(String(s.conv))}"></label></div>

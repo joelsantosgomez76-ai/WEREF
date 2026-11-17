@@ -177,7 +177,7 @@ function gamiView(){
     `<li><b>+${gmN(m.points)}</b><span>${esc(gamiReasonText(m))}</span><small>${esc(gamiAgo(m.ts))}</small></li>`).join('')}</ul></section>` : '';
   return `<button class="backbtn" data-action="home">&larr; Inicio</button>
     <div class="gm">
-      <div class="gm-col gm-left">${hero}${ladder}${almostHtml}${recent}<p class="gm-note">Categorías inspiradas en el arbitraje español. No oficiales.</p></div>
+      <div class="gm-col gm-left">${hero}${ladder}${almostHtml}${recent}<p class="gm-note">Categorías inspiradas en el arbitraje español. No oficiales.</p>${typeof proButton === 'function' ? proButton('logros') : ''}</div>
       <div class="gm-col gm-right">${badges}</div>
     </div>`;
 }

@@ -1186,6 +1186,7 @@ async function loadStorage(){
   checkAndUnlockBadges();
   loadGami();
   if(typeof anLog === 'function') anLog('session_start');
+  if(typeof loadFlags === 'function') loadFlags();
   STATE.dataReady = true;
   navInit();
   render();
@@ -3766,6 +3767,7 @@ function homeView(){
     ${modesSection}
     ${install}
     <p class="ih-foot">¿Una idea o algo que mejorar? <button type="button" data-action="open-suggest">Cuéntanoslo</button></p>
+    ${typeof proButton === 'function' ? proButton('home') : ''}
   </div>
   `;
 }
@@ -6000,6 +6002,7 @@ function onAction(e){
 
   if(typeof action==='string' && action.startsWith('ph-') && typeof phAction==='function'){ phAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('gami-') && typeof gamiAction==='function'){ gamiAction(action, el); return; }
+  if(typeof action==='string' && (action === 'pro-open' || action.startsWith('an-pro-')) && typeof proAction==='function'){ proAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('an-') && typeof anAction==='function'){ anAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('committee-') && typeof committeeOnAction==='function'){ committeeOnAction(action, el); return; }
 
