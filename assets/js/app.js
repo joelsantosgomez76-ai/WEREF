@@ -1187,6 +1187,7 @@ async function loadStorage(){
   loadGami();
   if(typeof anLog === 'function') anLog('session_start');
   if(typeof loadFlags === 'function') loadFlags();
+  if(typeof loadPrep === 'function') loadPrep();
   STATE.dataReady = true;
   navInit();
   render();
@@ -1496,7 +1497,7 @@ function formatRelativeTime(ts){
   return `Hace ${diffY} año${diffY===1?'':'s'}`;
 }
 
-function computeStreak(){
+function computeStreakLocal(){
   const days = activeDaysSet();
   if(days.size === 0) return 0;
   let cursor = new Date();
@@ -1510,6 +1511,7 @@ function computeStreak(){
   }
   return streak;
 }
+function computeStreak(){ return (STATE.prep && STATE.prep.streak) ? STATE.prep.streak.current : computeStreakLocal(); }   /* la racha la calcula el servidor (objetivo diario y comodín) */
 
 /* ---------------- GAMIFICACIÓN: puntos, rangos e insignias ----------------
    Todo se calcula en el servidor (get_gamification, finish_test y los disparadores). Aquí solo se leen los valores (ver gami.js). */
@@ -1986,7 +1988,7 @@ function viewFor(v){
   if(v==='achievements') return achievementsView();
   if(v==='profile') return profileView();
   if(v==='profileEdit') return profileEditView();
-  if(v==='streakCalendar') return streakCalendarView();
+  if(v==='prep' || v==='streakCalendar') return prepView();
   if(v==='recentPerformance') return recentPerformanceView();
   if(v==='menu' && typeof menuView==='function') return menuView();
   if(typeof v==='string' && v.startsWith('committee') && typeof committeeView==='function') return committeeView(v);
@@ -2973,139 +2975,6 @@ function recentPerformanceView(){
   `;
 }
 
-function streakCalendarView(){
-  const ic = (n) => shellIcon(n);
-  const days = activeDaysSet();
-  const eventsByDay = calendarEventsByDay();
-  const streak = computeStreak();
-  const bestStreak = Math.max(STATE.storage.maxStreak || 0, streak);
-  const totalActiveDays = days.size;
-  const now = new Date();
-  const todayKey = dayKey(now.getTime());
-  const year = STATE.calendarYear || now.getFullYear();
-  const isCurrentYear = year === now.getFullYear();
-  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-
-  let months = '';
-  for(let m=0; m<12; m++){
-    const firstOfMonth = new Date(year, m, 1);
-    const daysInMonth = new Date(year, m+1, 0).getDate();
-    let startWeekday = firstOfMonth.getDay(); // 0=Sunday
-    startWeekday = (startWeekday===0) ? 6 : startWeekday-1; // convert to Monday-first index 0-6
-
-    let cells = WEEKDAY_LETTERS.map(l => `<div class="cal-wd">${l}</div>`).join('');
-    for(let i=0;i<startWeekday;i++){ cells += `<div class="cal-cell empty"></div>`; }
-    for(let d=1; d<=daysInMonth; d++){
-      const key = year+'-'+(m+1)+'-'+d;
-      const isActive = days.has(key);
-      const isFuture = new Date(year,m,d) > now;
-      const isToday = isCurrentYear && now.getDate()===d && now.getMonth()===m;
-      const dayEvents = eventsByDay[key] || [];
-      const hasEvent = dayEvents.length>0;
-      const eventTitles = dayEvents.map(ev=>`${CALENDAR_EVENT_TYPES[ev.type].icon} ${ev.title}`).join(', ');
-      const titleAttr = `${d} ${MONTH_NAMES[m]} ${year}${hasEvent ? ' · '+eventTitles : ''}`;
-      let cellStyle = '';
-      if(hasEvent){
-        const primaryType = CALENDAR_EVENT_TYPES[dayEvents[0].type] || CALENDAR_EVENT_TYPES.other;
-        cellStyle = `--event-dot:${primaryType.color}; opacity:1;`;
-        if(!isActive) cellStyle += ` background:${primaryType.bg}; color:${primaryType.color}; font-weight:700;`;
-      }
-      cells += `<div class="cal-cell ${isActive?'active':''} ${(isFuture && !hasEvent)?'future':''} ${isToday?'today':''} ${hasEvent?'has-event':''}" style="${cellStyle}" title="${esc(titleAttr)}">${d}</div>`;
-    }
-
-    const isCurMonth = isCurrentYear && now.getMonth() === m;
-    months += `<div class="cal-month ${isCurMonth ? 'current' : ''}">
-      <div class="cal-month-name">${MONTH_NAMES[m]}</div>
-      <div class="cal-grid">${cells}</div>
-    </div>`;
-  }
-
-  const sortedEvents = (STATE.storage.calendarEvents||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
-  const daysTo = (dateStr) => {
-    const [y,m,d] = dateStr.split('-').map(Number);
-    return Math.round((new Date(y, m-1, d).getTime() - todayMid) / 86400000);
-  };
-  const whenLabel = (n) => n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : n > 1 ? 'En ' + n + ' días' : n === -1 ? 'Ayer' : 'Hace ' + Math.abs(n) + ' días';
-  const eventRows = sortedEvents.map(ev=>{
-    const isPast = ev.date < todayKeyISO(now);
-    const t = CALENDAR_EVENT_TYPES[ev.type] || CALENDAR_EVENT_TYPES.other;
-    const n = daysTo(ev.date);
-    return `<div class="sk-event ${isPast ? 'past' : ''}" style="--ec:${t.color}; --eb:${t.bg};">
-      <span class="sk-event-ic">${t.icon}</span>
-      <div class="sk-event-body">
-        <strong>${esc(ev.title)}</strong>
-        <small>${t.label} · ${formatEventDate(ev.date)}</small>
-      </div>
-      <span class="sk-event-when">${whenLabel(n)}</span>
-      <button class="icon-btn danger" title="Eliminar" data-action="calendar-delete-event" data-id="${ev.id}">${ic('trash')}</button>
-    </div>`;
-  }).join('');
-
-  const atMax = sortedEvents.length >= CALENDAR_EVENTS_MAX;
-  const addForm = STATE.calendarAddingEvent ? `
-  <div class="sk-form">
-    <label>Fecha</label>
-    <input type="date" id="cal-event-date">
-    <label>Título</label>
-    <input type="text" id="cal-event-title" placeholder="Ej: Examen teórico CTA" maxlength="100">
-    <label>Tipo</label>
-    <select id="cal-event-type">
-      ${Object.keys(CALENDAR_EVENT_TYPES).map(k=>`<option value="${k}">${CALENDAR_EVENT_TYPES[k].icon} ${CALENDAR_EVENT_TYPES[k].label}</option>`).join('')}
-    </select>
-    <div style="margin-top:14px; display:flex; gap:10px;">
-      <button class="btn btn-primary" data-action="calendar-save-event">Guardar</button>
-      <button class="btn btn-ghost" data-action="calendar-cancel-event">Cancelar</button>
-    </div>
-  </div>
-  ` : '';
-
-  const legend = `
-  <div class="sk-legend">
-    <span><i class="act"></i> Día con actividad</span>
-    <span><i class="none"></i> Sin actividad</span>
-    ${Object.values(CALENDAR_EVENT_TYPES).map(t=>`<span><i class="dot" style="background:${t.color};"></i> ${t.label}</span>`).join('')}
-  </div>`;
-
-  return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <section class="lg-hero">
-    <div class="lg-hero-main">
-      <div class="home-eyebrow">Tu constancia</div>
-      <h1>Racha de estudio</h1>
-      <p>Convierte el calendario en tu centro de planificación. Registra automáticamente los días en los que estudias y añade las fechas más importantes de tu preparación, como exámenes, pruebas físicas o reuniones, para tener toda tu planificación en un mismo lugar.</p>
-    </div>
-    <div class="lg-hero-stats">
-      <div class="lg-stat sk-flame"><b>${streak}</b><span>${streak===1 ? 'Día seguido' : 'Días seguidos'}</span></div>
-      <div class="lg-stat"><b>${bestStreak}</b><span>Mejor racha</span></div>
-      <div class="lg-stat"><b>${totalActiveDays}</b><span>${totalActiveDays===1 ? 'Día activo' : 'Días activos'}</span></div>
-    </div>
-  </section>
-
-  <div class="sk-layout">
-    <div class="tc-card sk-cal">
-      <div class="sk-year">
-        <button class="btn btn-ghost" data-action="calendar-year" data-delta="-1" ${year<=2025?'disabled':''}>${ic('chevron')} ${year-1}</button>
-        <strong>${year}</strong>
-        <button class="btn btn-ghost" data-action="calendar-year" data-delta="1" ${year>=now.getFullYear()+1?'disabled':''}>${year+1} ${ic('chevron')}</button>
-      </div>
-      <div class="cal-wrap">${months}</div>
-      ${legend}
-    </div>
-
-    <aside class="tc-card sk-events">
-      <div class="tc-card-head">
-        <span class="tc-step">${ic('calendar')}</span>
-        <div><h3>Tus eventos</h3><small>${sortedEvents.length} de ${CALENDAR_EVENTS_MAX} · exámenes, pruebas y reuniones</small></div>
-      </div>
-      ${STATE.calendarAddingEvent || atMax ? '' : `<button class="btn btn-primary sk-add" data-action="calendar-add-event">${ic('plus')} Añadir evento</button>`}
-      ${atMax && !STATE.calendarAddingEvent ? `<div class="st-note" style="margin-bottom:12px;">Has llegado al máximo de ${CALENDAR_EVENTS_MAX} eventos. Elimina alguno para añadir otro.</div>` : ''}
-      ${addForm}
-      ${sortedEvents.length>0 ? `<div class="sk-eventlist">${eventRows}</div>` : (STATE.calendarAddingEvent ? '' : `<div class="ac-empty" style="padding:24px 14px;">${ic('calendar')}<strong>Sin eventos todavía</strong><span>Marca tu próximo examen o prueba para tenerlo siempre a la vista.</span></div>`)}
-    </aside>
-  </div>
-  `;
-}
-
 function achievementsView(){ return (typeof gamiView === 'function') ? gamiView() : ''; }
 
 async function loadProfileData(){
@@ -3462,6 +3331,9 @@ const IH_WEEK = ['L','M','X','J','V','S','D'];
 
 /* Los 7 días de la semana actual (lunes a domingo) y si hubo actividad cada día. */
 function ihWeekDots(){
+  if(STATE.prep && STATE.prep.streak && (STATE.prep.streak.week || []).length === 7){   // semana según el servidor (objetivo cumplido o día salvado)
+    return STATE.prep.streak.week.map((d, i) => ({ l: IH_WEEK[i], on: d.state === 'met' || d.state === 'saver', today: d.state === 'today' || (d.state === 'met' && d.day === STATE.prep.today), future: d.state === 'future' }));
+  }
   const days = activeDaysSet();
   const now = new Date();
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
@@ -3552,8 +3424,8 @@ function homeView(){
   const streak = computeStreak();
   const weakList = ihWeakList();
   const weak = weakList[0] || null;
-  const goal = STATE.storage.dailyGoal || 20;
-  const today = todaysAnsweredCount();
+  const goal = (STATE.prep && STATE.prep.streak) ? STATE.prep.streak.goal : (STATE.storage.dailyGoal || 20);   // el objetivo diario lo guarda el servidor
+  const today = (STATE.prep && STATE.prep.streak) ? STATE.prep.streak.today_answered : todaysAnsweredCount();
   const goalPct = Math.min(100, Math.round(today / goal * 100));
   const name = (typeof CURRENT_USERNAME !== 'undefined' && CURRENT_USERNAME) ? CURRENT_USERNAME : '';
   const hour = new Date().getHours();
@@ -3610,10 +3482,12 @@ function homeView(){
   if(!lgData) leagueVal = (lgSlot && lgSlot.error) ? '<small>—</small>' : SKEL;
   else leagueVal = lgData.me ? `<b>#${lgData.me.rank}</b> <small>${LEAGUE_MODES[leagueMode()].label}</small>` : '<small>Sin clasificar</small>';
   const todayISO = todayKeyISO();
-  const nextExam = (STATE.storage.calendarEvents || []).filter(ev => ev && ev.type === 'exam' && typeof ev.date === 'string' && ev.date >= todayISO).sort((a, b) => a.date.localeCompare(b.date))[0];
+  /* próximo examen: sale de la tabla de eventos del usuario (la misma que Mi preparación) */
+  const pex = STATE.prep && STATE.prep.exam;
+  const nextExam = pex ? { date: String(pex.date).slice(0, 10), days: pex.days_left } : null;
   let examRow;
   if(nextExam){
-    const d = Math.round((new Date(nextExam.date + 'T00:00:00') - new Date(todayISO + 'T00:00:00')) / 86400000);
+    const d = typeof nextExam.days === "number" ? nextExam.days : Math.round((new Date(nextExam.date + "T00:00:00") - new Date(todayISO + "T00:00:00")) / 86400000);
     examRow = `<button class="ih-row" data-action="streak-calendar"><span class="ih-row-l">${ic('calendar')} Examen</span><span class="ih-row-r"><b>${d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : d + ' días'}</b> <small>${esc(formatEventDate(nextExam.date))}</small></span></button>`;
   } else {
     examRow = `<button class="ih-row" data-action="streak-calendar"><span class="ih-row-l">${ic('calendar')} Examen</span><span class="ih-row-r ih-add">Añade la fecha de tu examen</span></button>`;
@@ -6002,6 +5876,7 @@ function onAction(e){
 
   if(typeof action==='string' && action.startsWith('ph-') && typeof phAction==='function'){ phAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('gami-') && typeof gamiAction==='function'){ gamiAction(action, el); return; }
+  if(typeof action==='string' && action.startsWith('pp-') && typeof ppAction==='function'){ ppAction(action, el); return; }
   if(typeof action==='string' && (action === 'pro-open' || action.startsWith('an-pro-')) && typeof proAction==='function'){ proAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('an-') && typeof anAction==='function'){ anAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('committee-') && typeof committeeOnAction==='function'){ committeeOnAction(action, el); return; }
@@ -6124,7 +5999,7 @@ function onAction(e){
   else if(action==='mfa-disable'){ mfaDisable(el.dataset.factor); }
   else if(action==='profile-edit'){ STATE.view='profileEdit'; render(); }
   else if(action==='profile-save-edit'){ saveProfileEdit(); }
-  else if(action==='streak-calendar'){ STATE.calendarYear = null; STATE.view='streakCalendar'; render(); }
+  else if(action==='streak-calendar'){ STATE.view = 'prep'; if(typeof loadPrep === 'function') loadPrep(); render(); }
   else if(action==='recent-performance'){ STATE.view='recentPerformance'; render(); }
   else if(action==='perf-sort'){ STATE.perfSort = el.dataset.sort; render(); }
   else if(action==='sug-filter'){ STATE.sugFilter = el.dataset.filter; render(); }
@@ -6412,7 +6287,7 @@ function navRoute(){
     case 'achievements': return '#/logros';
     case 'adminAnalytics': return '#/admin/analitica';
     case 'recentPerformance': return '#/rendimiento';
-    case 'streakCalendar': return '#/calendario';
+    case 'prep': case 'streakCalendar': return '#/preparacion';
     case 'menu': return '#/mas';
     case 'profile': return '#/perfil';
     case 'quiz': return '#/test';
@@ -6426,7 +6301,7 @@ function navRoute(){
 function navParse(hash){
   const p = String(hash || '').replace(/^#\/?/, '').split('/');
   const k = p[0] || 'inicio';
-  const simple = { inicio: 'home', 'crear-test': 'train-config', academia: 'academia', estadisticas: 'stats', logros: 'achievements', rendimiento: 'recent-performance', calendario: 'streak-calendar', mas: 'menu', perfil: 'profile' };
+  const simple = { inicio: 'home', 'crear-test': 'train-config', academia: 'academia', estadisticas: 'stats', logros: 'achievements', rendimiento: 'recent-performance', calendario: 'streak-calendar', preparacion: 'streak-calendar', mas: 'menu', perfil: 'profile' };
   if(simple[k] && p.length === 1) return { action: simple[k] };
   if(k === 'admin' && p[1] === 'analitica' && p.length === 2) return { action: 'admin-analytics' };
   if(k === 'league' && p.length <= 2) return { action: p[1] === 'clasificacion' ? 'leaderboard' : 'dailyChallenge' };

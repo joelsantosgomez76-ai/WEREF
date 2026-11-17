@@ -11,7 +11,7 @@ const PH_FORCE_INTERIOR = ['result', 'myBankResult'];
 const PH_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const PH_VIEW_LABELS = {
   home: 'Inicio', law: 'Regla', trainConfig: 'Crear test', dailyChallenge: 'WEREF League', leaderboard: 'WEREF League', academia: 'Mi Academia',
-  stats: 'Estadísticas', achievements: 'Rango e insignias', recentPerformance: 'Rendimiento', streakCalendar: 'Racha', menu: 'Más',
+  stats: 'Estadísticas', achievements: 'Rango e insignias', recentPerformance: 'Rendimiento', streakCalendar: 'Mi preparación', prep: 'Mi preparación', menu: 'Más',
   profile: 'Configuración', profileEdit: 'Editar cuenta', myDocs: 'Mis documentos', myDocsPreview: 'Documento', myBank: 'Mis propios test',
   myBankCategory: 'Categoría', myBankForm: 'Pregunta', myBankTrainConfig: 'Crear test propio', savedBrowse: 'Preguntas guardadas',
   result: 'Resultado', myBankResult: 'Resultado', suggestForm: 'Sugerencias', database: 'Base de datos', adminDashboard: 'Panel de administración', adminAnalytics: 'Analítica', suggestionsAdmin: 'Sugerencias'
@@ -22,7 +22,7 @@ const PH_SPECIAL_LAWS = { failed: 'Sala de Repaso', hard: 'Sala VAR', glossary: 
 function phRouteLabel(route){
   const r = String(route || '');
   const simple = { '#/inicio': 'Inicio', '#/crear-test': 'Crear test', '#/league': 'WEREF League', '#/league/clasificacion': 'WEREF League', '#/academia': 'Mi Academia',
-    '#/estadisticas': 'Estadísticas', '#/logros': 'Rango e insignias', '#/rendimiento': 'Rendimiento', '#/calendario': 'Racha', '#/mas': 'Más', '#/perfil': 'Configuración', '#/resultado': 'Resultado' };
+    '#/estadisticas': 'Estadísticas', '#/logros': 'Rango e insignias', '#/rendimiento': 'Rendimiento', '#/calendario': 'Mi preparación', '#/preparacion': 'Mi preparación', '#/mas': 'Más', '#/perfil': 'Configuración', '#/resultado': 'Resultado' };
   if(simple[r]) return simple[r];
   if(r.indexOf('#/regla/') === 0){ const k = r.slice(8); return /^\d+$/.test(k) ? 'Regla ' + k : (PH_SPECIAL_LAWS[k] || 'Regla'); }
   if(r.indexOf('#/v/') === 0) return PH_VIEW_LABELS[r.slice(4)] || '';
