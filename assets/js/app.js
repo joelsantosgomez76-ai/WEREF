@@ -392,7 +392,7 @@ async function loadBaseBank(){
     if(!error && data){ const l = JSON.parse(await data.text()); if(Array.isArray(l) && l.length) { list = l; BANK.source = 'privado'; } }
   }catch(e){}
   if(!list) return false;
-  list.forEach(q => { q.id = 'R'+q.rule+'-'+q.num; q.source = 'base'; q.domain = 'law'; if(!q.difficulty) q.difficulty = 'normal'; BASE_QUESTIONS.push(q); });
+  list.forEach(q => { q.id = 'R'+q.rule+'-'+q.num; q.source = 'base'; q.domain = 'law'; if(!q.difficulty) q.difficulty = 'normal'; q.question = capFirst(q.question); q.options = capOptions(q.options); BASE_QUESTIONS.push(q); });
   BASE_ID_SET = null; BANK.ready = true;
   console.info('Banco de preguntas: ' + BANK.source);
   return true;
@@ -735,12 +735,21 @@ function baseIdSet(){
   return BASE_ID_SET;
 }
 function sharedActive(){ return SHARED.ready && isDevUser(); }
+/* Norma general: toda pregunta y toda respuesta empieza por mayúscula (solo la primera letra; el resto no se toca). */
+function capFirst(s){
+  if(typeof s !== 'string') return s;
+  const m = s.match(/^([\s¿¡“"«]*)([\s\S])([\s\S]*)$/);   // se salta espacios y signos de apertura (¿ ¡ comillas)
+  if(!m) return s;
+  const up = m[2].toUpperCase();
+  return up.length === 1 ? m[1] + up + m[3] : s;
+}
+function capOptions(o){ return Array.isArray(o) ? o.map(capFirst) : o; }
 function sharedNormRow(r){
   return {
     id: r.id, domain: r.domain,
     rule: r.rule == null ? null : r.rule,
-    question: r.question == null ? null : r.question,
-    options: r.options || null,
+    question: r.question == null ? null : capFirst(r.question),
+    options: capOptions(r.options) || null,
     correct: r.correct || null,
     explanation: r.explanation == null ? null : r.explanation,
     difficulty: r.difficulty || 'normal',
@@ -751,8 +760,8 @@ function sharedNormRow(r){
   };
 }
 function sharedRowToQuestion(r){
-  return { id:r.id, domain:r.domain, rule: r.rule == null ? null : r.rule, num:r.id, question:r.question || '',
-    options: r.options || ['','','',''], correct: r.correct || 'a', explanation: r.explanation || '',
+  return { id:r.id, domain:r.domain, rule: r.rule == null ? null : r.rule, num:r.id, question:capFirst(r.question || ''),
+    options: capOptions(r.options) || ['','','',''], correct: r.correct || 'a', explanation: r.explanation || '',
     difficulty: r.difficulty || 'normal', source:'user', shared:true, draft: !!r.draft, createdAt: r.created_at || null, updatedAt: r.updated_at || null };
 }
 function sharedRebuild(){
@@ -1036,8 +1045,8 @@ function allQuestionsAdmin(){
       const o = SHARED.over[q.id];
       if(o){
         const f = {};
-        if(o.question != null) f.question = o.question;
-        if(o.options) f.options = o.options;
+        if(o.question != null) f.question = capFirst(o.question);
+        if(o.options) f.options = capOptions(o.options);
         if(o.correct) f.correct = o.correct;
         if(o.explanation != null) f.explanation = o.explanation;
         if(o.difficulty) f.difficulty = o.difficulty;
