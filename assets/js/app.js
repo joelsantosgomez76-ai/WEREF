@@ -1183,6 +1183,7 @@ async function loadStorage(){
   startAdminSync();
   pruneSavedStale();
   checkAndUnlockBadges();
+  loadGami();
   STATE.dataReady = true;
   navInit();
   render();
@@ -1357,6 +1358,7 @@ function srvApplyResult(quiz){
   }
 }
 function recordTestResult(quiz){
+  if(typeof loadGami === 'function') setTimeout(loadGami, 400);   // puntos, rango e insignias nuevos: los calcula el servidor
   STATE.reviewDetailIdx = null;
   if(quiz.server && SERVER_PROGRESS_ON){ srvApplyResult(quiz); return; }
   let score = 0;
@@ -1505,53 +1507,15 @@ function computeStreak(){
   return streak;
 }
 
-/* ---------------- GAMIFICACIÓN: puntos, rangos e insignias ---------------- */
-function computePoints(){
-  const progress = STATE.storage.progress || {};
-  const correctCount = Object.values(progress).filter(p=>p.correct).length + (STATE.storage.pointsCorrectOffset||0);
-  const testHistory = STATE.storage.testHistory || [];
-  const testsCompleted = testHistory.length;
-  const perfectTests = testHistory.filter(h=>h.total>=10 && h.pct===100).length;
-  const streak = computeStreak();
-  return correctCount*3 + testsCompleted*5 + perfectTests*15 + streak*2;
+/* ---------------- GAMIFICACIÓN: puntos, rangos e insignias ----------------
+   Todo se calcula en el servidor (get_gamification, finish_test y los disparadores). Aquí solo se leen los valores (ver gami.js). */
+function computePoints(){ return STATE.gami ? STATE.gami.points : 0; }
+function currentRank(){
+  const r = (STATE.gami && STATE.gami.rank) || { ord: 1, name: 'Aprendiz', sub: 1, sub_from: 0 };
+  return { name: r.name, level: r.ord, sub: r.sub, label: r.name + ' ' + (['', 'I', 'II', 'III'][r.sub] || 'I'), min: r.sub_from };
 }
-
-const RANKS = [
-  {min:0,    name:'Aprendiz', level:1},
-  {min:250,  name:'Árbitro Territorial', level:2},
-  {min:800,  name:'Árbitro Autonómico', level:3},
-  {min:2000, name:'Árbitro de Primera', level:4},
-  {min:4000, name:'Árbitro Nacional', level:5},
-  {min:7000, name:'Árbitro Internacional', level:6}
-];
-function rankLevelFor(rankName){
-  const r = RANKS.find(x=>x.name===rankName);
-  return r ? r.level : null;
-}
-function currentRank(points){
-  let rank = RANKS[0];
-  for(const r of RANKS){ if(points >= r.min) rank = r; }
-  return rank;
-}
-function nextRankInfo(points){
-  const next = RANKS.find(r => r.min > points);
-  if(!next) return null;
-  const current = currentRank(points);
-  return { name: next.name, remaining: next.min - points, progressPct: Math.round((points-current.min)/(next.min-current.min)*100) };
-}
-
-const BADGES = [
-  {id:'first_whistle', icon:'🎯', name:'Primer Pitido', desc:'Responde tu primera pregunta', check:ctx=>ctx.answered>=1},
-  {id:'streak7', icon:'🔥', name:'Racha de Hierro', desc:'7 días seguidos estudiando', check:ctx=>ctx.maxStreak>=7},
-  {id:'streak30', icon:'🔥', name:'Racha de Titanio', desc:'30 días seguidos estudiando', check:ctx=>ctx.maxStreak>=30},
-  {id:'perfect_test', icon:'💯', name:'Partido Perfecto', desc:'100% en un test de 10 o más preguntas', check:ctx=>ctx.hasPerfectTest},
-  {id:'rule_master', icon:'📘', name:'Maestro de Regla', desc:'Una regla (o el Glosario) al 100% completada con 90% de acierto o más', check:ctx=>ctx.hasRuleMastered},
-  {id:'full_book', icon:'🏆', name:'Reglamento Completo', desc:'Las 17 Reglas al 100% completadas', check:ctx=>ctx.allRulesComplete},
-  {id:'clean_room', icon:'🧹', name:'Sala Limpia', desc:'Sala de Repaso vacía tras completar al menos 5 tests', check:ctx=>ctx.cleanRoom},
-  {id:'points_300', icon:'🥉', name:'300 Puntos', desc:'Acumula 300 puntos', check:ctx=>ctx.points>=300},
-  {id:'points_1500', icon:'🥈', name:'1.500 Puntos', desc:'Acumula 1.500 puntos', check:ctx=>ctx.points>=1500},
-  {id:'points_4000', icon:'🥇', name:'4.000 Puntos', desc:'Acumula 4.000 puntos', check:ctx=>ctx.points>=4000}
-];
+function nextRankInfo(){ return (typeof gamiNext === 'function') ? gamiNext() : null; }
+const BADGES = [];   /* el catálogo de insignias vive en el servidor (badge_defs) */
 
 function buildBadgeContext(){
   const progress = STATE.storage.progress || {};
@@ -1825,6 +1789,7 @@ function render(){
   app.classList.toggle('has-shell', useShell);
   app.innerHTML = useShell ? shellFor(STATE.view, viewHtml) : viewHtml;
   if(typeof phEnhance === 'function'){ try{ phEnhance(app); }catch(err){ console.warn('Cabecera', err); } }   // cabeceras comunes (pagehead.js)
+  if(typeof gamiAfterRender === 'function'){ try{ gamiAfterRender(); }catch(err){ console.warn('Logros', err); } }   // celebraciones (gami.js)
   bindEvents();
   navSync();
   if(typeof committeeAfterRender==='function') committeeAfterRender();
@@ -3132,69 +3097,7 @@ function streakCalendarView(){
   `;
 }
 
-function achievementsView(){
-  const ic = (n) => shellIcon(n);
-  const points = computePoints();
-  const rank = currentRank(points);
-  const next = nextRankInfo(points);
-  const unlocked = STATE.storage.unlockedBadges || {};
-  const unlockedCount = BADGES.filter(b => unlocked[b.id]).length;
-  const rankIdx = Math.max(0, RANKS.findIndex(r => r.name === rank.name));
-
-  const rankRows = RANKS.map((r, i) => {
-    const reached = points >= r.min;
-    const current = r.name === rank.name;
-    return `<div class="rk-step ${reached ? 'reached' : ''} ${current ? 'current' : ''}">
-      <span class="rk-dot">${reached ? ic('check') : ''}</span>
-      <div class="rk-step-body">
-        <div class="rk-step-name">${esc(r.name)}${current ? '<em>Tu rango</em>' : ''}</div>
-        <div class="rk-step-min">${r.min} pts</div>
-        ${current && next ? `<div class="rk-step-bar"><i style="width:${next.progressPct}%"></i></div><div class="rk-step-hint">${next.remaining} puntos para ${esc(next.name)}</div>` : ''}
-        ${current && !next ? '<div class="rk-step-hint">¡Has alcanzado el rango máximo!</div>' : ''}
-      </div>
-    </div>`;
-  }).join('');
-
-  const badgeCards = BADGES.map(b => {
-    const isUnlocked = !!unlocked[b.id];
-    return `<div class="rk-badge ${isUnlocked ? 'on' : 'off'}">
-      <span class="rk-badge-ic">${b.icon}</span>
-      <div class="rk-badge-body">
-        <strong>${b.name}</strong>
-        <small>${b.desc}</small>
-      </div>
-      <span class="rk-badge-state">${isUnlocked ? ic('check') : ic('lock')}</span>
-    </div>`;
-  }).join('');
-
-  return `
-  <button class="backbtn" data-action="home">&larr; Inicio</button>
-  <section class="lg-hero">
-    <div class="lg-hero-main">
-      <div class="home-eyebrow">Tu progreso arbitral</div>
-      <h1>${esc(rank.name)}</h1>
-      <p>${points} puntos por preguntas acertadas, tests completados y racha de estudio. ${next ? `Te faltan ${next.remaining} para ser ${esc(next.name)}.` : '¡Has alcanzado el rango máximo!'}</p>
-      ${next ? `<div class="rk-hero-bar"><i style="width:${next.progressPct}%"></i></div><div class="rk-hero-bar-label">${next.progressPct}% hacia ${esc(next.name)}</div>` : ''}
-    </div>
-    <div class="lg-hero-stats">
-      <div class="lg-stat"><b>${points}</b><span>Puntos</span></div>
-      <div class="lg-stat"><b>${rankIdx + 1}/${RANKS.length}</b><span>Rango</span></div>
-      <div class="lg-stat"><b>${unlockedCount}/${BADGES.length}</b><span>Insignias</span></div>
-    </div>
-  </section>
-
-  <div class="rk-layout">
-    <div class="tc-card">
-      <div class="tc-card-head"><span class="tc-step">${ic('award')}</span><div><h3>Escala de rangos</h3><small>Sube de rango sumando puntos</small></div></div>
-      <div class="rk-ladder">${rankRows}</div>
-    </div>
-    <div class="tc-card">
-      <div class="tc-card-head"><span class="tc-step">${ic('trophy')}</span><div><h3>Insignias</h3><small>${unlockedCount} de ${BADGES.length} conseguidas</small></div></div>
-      <div class="rk-badges">${badgeCards}</div>
-    </div>
-  </div>
-  `;
-}
+function achievementsView(){ return (typeof gamiView === 'function') ? gamiView() : ''; }
 
 async function loadProfileData(){
   try{
@@ -3321,7 +3224,7 @@ function profileView(){
   const username = (typeof CURRENT_USERNAME!=='undefined' && CURRENT_USERNAME) ? CURRENT_USERNAME : '';
   const points = computePoints();
   const rank = currentRank(points);
-  const unlockedCount = BADGES.filter(b => (STATE.storage.unlockedBadges || {})[b.id]).length;
+  const unlockedCount = gamiCounts().earned;
   const p = STATE.profileData;
   const fullName = p ? [profileFirstName(p), p.last_name].filter(Boolean).join(' ') : '';
   const initial = esc((username || email || '?').trim().charAt(0).toUpperCase());
@@ -3347,7 +3250,7 @@ function profileView(){
     </div>
     <div class="lg-hero-stats">
       <div class="lg-stat"><b>${points}</b><span>Puntos</span></div>
-      <div class="lg-stat"><b>${unlockedCount}/${BADGES.length}</b><span>Insignias</span></div>
+      <div class="lg-stat"><b>${unlockedCount}/${gamiCounts().total}</b><span>Insignias</span></div>
       <div class="lg-stat"><b>${esc(rank.name.replace('Árbitro ', ''))}</b><span>Rango</span></div>
     </div>
   </section>
@@ -3630,7 +3533,7 @@ function ihEnsureData(){
 }
 
 function homeView(){
-  if(!STATE.dataReady) return ihSkeleton();
+  if(!STATE.dataReady || !STATE.gami) return ihSkeleton();
   ihEnsureData();
   const os = overallStats();
   const points = computePoints();
@@ -3717,7 +3620,7 @@ function homeView(){
         <h2>Tu nivel</h2>
         <button class="ih-level-main" data-action="achievements" aria-label="Tu rango: ${esc(rank.name)}, ${points} puntos. Ver insignias">
           <span class="ih-ring">${ring}<b>${points}</b></span>
-          <span class="ih-rank"><strong>${esc(rank.name)}</strong><small>${next ? '→ ' + esc(next.name) + ' · faltan ' + next.remaining : 'Rango máximo'}</small></span>
+          <span class="ih-rank"><strong>${esc(rank.label)}</strong><small>${next ? '→ ' + esc(next.name) + ' · ' + next.hint : 'Rango máximo'}</small></span>
         </button>
         <button class="ih-row" data-action="dailyChallenge"><span class="ih-row-l">${ic('trophy')} WEREF League</span><span class="ih-row-r">${leagueVal}</span></button>
         ${examRow}
@@ -4524,11 +4427,12 @@ function resultView(){
   if(quiz.startTs && !quiz.endTs) quiz.endTs = Date.now();
   const elapsed = quiz.startTs ? Math.max(0, Math.round((quiz.endTs - quiz.startTs) / 1000)) : null;
   const pointsNow = computePoints();
-  const pointsGained = quiz.startPoints != null ? Math.max(0, pointsNow - quiz.startPoints) : null;
+  const srvRes = (quiz.server && quiz.server.result) || null;
+  const pointsGained = (srvRes && srvRes.points_gained != null) ? srvRes.points_gained : (quiz.startPoints != null ? Math.max(0, pointsNow - quiz.startPoints) : null);
   const rankNow = currentRank(pointsNow);
-  const rankUp = quiz.startRank && rankNow.name !== quiz.startRank;
+  const rankUp = false;   // las subidas de rango y las insignias nuevas las celebra gami.js con una ventana (datos del servidor)
   const startBadges = quiz.startBadges || [];
-  const newBadges = BADGES.filter(b => (STATE.storage.unlockedBadges || {})[b.id] && !startBadges.includes(b.id));
+  const newBadges = [];
 
   /* veredicto: mismos tramos que ya usa la app para colorear resultados (60 % y 85 %) */
   const verdict = pct >= 85 ? { t: 'Excelente', soft: false, msg: 'Resultado sobresaliente. Sigue así.' }
@@ -6088,6 +5992,7 @@ function onAction(e){
   const law = rawLaw ? ((rawLaw==='hard' || rawLaw==='failed' || rawLaw==='glossary' || rawLaw==='assistants' || rawLaw==='saved' || /^fed-\d+$/.test(rawLaw)) ? rawLaw : parseInt(rawLaw,10)) : null;
 
   if(typeof action==='string' && action.startsWith('ph-') && typeof phAction==='function'){ phAction(action, el); return; }
+  if(typeof action==='string' && action.startsWith('gami-') && typeof gamiAction==='function'){ gamiAction(action, el); return; }
   if(typeof action==='string' && action.startsWith('committee-') && typeof committeeOnAction==='function'){ committeeOnAction(action, el); return; }
 
   if(action==='logout'){ stopTimer(); if(typeof handleLogout==='function') handleLogout(); }
@@ -6200,7 +6105,7 @@ function onAction(e){
   else if(action==='report-question'){ reportQuestionDialog(el.dataset.qid); }
   else if(action==='dismiss-reports'){ if(!isDevUser()) return; dismissReports(el.dataset.qid); }
   else if(action==='profile-nudge-close'){ dismissProfileNudge(); }
-  else if(action==='achievements'){ STATE.view='achievements'; render(); }
+  else if(action==='achievements'){ STATE.view='achievements'; if(typeof loadGami==='function') loadGami(); render(); }
   else if(action==='profile'){ STATE.view='profile'; STATE.profileData=null; render(); loadProfileData(); loadMfaState(); }
   else if(action==='mfa-start'){ mfaStartEnroll(); }
   else if(action==='mfa-verify'){ mfaVerifyEnroll(); }
