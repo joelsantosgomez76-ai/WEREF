@@ -2250,7 +2250,7 @@ function myBankFormView(){
   const draft = STATE.myBankFormDraft;
   const catVal = draft && draft.category!==undefined ? draft.category : defaultCat;
   const allLetters = ['a','b','c','d'];
-  const optionCount = STATE.myBankOptionCount || (editing ? editing.options.length : 4);
+  const optionCount = 4;   // toda pregunta lleva siempre 4 respuestas
   const letters = allLetters.slice(0, optionCount);
   const getField = (field) => (draft && draft[field]!==undefined) ? draft[field] : (editing && editing[field]!==undefined ? editing[field] : '');
   const getOption = (i) => (draft && draft.options && draft.options[i]!==undefined) ? (draft.options[i]||'') : (editing && editing.options[i]!==undefined ? editing.options[i] : '');
@@ -2273,10 +2273,6 @@ function myBankFormView(){
     </div>
     <div class="tc-card">
       <div class="tc-card-head"><span class="tc-step">2</span><div><h3>Respuestas</h3><small>Indica cuál es la correcta</small></div></div>
-      <label>Número de opciones de respuesta</label>
-      <select id="mb-option-count">
-        ${[3,4].map(n=>`<option value="${n}" ${optionCount===n?'selected':''}>${n} opciones</option>`).join('')}
-      </select>
       ${letters.map((l,i)=>`<label>Respuesta ${l})</label><input type="text" id="mb-${l}" maxlength="300" value="${esc(getOption(i))}">`).join('')}
       <label>Respuesta correcta</label>
       <select id="mb-correct">${letters.map(l=>`<option value="${l}" ${correctVal===l?'selected':''}>${l})</option>`).join('')}</select>
@@ -2364,7 +2360,7 @@ function saveMyBankQuestion(qid){
   const category = document.getElementById('mb-category').value;
   const question = document.getElementById('mb-question').value.trim();
   const existingQ = qid ? (STATE.storage.myBank||[]).find(q=>q.id===qid) : null;
-  const optionCount = STATE.myBankOptionCount || (existingQ ? existingQ.options.length : 4);
+  const optionCount = 4;
   const allLetters = ['a','b','c','d'];
   const letters = allLetters.slice(0, optionCount);
   const options = letters.map(l => document.getElementById('mb-'+l).value.trim());
@@ -4961,7 +4957,7 @@ function saveQuestionEdit(qid){
   const correct = (document.querySelector('input[name="e-correct"]:checked') || {}).value || 'a';
   const explanation = document.getElementById('e-explanation').value.trim();
   const difficulty = document.getElementById('e-hard').checked ? 'hard' : 'normal';
-  if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
+  if(!question || !a || !b || !c || !d){ STATE.toast='Rellena la pregunta y las 4 respuestas (a, b, c y d).'; render(); return; }
   const edit = (domain==='glossary' || domain==='assistants' || domain==='fcf')
     ? { question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() }
     : { rule: selectedNum, question, options:[a,b,c,d], correct, explanation, difficulty, updatedAt: Date.now() };
@@ -5647,7 +5643,7 @@ function questionFormSections(p, v){
     <label class="fq-ans">
       <input type="radio" name="${p}-correct" value="${l}" ${v.correct === l ? 'checked' : ''}>
       <span class="fq-letter">${l.toUpperCase()}</span>
-      <input type="text" id="${p}-${l}" maxlength="300" value="${esc(v.options[i] || '')}" placeholder="${l === 'd' ? 'p. ej. Ninguna respuesta es correcta.' : 'Respuesta ' + l.toUpperCase()}" aria-label="Respuesta ${l.toUpperCase()}">
+      <input type="text" id="${p}-${l}" maxlength="300" value="${esc(v.options[i] || '')}" placeholder="Respuesta ${l.toUpperCase()}" aria-label="Respuesta ${l.toUpperCase()}">
       <span class="fq-ok">${ic('check')} Correcta</span>
     </label>`).join('');
   return `
@@ -5757,11 +5753,11 @@ function saveNewQuestion(){
   const a = document.getElementById('f-a').value.trim();
   const b = document.getElementById('f-b').value.trim();
   const c = document.getElementById('f-c').value.trim();
-  const d = document.getElementById('f-d').value.trim() || 'Ninguna respuesta es correcta.';
+  const d = document.getElementById('f-d').value.trim();
   const correct = (document.querySelector('input[name="f-correct"]:checked') || {}).value || 'a';
   const explanation = document.getElementById('f-explanation').value.trim();
   const difficulty = document.getElementById('f-hard').checked ? 'hard' : 'normal';
-  if(!question || !a || !b || !c){ STATE.toast='Rellena al menos la pregunta y las opciones a, b y c.'; render(); return; }
+  if(!question || !a || !b || !c || !d){ STATE.toast='Rellena la pregunta y las 4 respuestas (a, b, c y d).'; render(); return; }
 
   const saved = persistNewQuestion({ domain, rule: selectedNum, question, options: [a,b,c,d], correct, explanation, difficulty });
   if(!saved.ok){ STATE.toast = saved.msg; render(); return; }
@@ -5932,6 +5928,7 @@ async function exportExcel(){
     ['- Deja la columna ID tal cual para EDITAR una pregunta existente.'],
     ['- Borra el ID (déjalo vacío) en una fila nueva para AÑADIR una pregunta.'],
     ['- En "Ámbito" pon el número de regla (1-17), Glosario o FCF (Reglament General FCF).'],
+    ['- Las 4 opciones (A, B, C y D) son obligatorias en cada pregunta.'],
     ['- En "Correcta" pon solo la letra: a, b, c o d.'],
     ['- No borres filas para eliminar preguntas: usa el botón Eliminar en la app.'],
     ['- Cuando termines, guarda el archivo y súbelo con "Importar desde Excel".']
@@ -5969,7 +5966,7 @@ async function importExcelFile(file){
         const isGlossary = ambito.toLowerCase().startsWith('glos') || isAssist || isFcf;
         const rule = isGlossary ? null : (isAssistWord ? 6 : parseInt(ambito,10));
 
-        if(!question || !a || !b || !c || !['a','b','c','d'].includes(correct)){ skipped++; return; }
+        if(!question || !a || !b || !c || !d || !['a','b','c','d'].includes(correct)){ skipped++; return; }
         if(!isGlossary && (!rule || rule<1 || rule>17)){ skipped++; return; }
 
         if(id){
@@ -6030,21 +6027,6 @@ function bindEvents(){
   const mybankSearch = document.getElementById('mybank-search');
   if(mybankSearch){ mybankSearch.addEventListener('input', (e)=>{ STATE.myBankSearch = e.target.value; render(); }); }
 
-  const mbOptionCount = document.getElementById('mb-option-count');
-  if(mbOptionCount){
-    mbOptionCount.addEventListener('change', (e)=>{
-      const allLetters = ['a','b','c','d'];
-      STATE.myBankFormDraft = {
-        category: (document.getElementById('mb-category')||{}).value,
-        question: (document.getElementById('mb-question')||{}).value,
-        options: allLetters.map(l => { const el2 = document.getElementById('mb-'+l); return el2 ? el2.value : undefined; }),
-        correct: (document.getElementById('mb-correct')||{}).value,
-        explanation: (document.getElementById('mb-explanation')||{}).value
-      };
-      STATE.myBankOptionCount = parseInt(e.target.value,10);
-      render();
-    });
-  }
 
   const mydocsSearch = document.getElementById('mydocs-search');
   if(mydocsSearch){ mydocsSearch.addEventListener('input', (e)=>{ STATE.myDocsSearch = e.target.value; render(); }); }
